@@ -187,6 +187,7 @@
                     <div id="userBadge" class="flex items-center gap-2 bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
                         <i class="fa-solid fa-user-check text-emerald-600"></i>
                         <span id="currentUserName">زائر</span>
+                        <button id="btnChangeSelfPin" onclick="openSelfChangePinModal()" class="hidden text-brand-600 hover:text-brand-800 text-[11px] font-bold border-r border-slate-300 pr-2 cursor-pointer" title="تغيير كلمة المرور الخاصة بي">🔑 تغيير الرمز</button>
                         <button onclick="logout()" class="text-rose-600 hover:text-rose-800 text-[11px] font-bold mr-1 border-r border-slate-300 pr-2 cursor-pointer" title="تسجيل الخروج">خروج</button>
                     </div>
 
@@ -698,13 +699,13 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">اسم العميل / المنشأة *</label>
-                        <input type="text" id="formCustomer" required placeholder="مثال: عيادة د. محمد / صيدلية الشفاء..."
+                        <input type="text" id="formCustomer" required placeholder="مثال: عيادة د. محمد / صيدلية الشفاء..." 
                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500">
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">رقم الهاتف *</label>
-                        <input type="tel" id="formPhone" required placeholder="05xxxxxxxx"
+                        <input type="tel" id="formPhone" required placeholder="05xxxxxxxx" 
                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500" dir="ltr">
                     </div>
                 </div>
@@ -804,7 +805,7 @@
 
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">الإجراء المتخذ والتفاصيل والنتائج</label>
-                    <textarea id="formNotes" rows="2.5" required placeholder="اكتب تفاصيل الإجراء المتخذ مع العميل والنتيجة لتوثيقها في سجل العميل..."
+                    <textarea id="formNotes" rows="2.5" required placeholder="اكتب تفاصيل الإجراء المتخذ مع العميل والنتيجة لتوثيقها في سجل العميل..." 
                               class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500 resize-none"></textarea>
                 </div>
 
@@ -850,7 +851,7 @@
                                     <input type="file" onchange="handleFileSelected(event, 'docMainName')" class="hidden">
                                 </label>
                             </div>
-                            <input type="text" id="clientName" required placeholder="مثال: عيادة د. خالد الأحمد / مجمع الشفاء الطبي"
+                            <input type="text" id="clientName" required placeholder="مثال: عيادة د. خالد الأحمد / مجمع الشفاء الطبي" 
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
                             <span id="badge_docMainName" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
@@ -863,7 +864,7 @@
                                     <input type="file" onchange="handleFileSelected(event, 'docContactPerson')" class="hidden">
                                 </label>
                             </div>
-                            <input type="text" id="clientContactPerson" placeholder="اسم الطبيب / المدير المساق..."
+                            <input type="text" id="clientContactPerson" placeholder="اسم الطبيب / المدير المساق..." 
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
                             <span id="badge_docContactPerson" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
@@ -878,7 +879,7 @@
                                     <input type="file" onchange="handleFileSelected(event, 'docPhone')" class="hidden">
                                 </label>
                             </div>
-                            <input type="tel" id="clientPhone" required placeholder="05xxxxxxxx" dir="ltr"
+                            <input type="tel" id="clientPhone" required placeholder="05xxxxxxxx" dir="ltr" 
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
                             <span id="badge_docPhone" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
@@ -1045,13 +1046,13 @@
 
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">العنوان التفصيلي</label>
-                    <input type="text" id="clientAddress" placeholder="اسم الشارع / الحي / رقم المبنى..."
+                    <input type="text" id="clientAddress" placeholder="اسم الشارع / الحي / رقم المبنى..." 
                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-indigo-500">
                 </div>
 
                 <div>
                     <label class="block font-bold text-slate-700 mb-1">ملاحظات العميل / المتابعة</label>
-                    <textarea id="clientNotes" rows="2" placeholder="أي تفاصيل خاصة بالعميل أو مواعيد المتابعة..."
+                    <textarea id="clientNotes" rows="2" placeholder="أي تفاصيل خاصة بالعميل أو مواعيد المتابعة..." 
                               class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-indigo-500 resize-none"></textarea>
                 </div>
 
@@ -1229,7 +1230,7 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL 4: MANAGE EMPLOYEES MODAL (إدارة الموظفين) -->
+    <!-- MODAL 4: MANAGE EMPLOYEES MODAL (إدارة الموظفين - مع التعديل) -->
     <!-- ============================================================== -->
     <div id="manageEmployeesModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[90vh] flex flex-col">
@@ -1244,12 +1245,13 @@
             </div>
 
             <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
-                <!-- Add Employee Form -->
+                <!-- Add/Edit Employee Form -->
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                    <h4 class="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                    <h4 id="empFormTitle" class="font-black text-slate-800 text-xs flex items-center gap-1.5">
                         <i class="fa-solid fa-user-plus text-amber-600"></i>
                         <span>إضافة موظف جديد لخدمة العملاء</span>
                     </h4>
+                    <input type="hidden" id="editEmployeeId" value="">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">اسم الموظف الثلاثي *</label>
                         <input type="text" id="newEmployeeName" placeholder="مثال: أحمد محمود العلي" 
@@ -1265,13 +1267,18 @@
                         </div>
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">رمز الدخول السرّي (PIN)</label>
-                            <input type="password" id="newEmployeePin" placeholder="123456" 
+                            <input type="text" id="newEmployeePin" placeholder="123456" 
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none">
                         </div>
                     </div>
-                    <button type="button" onclick="addNewEmployee()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl shadow-sm transition-all cursor-pointer">
-                        + حفظ وإضافة الموظف
-                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" id="btnSaveEmployee" onclick="addNewEmployee()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl shadow-sm transition-all cursor-pointer">
+                            + حفظ وإضافة الموظف
+                        </button>
+                        <button type="button" id="btnCancelEditEmp" onclick="resetEmployeeForm()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl cursor-pointer">
+                            إلغاء
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Existing Employees List -->
@@ -1284,6 +1291,30 @@
 
             <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
                 <button type="button" onclick="closeEmployeeModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 4.5: SELF CHANGE PIN (الموظف يغير كلمة سره بنفسه) -->
+    <!-- ============================================================== -->
+    <div id="selfChangePinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl border border-slate-100 overflow-hidden my-auto p-6 space-y-4 text-right">
+            <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-key text-brand-600"></i>
+                <span>تغيير رمز الدخول السرّي (PIN)</span>
+            </h3>
+            <p class="text-xs text-slate-500 font-bold">أدخل الرمز السري الجديد الخاص بك لتسجيل الدخول به لاحقاً:</p>
+            <div>
+                <input type="password" id="selfNewPinInput" placeholder="أدخل رمز سري جديد" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-brand-500">
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button type="button" onclick="saveSelfPinChange()" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-2.5 rounded-xl text-xs cursor-pointer shadow-md">
+                    حفظ الرمز السري
+                </button>
+                <button type="button" onclick="closeSelfChangePinModal()" class="bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs cursor-pointer">
+                    إلغاء
+                </button>
             </div>
         </div>
     </div>
@@ -2417,12 +2448,14 @@
             const roleSwitcher = document.getElementById('roleSwitcherContainer');
             const btnManageEmp = document.getElementById('btnManageEmp');
             const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
+            const btnChangeSelfPin = document.getElementById('btnChangeSelfPin');
 
             if (role === 'manager') {
                 nameSpan.innerText = 'المدير العام';
                 roleSwitcher.classList.remove('hidden');
                 btnManageEmp.classList.remove('hidden');
                 agentSelectorWrapper.classList.remove('hidden');
+                if (btnChangeSelfPin) btnChangeSelfPin.classList.add('hidden');
                 window.currentAgent = 'ALL';
                 switchRole('manager');
             } else {
@@ -2430,6 +2463,7 @@
                 roleSwitcher.classList.add('hidden');
                 btnManageEmp.classList.add('hidden');
                 agentSelectorWrapper.classList.add('hidden');
+                if (btnChangeSelfPin) btnChangeSelfPin.classList.remove('hidden');
                 window.currentAgent = agentName;
                 switchRole('agent');
             }
@@ -2526,6 +2560,7 @@
         }
 
         function openEmployeeModal() {
+            resetEmployeeForm();
             renderEmployeeListUI();
             document.getElementById('manageEmployeesModal').classList.remove('hidden');
         }
@@ -2553,14 +2588,45 @@
                         </span>
                         <span class="text-[10px] text-slate-500 font-semibold block">${emp.shift} | PIN: ${emp.pin || '123456'}</span>
                     </div>
-                    <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="editEmployeeData('${emp.id}')" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-lg bg-amber-50 cursor-pointer" title="تعديل بيانات الموظف والشفت">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
             `).join('');
         }
 
+        function editEmployeeData(id) {
+            const emp = (window.employees || []).find(e => e.id === id);
+            if (!emp) return;
+
+            document.getElementById('editEmployeeId').value = emp.id;
+            document.getElementById('newEmployeeName').value = emp.name;
+            document.getElementById('newEmployeeShift').value = emp.shift || 'شفت صباحي';
+            document.getElementById('newEmployeePin').value = emp.pin || '123456';
+
+            document.getElementById('empFormTitle').innerHTML = '<i class="fa-solid fa-user-pen text-amber-600"></i> <span>تعديل بيانات الموظف والشفت والرمز السري</span>';
+            document.getElementById('btnSaveEmployee').innerText = '💾 حفظ التعديلات';
+            document.getElementById('btnCancelEditEmp').classList.remove('hidden');
+        }
+
+        function resetEmployeeForm() {
+            document.getElementById('editEmployeeId').value = '';
+            document.getElementById('newEmployeeName').value = '';
+            document.getElementById('newEmployeeShift').value = 'شفت صباحي';
+            document.getElementById('newEmployeePin').value = '';
+
+            document.getElementById('empFormTitle').innerHTML = '<i class="fa-solid fa-user-plus text-amber-600"></i> <span>إضافة موظف جديد لخدمة العملاء</span>';
+            document.getElementById('btnSaveEmployee').innerText = '+ حفظ وإضافة الموظف';
+            document.getElementById('btnCancelEditEmp').classList.add('hidden');
+        }
+
         function addNewEmployee() {
+            const editId = document.getElementById('editEmployeeId').value;
             const nameInput = document.getElementById('newEmployeeName');
             const shiftSelect = document.getElementById('newEmployeeShift');
             const pinInput = document.getElementById('newEmployeePin');
@@ -2573,12 +2639,40 @@
                 return;
             }
 
-            const newEmp = { id: 'emp_' + Date.now(), name, shift, pin };
-            window.saveEmployeeToCloud(newEmp);
+            const empObj = { id: editId ? editId : ('emp_' + Date.now()), name, shift, pin };
+            window.saveEmployeeToCloud(empObj);
 
-            nameInput.value = '';
-            pinInput.value = '';
-            showToast(`تمت إضافة الموظف (${name})`);
+            showToast(editId ? `تم تعديل بيانات الموظف (${name}) بنجاح` : `تمت إضافة الموظف (${name})`);
+            resetEmployeeForm();
+        }
+
+        // تغيير الموظف لكلمة سره بنفسه
+        function openSelfChangePinModal() {
+            document.getElementById('selfNewPinInput').value = '';
+            document.getElementById('selfChangePinModal').classList.remove('hidden');
+        }
+
+        function closeSelfChangePinModal() {
+            document.getElementById('selfChangePinModal').classList.add('hidden');
+        }
+
+        function saveSelfPinChange() {
+            const newPin = document.getElementById('selfNewPinInput').value.trim();
+            if (!newPin) {
+                showToast("يرجى كتابة الرمز السري الجديد", "error");
+                return;
+            }
+
+            const loggedName = window.currentLoggedInAgent;
+            const emp = (window.employees || []).find(e => e.name === loggedName);
+            if (emp) {
+                emp.pin = newPin;
+                window.saveEmployeeToCloud(emp);
+                showToast("تم تحديث رمز الدخول السري بنجاح!");
+                closeSelfChangePinModal();
+            } else {
+                showToast("تعذر تحديد حساب الموظف", "error");
+            }
         }
 
         function onAgentChanged() {
