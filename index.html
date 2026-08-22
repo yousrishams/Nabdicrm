@@ -59,10 +59,12 @@
             background-color: #e2e8f0;
             z-index: 0;
         }
+        
+        /* ضبط الطباعة الاحترافية للورقة A4 */
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 6mm 6mm;
+                margin: 8mm;
             }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
@@ -76,8 +78,9 @@
             }
             #dailySummaryModal {
                 position: static !important;
-                background: none !important;
+                background: transparent !important;
                 padding: 0 !important;
+                display: block !important;
             }
             .print-container {
                 width: 100% !important;
@@ -91,6 +94,12 @@
             #summaryContentArea {
                 padding: 0 !important;
                 overflow: visible !important;
+            }
+            .report-sheet {
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                padding: 12px !important;
+                page-break-inside: avoid !important;
             }
         }
     </style>
@@ -885,6 +894,7 @@
                             <option value="ESCALATIONS_REPORT">⚠️ تقرير حالات التصعيد للمدير والمهام الحرجة</option>
                             <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء ومراحل الفانل</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
+                            <option value="ENTITIES_GEO">🗺️ تقرير نوع المنشآت والتوزيع الجغرافي</option>
                             <option value="DETAILED_LOG">📋 تقرير سجل كافة التفاصيل والأنشطة</option>
                         </select>
                     </div>
@@ -922,7 +932,7 @@
 
             <!-- Footer Actions -->
             <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center shrink-0 text-xs gap-2 no-print">
-                <span class="text-slate-500 font-bold"><i class="fa-solid fa-eye text-indigo-600"></i> قالب التقرير مهيأ للطباعة والتصدير بجودة A4 فائقة</span>
+                <span class="text-slate-500 font-bold"><i class="fa-solid fa-eye text-indigo-600"></i> معاينة التقرير جاهزة ومطابقة لمقاس صفحة A4</span>
                 <div class="flex items-center gap-2">
                     <button type="button" onclick="window.print()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-md cursor-pointer">
                         <i class="fa-solid fa-print"></i>
@@ -934,811 +944,8 @@
         </div>
     </div>
 
-    <!-- FIREBASE CLOUD REALTIME SYNC ENGINE MODULE -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'cs-shifts-app';
-        const firebaseConfig = {
-            apiKey: "AIzaSyDI1SJ696IKaAk8567rXWeyDRz6Yjv94Nc",
-            authDomain: "nabdi-crm.firebaseapp.com",
-            projectId: "nabdi-crm",
-            storageBucket: "nabdi-crm.firebasestorage.app",
-            messagingSenderId: "538603219867",
-            appId: "1:538603219867:web:c4989edca28c37f3e24f3e",
-            measurementId: "G-K1TNDDZWdX"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        const employeesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
-        const tasksColRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
-        const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
-
-        window.FUNNEL_STAGES = [
-            "تم اتصال مكتمل", "مهتم", "اجتماع محدد", "الاجتماع تم", "العرض أُرسل",
-            "العقد أُرسل", "تفاوض", "عقد موقع", "تفعيل الجهة", "مؤجل", "غير مهتم"
-        ];
-
-        window.currentUserRole = null; 
-        window.currentLoggedInAgent = null; 
-        window.currentAgent = 'ALL';
-        window.currentDateFilter = new Date().toISOString().split('T')[0];
-        window.dbUser = null;
-        window.activeProfileClientId = null;
-        window.currentTempDocs = {};
-
-        window.employees = [
-            { id: 'emp_1', name: 'نور', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_2', name: 'رنيم', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_3', name: 'امنية', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_4', name: 'اماني', shift: 'شفت مسائي', pin: '123456' },
-            { id: 'emp_5', name: 'ملك', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_6', name: 'يمني', shift: 'شفت مسائي', pin: '123456' },
-            { id: 'emp_7', name: 'حبيبة', shift: 'شفت مسائي', pin: '123456' }
-        ];
-        window.tasks = [];
-        window.clients = [];
-
-        window.specialtiesList = [
-            "طب وجراحة العيون", "طب وجراحة الأسنان", "الجلدية والتجميل", "الباطنة والقلب",
-            "طب الأطفال وحديثي الولادة", "العظام والمفاصل", "الجراحة العامة", "النساء والتوليد والعقم",
-            "المخ والأعصاب", "الأنف والأذن والحنجرة", "المسالك البولية والتناسلية", "العلاج الطبيعي والتأهيل",
-            "الأورام وجراحتها", "الأمراض الصدرية والتنفسية", "صيدلة عامة ودواء", "مختبرات وتحاليل طبية", "خدمات طبية عامة وأخرى"
-        ];
-
-        window.getStageColorClasses = function(stage) {
-            switch(stage) {
-                case "تم اتصال مكتمل": return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" };
-                case "مهتم": return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" };
-                case "اجتماع محدد": return { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" };
-                case "عقد موقع": return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-400" };
-                default: return { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
-            }
-        };
-
-        window.loadFromLocalStorage = function() {
-            try {
-                const storedEmp = localStorage.getItem('cs_nabdi_employees');
-                if (storedEmp) window.employees = JSON.parse(storedEmp);
-                const storedTasks = localStorage.getItem('cs_nabdi_tasks');
-                if (storedTasks) window.tasks = JSON.parse(storedTasks);
-                const storedClients = localStorage.getItem('cs_nabdi_clients');
-                if (storedClients) window.clients = JSON.parse(storedClients);
-            } catch(e) {}
-        };
-
-        window.saveLocalBackup = function() {
-            try {
-                localStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
-                localStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
-                localStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
-            } catch(e) {}
-        };
-
-        async function initCloudSync() {
-            window.loadFromLocalStorage();
-            populateSpecialtiesDropdowns();
-            populateFunnelDropdowns();
-            renderEmployeeSelects();
-            renderClientSelectInTaskForm();
-
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const userCredential = await signInWithCustomToken(auth, __initial_auth_token);
-                    window.dbUser = userCredential.user;
-                } else {
-                    const userCredential = await signInAnonymously(auth);
-                    window.dbUser = userCredential.user;
-                }
-                startRealtimeListeners();
-            } catch (err) {
-                renderEmployeeSelects();
-            }
-        }
-
-        function startRealtimeListeners() {
-            if (!window.dbUser) return;
-
-            onSnapshot(employeesColRef, (snapshot) => {
-                let list = [];
-                snapshot.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
-                if (list.length > 0) {
-                    window.employees = list;
-                    window.saveLocalBackup();
-                }
-                renderEmployeeSelects();
-                if (window.currentUserRole === 'manager') renderEmployeeListUI();
-                renderApp();
-            });
-
-            onSnapshot(tasksColRef, (snapshot) => {
-                let taskList = [];
-                snapshot.forEach(docSnap => taskList.push({ id: docSnap.id, ...docSnap.data() }));
-                if (taskList.length > 0) {
-                    window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                    window.saveLocalBackup();
-                    renderApp();
-                }
-            });
-
-            onSnapshot(clientsColRef, (snapshot) => {
-                let clientList = [];
-                snapshot.forEach(docSnap => clientList.push({ id: docSnap.id, ...docSnap.data() }));
-                if (clientList.length > 0) {
-                    window.clients = clientList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                    window.saveLocalBackup();
-                    renderClientSelectInTaskForm();
-                    renderLeadsTable();
-                    updateClientsCountBadges();
-                    renderApp();
-                }
-            });
-        }
-
-        window.saveClientToCloud = async function(clientData) {
-            if (!clientData.id) clientData.id = 'lead_' + Date.now();
-            clientData.createdAt = clientData.createdAt || Date.now();
-            clientData.stage = clientData.stage || window.FUNNEL_STAGES[0];
-
-            const idx = window.clients.findIndex(c => c.id === clientData.id);
-            if (idx !== -1) window.clients[idx] = clientData;
-            else window.clients.unshift(clientData);
-
-            window.saveLocalBackup();
-            renderClientSelectInTaskForm();
-            renderLeadsTable();
-            updateClientsCountBadges();
-            renderApp();
-
-            if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', clientData.id);
-                    await setDoc(docRef, clientData);
-                } catch(e) {}
-            }
-        };
-
-        window.saveEmployeeToCloud = async function(empData) {
-            if (!empData.id) empData.id = 'emp_' + Date.now();
-            const idx = window.employees.findIndex(e => e.id === empData.id);
-            if (idx !== -1) window.employees[idx] = empData;
-            else window.employees.push(empData);
-
-            window.saveLocalBackup();
-            renderEmployeeSelects();
-            renderEmployeeListUI();
-            renderApp();
-
-            if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'employees', empData.id);
-                    await setDoc(docRef, empData);
-                } catch(e) {}
-            }
-        };
-
-        window.deleteEmployeeFromCloud = async function(empId) {
-            window.employees = window.employees.filter(e => e.id !== empId);
-            window.saveLocalBackup();
-            renderEmployeeSelects();
-            renderEmployeeListUI();
-            renderApp();
-
-            if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'employees', empId);
-                    await deleteDoc(docRef);
-                } catch(e) {}
-            }
-        };
-
-        window.saveTaskToCloud = async function(taskData) {
-            if (!taskData.id) taskData.id = 'task_' + Date.now();
-            taskData.createdAt = taskData.createdAt || Date.now();
-
-            const idx = window.tasks.findIndex(t => t.id === taskData.id);
-            if (idx !== -1) window.tasks[idx] = taskData;
-            else window.tasks.unshift(taskData);
-
-            window.saveLocalBackup();
-            renderApp();
-
-            if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskData.id);
-                    await setDoc(docRef, taskData);
-                } catch(e) {}
-            }
-        };
-
-        window.deleteTaskFromCloud = async function(taskId) {
-            window.tasks = window.tasks.filter(t => t.id !== taskId);
-            window.saveLocalBackup();
-            renderApp();
-
-            if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
-                    await deleteDoc(docRef);
-                } catch(e) {}
-            }
-        };
-
-        window.addEventListener('DOMContentLoaded', () => {
-            window.loadFromLocalStorage();
-            const datePicker = document.getElementById('globalDatePicker');
-            if (datePicker) datePicker.value = window.currentDateFilter;
-
-            initCloudSync();
-
-            localStorage.removeItem('cs_logged_role');
-            localStorage.removeItem('cs_logged_agent');
-            window.currentUserRole = null;
-            window.currentLoggedInAgent = null;
-
-            const loginOverlay = document.getElementById('loginOverlay');
-            if (loginOverlay) loginOverlay.classList.remove('hidden');
-            renderEmployeeSelects();
-        });
-    </script>
-
     <script>
-        let teamChartInstance = null;
-        let categoryChartInstance = null;
         let reportDonutChartInstance = null;
-
-        function populateFunnelDropdowns() {
-            const list = window.FUNNEL_STAGES || [];
-            const clientStage = document.getElementById('clientStage');
-            if (clientStage) clientStage.innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
-        }
-
-        function populateSpecialtiesDropdowns() {
-            const list = window.specialtiesList || [];
-            const formSpec = document.getElementById('formSpecialty');
-            const clientSpec = document.getElementById('clientSpecialty');
-            const optionsHtml = list.map(s => `<option value="${s}">${s}</option>`).join('');
-            if (formSpec) formSpec.innerHTML = optionsHtml;
-            if (clientSpec) clientSpec.innerHTML = optionsHtml;
-        }
-
-        function renderClientSelectInTaskForm() {
-            const sel = document.getElementById('formClientSelect');
-            if (!sel) return;
-            const clients = window.clients || [];
-            if (clients.length === 0) {
-                sel.innerHTML = '<option value="">لا يوجد عملاء مسجلون - اضغط + إضافة عميل جديد</option>';
-                return;
-            }
-            sel.innerHTML = '<option value="">-- اختر جهة مسجلة لتشغيل التحديث التلقائي --</option>' + 
-                clients.map(c => `<option value="${c.id}">${c.name} - [المرحلة: ${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
-            updateClientsCountBadges();
-        }
-
-        function onTaskClientSelectChanged() {
-            const clientId = document.getElementById('formClientSelect').value;
-            if (!clientId) return;
-            const client = (window.clients || []).find(c => c.id === clientId);
-            if (client) {
-                document.getElementById('formCustomer').value = client.name;
-                document.getElementById('formPhone').value = client.phone || '';
-                document.getElementById('formEntityType').value = client.entityType || 'عيادة';
-                document.getElementById('formSpecialty').value = client.specialty || window.specialtiesList[0];
-                document.getElementById('formCity').value = client.city || 'الرياض';
-                showToast(`تم استدعاء بيانات الجهة (${client.name})`);
-            }
-        }
-
-        function openAddClientModal() {
-            populateFunnelDropdowns();
-            const modal = document.getElementById('addClientModal');
-            document.getElementById('clientForm').reset();
-            document.getElementById('clientId').value = '';
-            modal.classList.remove('hidden');
-        }
-
-        function closeAddClientModal() {
-            document.getElementById('addClientModal').classList.add('hidden');
-        }
-
-        function handleSaveClient(e) {
-            e.preventDefault();
-            const id = document.getElementById('clientId').value;
-            const name = document.getElementById('clientName').value.trim();
-            const contactPerson = document.getElementById('clientContactPerson').value.trim();
-            const phone = document.getElementById('clientPhone').value.trim();
-            const stage = document.getElementById('clientStage').value;
-            const city = document.getElementById('clientCity').value;
-            const entityType = document.getElementById('clientEntityType').value;
-            const specialty = document.getElementById('clientSpecialty').value;
-            const accountNumber = document.getElementById('clientAccountNumber').value.trim();
-            const iban = document.getElementById('clientIban').value.trim();
-            const commission = document.getElementById('clientCommission').value.trim();
-
-            if (!name || !phone) {
-                showToast("يرجى ملء اسم الجهة ورقم الهاتف", "error");
-                return;
-            }
-
-            const clientData = {
-                id: id || null,
-                name, contactPerson, phone, stage, city, entityType, specialty,
-                accountNumber, iban, commission
-            };
-
-            window.saveClientToCloud(clientData);
-            showToast(`تم حفظ الجهة (${name}) بالسحابة!`);
-            closeAddClientModal();
-        }
-
-        function renderLeadsTable() {
-            const tbody = document.getElementById('leadsTableBody');
-            if (!tbody) return;
-            const clients = window.clients || [];
-            tbody.innerHTML = clients.map(c => `
-                <tr class="hover:bg-indigo-50/30 transition-colors">
-                    <td class="p-2.5 font-bold text-slate-900">${c.name}</td>
-                    <td class="p-2.5 font-bold text-indigo-900">${c.entityType || 'عيادة'}</td>
-                    <td class="p-2.5 font-bold text-slate-700">${c.phone} (${c.city || 'الرياض'})</td>
-                    <td class="p-2.5 font-bold text-emerald-800">${c.commission || '-'}</td>
-                    <td class="p-2.5"><span class="px-2.5 py-1 rounded-xl text-[10px] font-black bg-purple-100 text-purple-900">${c.stage || 'جديد'}</span></td>
-                    <td class="p-2.5 text-center">
-                        <button onclick="openAddTaskModal('${c.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">+ إجراء</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function updateClientsCountBadges(filteredCount = null) {
-            const total = window.clients ? window.clients.length : 0;
-            const headerBadge = document.getElementById('clientsHeaderCountBadge');
-            const modalBadge = document.getElementById('clientsCountBadge');
-            if (headerBadge) headerBadge.innerText = total;
-            if (modalBadge) modalBadge.innerText = total;
-        }
-
-        function openClientDirectoryModal() {
-            populateFunnelDropdowns();
-            renderLeadsTable();
-            document.getElementById('clientDirectoryModal').classList.remove('hidden');
-        }
-
-        function closeClientDirectoryModal() {
-            document.getElementById('clientDirectoryModal').classList.add('hidden');
-        }
-
-        function renderAgentTasks() {
-            const shiftVal = document.getElementById('agentFilterShift') ? document.getElementById('agentFilterShift').value : 'ALL';
-            const entityTypeVal = document.getElementById('agentFilterEntityType') ? document.getElementById('agentFilterEntityType').value : 'ALL';
-            const statusVal = document.getElementById('agentFilterStatus') ? document.getElementById('agentFilterStatus').value : 'ALL';
-            const searchVal = document.getElementById('agentSearchInput') ? document.getElementById('agentSearchInput').value.trim().toLowerCase() : '';
-
-            let dayTasks = getFilteredDateTasks();
-            let activeAgent = (window.currentUserRole === 'agent') ? window.currentLoggedInAgent : window.currentAgent;
-
-            let filtered = dayTasks.filter(t => {
-                const matchShift = (shiftVal === 'ALL') || (t.shift === shiftVal);
-                const matchAgent = (activeAgent === 'ALL') || (t.agent === activeAgent);
-                const matchEntityType = (entityTypeVal === 'ALL') || (t.entityType === entityTypeVal);
-                const matchStatus = (statusVal === 'ALL') || (t.status === statusVal);
-                const matchSearch = !searchVal || (t.customer && t.customer.toLowerCase().includes(searchVal)) || (t.notes && t.notes.toLowerCase().includes(searchVal));
-                return matchShift && matchAgent && matchEntityType && matchStatus && matchSearch;
-            });
-
-            const answeredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (تم الرد)').length;
-            const unansweredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (لم يرد)').length;
-            
-            if (document.getElementById('agentTotalCalls')) document.getElementById('agentTotalCalls').innerText = answeredCalls + unansweredCalls;
-            if (document.getElementById('agentAnsweredCalls')) document.getElementById('agentAnsweredCalls').innerText = answeredCalls;
-            if (document.getElementById('agentUnansweredCalls')) document.getElementById('agentUnansweredCalls').innerText = unansweredCalls;
-            if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'إرسال واتساب').length;
-            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'اجتماع').length;
-            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (طرف نبضي)').length;
-            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (الطرفين)').length;
-            if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
-            if (document.getElementById('agentTasksCountBadge')) document.getElementById('agentTasksCountBadge').innerText = filtered.length;
-
-            const tbody = document.getElementById('agentTaskTableBody');
-            const emptyState = document.getElementById('agentEmptyState');
-            if (!tbody) return;
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = '';
-                if (emptyState) emptyState.classList.remove('hidden');
-                return;
-            }
-            if (emptyState) emptyState.classList.add('hidden');
-
-            tbody.innerHTML = filtered.map(t => `
-                <tr class="hover:bg-slate-50/80 transition-colors">
-                    <td class="p-3 text-slate-500 font-bold whitespace-nowrap">${t.time || '10:00 ص'}</td>
-                    <td class="p-3 font-bold whitespace-nowrap text-slate-700">${t.shift}</td>
-                    <td class="p-3 font-extrabold text-slate-900 whitespace-nowrap">${t.agent}</td>
-                    <td class="p-3 font-bold text-slate-900">
-                        <div>${t.customer}</div>
-                        <div class="text-[10px] text-slate-500 font-semibold dir-ltr text-right">${t.phone || ''}</div>
-                    </td>
-                    <td class="p-3 font-bold text-indigo-800 whitespace-nowrap">${t.entityType || 'عيادة'}</td>
-                    <td class="p-3 font-bold text-slate-700 whitespace-nowrap">${t.city || 'الرياض'}</td>
-                    <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${t.category}</td>
-                    <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}</td>
-                    <td class="p-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border">${t.status}</span></td>
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <button type="button" onclick="confirmDeleteTask('${t.id}')" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg border border-rose-200"><i class="fa-solid fa-trash-can"></i></button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function openAddTaskModal(clientIdToPreselect = null) {
-            const modal = document.getElementById('addTaskModal');
-            document.getElementById('taskForm').reset();
-            document.getElementById('taskId').value = '';
-            document.getElementById('formDate').value = window.currentDateFilter;
-            renderClientSelectInTaskForm();
-
-            if (window.currentUserRole === 'agent' && window.currentLoggedInAgent) {
-                document.getElementById('formAgent').value = window.currentLoggedInAgent;
-            }
-            if (clientIdToPreselect) {
-                const client = (window.clients || []).find(c => c.id === clientIdToPreselect);
-                if (client) {
-                    document.getElementById('formClientSelect').value = client.id;
-                    document.getElementById('formCustomer').value = client.name;
-                    document.getElementById('formPhone').value = client.phone || '';
-                }
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeAddTaskModal() {
-            document.getElementById('addTaskModal').classList.add('hidden');
-        }
-
-        function handleSaveTask(e) {
-            e.preventDefault();
-            const taskId = document.getElementById('taskId').value;
-            const taskDate = document.getElementById('formDate').value || window.currentDateFilter;
-            const shift = document.getElementById('formShift').value;
-            const agent = document.getElementById('formAgent').value;
-            const selectedClientId = document.getElementById('formClientSelect').value;
-            const customer = document.getElementById('formCustomer').value.trim();
-            const phone = document.getElementById('formPhone').value.trim();
-            const entityType = document.getElementById('formEntityType').value;
-            const specialty = document.getElementById('formSpecialty').value;
-            const city = document.getElementById('formCity').value;
-            const category = document.getElementById('formCategory').value;
-            const status = document.getElementById('formStatus').value;
-            const notes = document.getElementById('formNotes').value.trim();
-
-            const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-
-            const taskData = {
-                id: taskId || null,
-                clientId: selectedClientId || null,
-                time: currentTimeStr,
-                date: taskDate,
-                shift, agent, customer, phone, entityType, specialty, city, category, status, notes
-            };
-
-            window.saveTaskToCloud(taskData);
-            showToast("تم حفظ الإجراء بالسحابة بنجاح!");
-            closeAddTaskModal();
-        }
-
-        function confirmDeleteTask(id) {
-            if (confirm("هل تريد حذف هذا الإجراء بشكل نهائي؟")) {
-                window.deleteTaskFromCloud(id);
-                showToast("تم حذف الإجراء بنجاح", "info");
-            }
-        }
-
-        function toggleLoginInputs() {
-            const role = document.getElementById('loginRole').value;
-            const container = document.getElementById('loginEmpSelectContainer');
-            if (role === 'manager') container.classList.add('hidden');
-            else {
-                container.classList.remove('hidden');
-                populateLoginEmployeeSelect();
-            }
-        }
-
-        function populateLoginEmployeeSelect() {
-            const sel = document.getElementById('loginEmployeeName');
-            if (!sel) return;
-            sel.innerHTML = (window.employees || []).map(e => `<option value="${e.name}">${e.name} (${e.shift})</option>`).join('');
-        }
-
-        function handleLogin(e) {
-            e.preventDefault();
-            const role = document.getElementById('loginRole').value;
-            const password = document.getElementById('loginPassword').value.trim();
-            const agentName = document.getElementById('loginEmployeeName').value;
-
-            if (role === 'manager') {
-                if (password !== 'admin123') {
-                    showToast("كلمة مرور المدير غير صحيحة", "error");
-                    return;
-                }
-                applyLoginSession('manager', null);
-            } else {
-                if (!agentName) {
-                    showToast("يرجى اختيار اسم الموظف", "error");
-                    return;
-                }
-                const empObj = window.employees.find(e => e.name === agentName);
-                const validPin = (empObj && empObj.pin) ? empObj.pin : '123456';
-                if (password !== validPin && password !== '123456') {
-                    showToast("كلمة مرور الموظف غير صحيحة", "error");
-                    return;
-                }
-                applyLoginSession('agent', agentName);
-            }
-            showToast("تم تسجيل الدخول بنجاح");
-        }
-
-        function applyLoginSession(role, agentName) {
-            window.currentUserRole = role;
-            window.currentLoggedInAgent = agentName;
-            document.getElementById('loginOverlay').classList.add('hidden');
-            const nameSpan = document.getElementById('currentUserName');
-            const roleSwitcher = document.getElementById('roleSwitcherContainer');
-            const btnManageEmp = document.getElementById('btnManageEmp');
-            const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
-
-            if (role === 'manager') {
-                nameSpan.innerText = 'المدير العام';
-                roleSwitcher.classList.remove('hidden');
-                btnManageEmp.classList.remove('hidden');
-                agentSelectorWrapper.classList.remove('hidden');
-                window.currentAgent = 'ALL';
-                switchRole('manager');
-            } else {
-                nameSpan.innerText = `الموظف: ${agentName}`;
-                roleSwitcher.classList.add('hidden');
-                btnManageEmp.classList.add('hidden');
-                agentSelectorWrapper.classList.add('hidden');
-                window.currentAgent = agentName;
-                switchRole('agent');
-            }
-            renderApp();
-        }
-
-        function logout() {
-            window.currentUserRole = null;
-            window.currentLoggedInAgent = null;
-            document.getElementById('loginOverlay').classList.remove('hidden');
-            showToast("تم تسجيل الخروج", "info");
-        }
-
-        function showToast(msg, type = 'success') {
-            const toastBox = document.getElementById('toastBox');
-            const toastMessage = document.getElementById('toastMessage');
-            toastMessage.innerText = msg;
-            toastBox.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
-            toastBox.classList.add('translate-y-0', 'opacity-100');
-            setTimeout(() => {
-                toastBox.classList.remove('translate-y-0', 'opacity-100');
-                toastBox.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-            }, 3000);
-        }
-
-        function switchRole(role) {
-            const btnAgent = document.getElementById('btnRoleAgent');
-            const btnManager = document.getElementById('btnRoleManager');
-            const agentView = document.getElementById('agentView');
-            const managerView = document.getElementById('managerView');
-
-            if (role === 'agent') {
-                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg bg-white text-brand-600 shadow-sm cursor-pointer";
-                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer";
-                agentView.classList.remove('hidden');
-                managerView.classList.add('hidden');
-            } else {
-                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg bg-white text-brand-600 shadow-sm cursor-pointer";
-                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer";
-                agentView.classList.add('hidden');
-                managerView.classList.remove('hidden');
-                renderManagerDashboard();
-            }
-        }
-
-        function setTodayDate() {
-            window.currentDateFilter = new Date().toISOString().split('T')[0];
-            document.getElementById('globalDatePicker').value = window.currentDateFilter;
-            renderApp();
-            showToast("تم الانتقال لليوم الحالي");
-        }
-
-        function onDateFilterChanged(newDate) {
-            if (!newDate) return;
-            window.currentDateFilter = newDate;
-            renderApp();
-        }
-
-        function getFilteredDateTasks() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            return (window.tasks || []).filter(t => (t.date || todayStr) === window.currentDateFilter);
-        }
-
-        function renderEmployeeSelects() {
-            const agentSelector = document.getElementById('agentSelector');
-            const formAgent = document.getElementById('formAgent');
-            const summaryAgent = document.getElementById('summaryAgentFilter');
-            let optionsHtml = '<option value="ALL">جميع الموظفين (الكل)</option>';
-            let formOptionsHtml = '';
-
-            (window.employees || []).forEach(emp => {
-                optionsHtml += `<option value="${emp.name}">${emp.name}</option>`;
-                formOptionsHtml += `<option value="${emp.name}">${emp.name} (${emp.shift})</option>`;
-            });
-
-            if (agentSelector) agentSelector.innerHTML = optionsHtml;
-            if (formAgent) formAgent.innerHTML = formOptionsHtml;
-            if (summaryAgent) summaryAgent.innerHTML = optionsHtml;
-            populateLoginEmployeeSelect();
-        }
-
-        function openEmployeeModal() {
-            resetEmployeeForm();
-            renderEmployeeListUI();
-            document.getElementById('manageEmployeesModal').classList.remove('hidden');
-        }
-
-        function closeEmployeeModal() {
-            document.getElementById('manageEmployeesModal').classList.add('hidden');
-        }
-
-        function renderEmployeeListUI() {
-            const container = document.getElementById('employeesListContainer');
-            if (!container) return;
-            container.innerHTML = (window.employees || []).map((emp) => `
-                <div class="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm gap-2">
-                    <div>
-                        <span class="font-bold text-slate-800 text-xs flex items-center gap-1.5"><i class="fa-solid fa-user-check text-brand-600"></i> ${emp.name}</span>
-                        <span class="text-[10px] text-slate-500 font-semibold block">${emp.shift} | PIN: ${emp.pin || '123456'}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <button type="button" onclick="editEmployeeData('${emp.id}')" class="text-amber-600 p-1.5 rounded-lg bg-amber-50 cursor-pointer"><i class="fa-solid fa-pen"></i></button>
-                        <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 p-1.5 rounded-lg bg-rose-50 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function editEmployeeData(id) {
-            const emp = (window.employees || []).find(e => e.id === id);
-            if (!emp) return;
-            document.getElementById('editEmployeeId').value = emp.id;
-            document.getElementById('newEmployeeName').value = emp.name;
-            document.getElementById('newEmployeeShift').value = emp.shift || 'شفت صباحي';
-            document.getElementById('newEmployeePin').value = emp.pin || '123456';
-            document.getElementById('empFormTitle').innerText = 'تعديل بيانات الموظف';
-            document.getElementById('btnSaveEmployee').innerText = '💾 حفظ التعديلات';
-            document.getElementById('btnCancelEditEmp').classList.remove('hidden');
-        }
-
-        function resetEmployeeForm() {
-            document.getElementById('editEmployeeId').value = '';
-            document.getElementById('newEmployeeName').value = '';
-            document.getElementById('newEmployeeShift').value = 'شفت صباحي';
-            document.getElementById('newEmployeePin').value = '';
-            document.getElementById('empFormTitle').innerText = 'إضافة موظف جديد';
-            document.getElementById('btnSaveEmployee').innerText = '+ حفظ الموظف';
-            document.getElementById('btnCancelEditEmp').classList.add('hidden');
-        }
-
-        function addNewEmployee() {
-            const editId = document.getElementById('editEmployeeId').value;
-            const name = document.getElementById('newEmployeeName').value.trim();
-            const shift = document.getElementById('newEmployeeShift').value;
-            const pin = document.getElementById('newEmployeePin').value.trim() || '123456';
-
-            if (!name) {
-                showToast("يرجى كتابة اسم الموظف", "error");
-                return;
-            }
-            const empObj = { id: editId ? editId : ('emp_' + Date.now()), name, shift, pin };
-            window.saveEmployeeToCloud(empObj);
-            showToast(editId ? `تم تعديل الموظف (${name})` : `تمت إضافة الموظف (${name})`);
-            resetEmployeeForm();
-        }
-
-        function onAgentChanged() {
-            window.currentAgent = document.getElementById('agentSelector').value;
-            renderAgentTasks();
-        }
-
-        function renderApp() {
-            renderAgentTasks();
-            if (window.currentUserRole === 'manager') {
-                renderManagerDashboard();
-            }
-        }
-
-        function renderManagerDashboard() {
-            const dayTasks = getFilteredDateTasks();
-            const answeredCalls = dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-            const unansweredCalls = dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
-            const totalCalls = answeredCalls + unansweredCalls;
-
-            if (document.getElementById('mgrTotalCalls')) document.getElementById('mgrTotalCalls').innerText = totalCalls;
-            if (document.getElementById('mgrAnsweredCalls')) document.getElementById('mgrAnsweredCalls').innerText = answeredCalls;
-            if (document.getElementById('mgrUnansweredCalls')) document.getElementById('mgrUnansweredCalls').innerText = unansweredCalls;
-            if (document.getElementById('mgrWhatsappCount')) document.getElementById('mgrWhatsappCount').innerText = dayTasks.filter(t => t.category === 'إرسال واتساب').length;
-            if (document.getElementById('mgrMeetingsCount')) document.getElementById('mgrMeetingsCount').innerText = dayTasks.filter(t => t.category === 'اجتماع').length;
-            if (document.getElementById('mgrNabdiContracts')) document.getElementById('mgrNabdiContracts').innerText = dayTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-            if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = dayTasks.filter(t => t.category === 'عقد (الطرفين)').length;
-            if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = window.clients.length;
-
-            renderCharts(dayTasks);
-        }
-
-        function renderCharts(dayTasks) {
-            const emps = (window.employees || []).map(e => e.name);
-            const empTaskCounts = emps.map(name => dayTasks.filter(t => t.agent === name).length);
-
-            const ctx1 = document.getElementById('teamPerformanceChart');
-            if (ctx1) {
-                if (teamChartInstance) teamChartInstance.destroy();
-                teamChartInstance = new Chart(ctx1, {
-                    type: 'bar',
-                    data: {
-                        labels: emps.length > 0 ? emps : ['لا يوجد'],
-                        datasets: [{
-                            label: 'عدد الإجراءات اليومية',
-                            data: empTaskCounts.length > 0 ? empTaskCounts : [0],
-                            backgroundColor: '#8b5cf6',
-                            borderRadius: 8
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-            }
-
-            const ctx2 = document.getElementById('taskCategoryChart');
-            if (ctx2) {
-                const categories = ['مكالمة (تم الرد)', 'مكالمة (لم يرد)', 'إرسال واتساب', 'اجتماع', 'عقود'];
-                const counts = [
-                    dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length,
-                    dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length,
-                    dayTasks.filter(t => t.category === 'إرسال واتساب').length,
-                    dayTasks.filter(t => t.category === 'اجتماع').length,
-                    dayTasks.filter(t => t.category && t.category.includes('عقد')).length
-                ];
-
-                if (categoryChartInstance) categoryChartInstance.destroy();
-                categoryChartInstance = new Chart(ctx2, {
-                    type: 'doughnut',
-                    data: {
-                        labels: categories,
-                        datasets: [{ data: counts, backgroundColor: ['#10b981', '#f43f5e', '#3b82f6', '#a855f7', '#f59e0b'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-                });
-            }
-        }
-
-        // ==========================================
-        // DIVERSE REPORTS & INFOGRAPHIC ENGINE (المحرك الشامل للتقارير)
-        // ==========================================
-        function openDailySummaryModal() {
-            renderEmployeeSelects();
-            const today = window.currentDateFilter || new Date().toISOString().split('T')[0];
-            document.getElementById('summaryStartDate').value = today;
-            document.getElementById('summaryEndDate').value = today;
-            generateReportContent();
-            document.getElementById('dailySummaryModal').classList.remove('hidden');
-        }
-
-        function closeDailySummaryModal() {
-            document.getElementById('dailySummaryModal').classList.add('hidden');
-        }
 
         function generateReportContent() {
             const reportType = document.getElementById('reportTypeSelect').value;
@@ -1747,19 +954,36 @@
             const shift = document.getElementById('summaryShiftFilter').value;
             const agent = document.getElementById('summaryAgentFilter').value;
 
+            // فلترة المهام والعمليات بدقة
             const filteredTasks = (window.tasks || []).filter(t => {
-                const matchDate = (!start || t.date >= start) && (!end || t.date <= end);
+                const taskDate = t.date || '';
+                const matchDate = (!start || taskDate >= start) && (!end || taskDate <= end);
                 const matchShift = (shift === 'ALL') || (t.shift === shift);
                 const matchAgent = (agent === 'ALL') || (t.agent === agent);
                 return matchDate && matchShift && matchAgent;
             });
 
+            // فلترة جهات الاتصال المسجلة
             const allClients = window.clients || [];
             const area = document.getElementById('summaryContentArea');
             if (!area) return;
 
+            // Header Template للتقارير الرسمية
+            const getReportHeader = (title, subtitle) => `
+                <div class="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="font-black text-slate-900 text-base sm:text-lg">${title}</h2>
+                        <p class="text-xs text-purple-800 font-bold mt-0.5">${subtitle || `المدى الزمني: من ${start} إلى ${end} | الشفت: ${shift} | الموظف: ${agent}`}</p>
+                    </div>
+                    <div class="text-left text-[11px] font-bold text-slate-500">
+                        <div>منصة نبضي NABDI CRM</div>
+                        <div>تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}</div>
+                    </div>
+                </div>
+            `;
+
             // ==========================================
-            // القالب 1: إنفوجرافيك أداء خدمة العملاء المعتمد (صفحة واحدة طبق الأصل)
+            // 1. الإنفوجرافيك المعتمد (مطابق للصورة تماماً A4)
             // ==========================================
             if (reportType === 'INFOGRAPHIC_MAIN') {
                 const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
@@ -1773,11 +997,10 @@
                 const whatsappCount = filteredTasks.filter(t => t.category === 'إرسال واتساب').length;
                 const meetingsCount = filteredTasks.filter(t => t.category === 'اجتماع').length;
 
-                const ansPct = totalCalls > 0 ? ((answeredCalls / totalCalls) * 100).toFixed(1) : 0;
-                const unansPct = totalCalls > 0 ? ((unansweredCalls / totalCalls) * 100).toFixed(1) : 0;
-                const cancPct = totalCalls > 0 ? ((canceledCalls / totalCalls) * 100).toFixed(1) : 0;
+                const ansPct = totalCalls > 0 ? ((answeredCalls / totalCalls) * 100).toFixed(1) : "0.0";
+                const unansPct = totalCalls > 0 ? ((unansweredCalls / totalCalls) * 100).toFixed(1) : "0.0";
+                const cancPct = totalCalls > 0 ? ((canceledCalls / totalCalls) * 100).toFixed(1) : "0.0";
 
-                // Team Performance Calculations
                 const emps = window.employees || [];
                 let teamStats = emps.map(emp => {
                     const empTasks = filteredTasks.filter(t => t.agent === emp.name);
@@ -1803,7 +1026,7 @@
 
                 teamStats.sort((a, b) => b.avgScore - a.avgScore);
 
-                const topAvgEmp = teamStats[0] ? teamStats[0].name : 'لا يوجد';
+                const topAvgEmp = teamStats[0]?.name || 'لا يوجد';
                 const topCallsEmp = [...teamStats].sort((a,b)=>b.calls - a.calls)[0]?.name || 'لا يوجد';
                 const maxCallsVal = [...teamStats].sort((a,b)=>b.calls - a.calls)[0]?.calls || 0;
                 const topLeadsEmp = [...teamStats].sort((a,b)=>b.leads - a.leads)[0]?.name || 'لا يوجد';
@@ -1812,96 +1035,96 @@
                 const maxCustVal = [...teamStats].sort((a,b)=>b.cust - a.cust)[0]?.cust || 0;
 
                 area.innerHTML = `
-                    <div class="max-w-[780px] mx-auto bg-white border border-indigo-100 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 text-slate-800">
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-indigo-100 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5 text-slate-800">
                         
                         <!-- Header Graphic -->
-                        <div class="flex justify-between items-start border-b border-indigo-100 pb-3">
+                        <div class="flex justify-between items-start border-b border-indigo-100 pb-2.5">
                             <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-800 flex items-center justify-center text-white text-xl shadow-md">
+                                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-800 flex items-center justify-center text-white text-xl shadow-md">
                                     ⚡
                                 </div>
                                 <div>
-                                    <h1 class="text-2xl font-black text-indigo-950 tracking-tight">تقرير أداء منصة نبضي</h1>
-                                    <p class="text-sm font-bold text-indigo-600">الفترة التشغيلية: من ${start} إلى ${end}</p>
+                                    <h1 class="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">تقرير أداء منصة نبضي</h1>
+                                    <p class="text-xs font-bold text-indigo-600">الفترة التشغيلية: من ${start} إلى ${end}</p>
                                 </div>
                             </div>
-                            <div class="text-left text-xs font-bold text-slate-400">
+                            <div class="text-left text-[11px] font-bold text-slate-400">
                                 <div>منصة نبضي NABDI</div>
-                                <div class="text-purple-700 font-extrabold text-sm">CRM Dashboard</div>
+                                <div class="text-purple-700 font-extrabold text-xs">CRM Performance Sheet</div>
                             </div>
                         </div>
 
                         <!-- Top 6 KPI Cards -->
-                        <div class="grid grid-cols-6 gap-2 text-center">
-                            <div class="bg-purple-50/70 border border-purple-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-purple-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-phone"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">إجمالي المكالمات</span>
-                                <b class="text-lg font-black text-purple-950">${totalCalls}</b>
+                        <div class="grid grid-cols-6 gap-1.5 text-center">
+                            <div class="bg-purple-50/80 border border-purple-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-phone"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">إجمالي المكالمات</span>
+                                <b class="text-base font-black text-purple-950">${totalCalls}</b>
                             </div>
-                            <div class="bg-blue-50/70 border border-blue-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-headset"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">المكالمات المجابة</span>
-                                <b class="text-lg font-black text-blue-950">${answeredCalls}</b>
+                            <div class="bg-blue-50/80 border border-blue-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-headset"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">المكالمات المجابة</span>
+                                <b class="text-base font-black text-blue-950">${answeredCalls}</b>
                             </div>
-                            <div class="bg-indigo-50/70 border border-indigo-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-user-group"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">العملاء المهتمون</span>
-                                <b class="text-lg font-black text-indigo-950">${leadsCount}</b>
+                            <div class="bg-indigo-50/80 border border-indigo-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-user-group"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">العملاء المهتمون</span>
+                                <b class="text-base font-black text-indigo-950">${leadsCount}</b>
                             </div>
-                            <div class="bg-sky-50/70 border border-sky-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-sky-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-file-signature"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">العقود الموقعة</span>
-                                <b class="text-lg font-black text-sky-950">${signedContracts}</b>
+                            <div class="bg-sky-50/80 border border-sky-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-sky-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-file-signature"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">العقود الموقعة</span>
+                                <b class="text-base font-black text-sky-950">${signedContracts}</b>
                             </div>
-                            <div class="bg-emerald-50/70 border border-emerald-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-brands fa-whatsapp"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">رسائل واتساب</span>
-                                <b class="text-lg font-black text-emerald-950">${whatsappCount}</b>
+                            <div class="bg-emerald-50/80 border border-emerald-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-brands fa-whatsapp"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">رسائل واتساب</span>
+                                <b class="text-base font-black text-emerald-950">${whatsappCount}</b>
                             </div>
-                            <div class="bg-amber-50/70 border border-amber-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-amber-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-calendar-check"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">عدد الاجتماعات</span>
-                                <b class="text-lg font-black text-amber-950">${meetingsCount}</b>
+                            <div class="bg-amber-50/80 border border-amber-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-amber-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-calendar-check"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">عدد الاجتماعات</span>
+                                <b class="text-base font-black text-amber-950">${meetingsCount}</b>
                             </div>
                         </div>
 
                         <!-- Section: نتائج المكالمات -->
-                        <div class="bg-slate-50/70 border border-slate-200 rounded-2xl p-3.5">
-                            <div class="bg-indigo-900 text-white text-center py-1 rounded-xl text-xs font-black mb-3 w-40 mx-auto">
+                        <div class="bg-slate-50/70 border border-slate-200 rounded-2xl p-2.5">
+                            <div class="bg-indigo-900 text-white text-center py-0.5 rounded-xl text-xs font-black mb-2 w-36 mx-auto">
                                 نتائج المكالمات
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                                <div class="h-36 relative flex items-center justify-center">
+                            <div class="grid grid-cols-2 gap-3 items-center">
+                                <div class="h-28 relative flex items-center justify-center">
                                     <canvas id="reportDonutCanvas"></canvas>
                                 </div>
                                 <table class="w-full text-right text-xs border-collapse">
-                                    <thead class="bg-indigo-950 text-white font-black">
+                                    <thead class="bg-indigo-950 text-white font-black text-[11px]">
                                         <tr>
-                                            <th class="p-1.5 text-center">النتيجة</th>
-                                            <th class="p-1.5 text-center">العدد</th>
-                                            <th class="p-1.5 text-center">النسبة</th>
+                                            <th class="p-1 text-center">النتيجة</th>
+                                            <th class="p-1 text-center">العدد</th>
+                                            <th class="p-1 text-center">النسبة</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-200 font-bold">
+                                    <tbody class="divide-y divide-slate-200 font-bold text-[11px]">
                                         <tr>
-                                            <td class="p-1.5 text-blue-700 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span> مكتملة / مجابة</td>
-                                            <td class="p-1.5 text-center">${answeredCalls}</td>
-                                            <td class="p-1.5 text-center">${ansPct}%</td>
+                                            <td class="p-1 text-blue-700 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-600 inline-block"></span> مكتملة / مجابة</td>
+                                            <td class="p-1 text-center">${answeredCalls}</td>
+                                            <td class="p-1 text-center">${ansPct}%</td>
                                         </tr>
                                         <tr>
-                                            <td class="p-1.5 text-purple-700 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span> لا يوجد رد</td>
-                                            <td class="p-1.5 text-center">${unansweredCalls}</td>
-                                            <td class="p-1.5 text-center">${unansPct}%</td>
+                                            <td class="p-1 text-purple-700 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-600 inline-block"></span> لا يوجد رد</td>
+                                            <td class="p-1 text-center">${unansweredCalls}</td>
+                                            <td class="p-1 text-center">${unansPct}%</td>
                                         </tr>
                                         <tr>
-                                            <td class="p-1.5 text-slate-500 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block"></span> ملغاة / أخرى</td>
-                                            <td class="p-1.5 text-center">${canceledCalls}</td>
-                                            <td class="p-1.5 text-center">${cancPct}%</td>
+                                            <td class="p-1 text-slate-500 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span> ملغاة / أخرى</td>
+                                            <td class="p-1 text-center">${canceledCalls}</td>
+                                            <td class="p-1 text-center">${cancPct}%</td>
                                         </tr>
                                         <tr class="bg-indigo-50 font-black text-indigo-950">
-                                            <td class="p-1.5">إجمالي المكالمات</td>
-                                            <td class="p-1.5 text-center">${totalCalls}</td>
-                                            <td class="p-1.5 text-center">100%</td>
+                                            <td class="p-1">إجمالي المكالمات</td>
+                                            <td class="p-1 text-center">${totalCalls}</td>
+                                            <td class="p-1 text-center">100%</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1910,35 +1133,35 @@
 
                         <!-- Section: أداء فريق خدمة العملاء -->
                         <div>
-                            <div class="bg-indigo-900 text-white text-center py-1 rounded-xl text-xs font-black mb-2 w-48 mx-auto">
+                            <div class="bg-indigo-900 text-white text-center py-0.5 rounded-xl text-xs font-black mb-1.5 w-44 mx-auto">
                                 أداء فريق خدمة العملاء
                             </div>
                             <table class="w-full text-center text-xs border border-indigo-200 rounded-xl overflow-hidden">
-                                <thead class="bg-indigo-950 text-white font-black">
+                                <thead class="bg-indigo-950 text-white font-black text-[11px]">
                                     <tr>
-                                        <th class="p-1.5">الترتيب</th>
-                                        <th class="p-1.5 text-right">الموظف</th>
-                                        <th class="p-1.5">عدد المكالمات</th>
-                                        <th class="p-1.5">المكالمات المجابة</th>
-                                        <th class="p-1.5">Leads</th>
-                                        <th class="p-1.5">Customer</th>
-                                        <th class="p-1.5">نسبة الرد</th>
-                                        <th class="p-1.5">نسبة التوقيع</th>
-                                        <th class="p-1.5 bg-indigo-900">متوسط الأداء العام</th>
+                                        <th class="p-1">الترتيب</th>
+                                        <th class="p-1 text-right">الموظف</th>
+                                        <th class="p-1">المكالمات</th>
+                                        <th class="p-1">المجابة</th>
+                                        <th class="p-1">Leads</th>
+                                        <th class="p-1">Customer</th>
+                                        <th class="p-1">نسبة الرد</th>
+                                        <th class="p-1">نسبة التوقيع</th>
+                                        <th class="p-1 bg-indigo-900">الأداء العام</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-200 font-bold">
+                                <tbody class="divide-y divide-slate-200 font-bold text-[11px]">
                                     ${teamStats.map((st, idx) => `
-                                        <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40">
-                                            <td class="p-1.5 font-black text-indigo-900">${idx + 1}</td>
-                                            <td class="p-1.5 text-right font-black">${st.name}</td>
-                                            <td class="p-1.5">${st.calls}</td>
-                                            <td class="p-1.5 text-blue-700">${st.ans}</td>
-                                            <td class="p-1.5 text-indigo-700">${st.leads}</td>
-                                            <td class="p-1.5 text-emerald-700 font-black">${st.cust}</td>
-                                            <td class="p-1.5">${st.ansRate}</td>
-                                            <td class="p-1.5">${st.signRate}</td>
-                                            <td class="p-1.5 font-black text-purple-900 bg-purple-50/50">${st.avgScore}%</td>
+                                        <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}">
+                                            <td class="p-1 font-black text-indigo-900">${idx + 1}</td>
+                                            <td class="p-1 text-right font-black">${st.name}</td>
+                                            <td class="p-1">${st.calls}</td>
+                                            <td class="p-1 text-blue-700">${st.ans}</td>
+                                            <td class="p-1 text-indigo-700">${st.leads}</td>
+                                            <td class="p-1 text-emerald-700 font-black">${st.cust}</td>
+                                            <td class="p-1">${st.ansRate}</td>
+                                            <td class="p-1">${st.signRate}</td>
+                                            <td class="p-1 font-black text-purple-900 bg-purple-50/50">${st.avgScore}%</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -1947,42 +1170,41 @@
 
                         <!-- Section: أبرز المؤشرات -->
                         <div>
-                            <div class="bg-indigo-900 text-white text-center py-1 rounded-xl text-xs font-black mb-2 w-40 mx-auto">
+                            <div class="bg-indigo-900 text-white text-center py-0.5 rounded-xl text-xs font-black mb-1.5 w-36 mx-auto">
                                 أبرز المؤشرات
                             </div>
                             <div class="grid grid-cols-4 gap-2 text-center">
-                                <div class="bg-purple-50 border border-purple-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أفضل متوسط أداء</span>
-                                    <div class="text-xs font-black text-purple-950 mt-0.5">${topAvgEmp}</div>
-                                    <b class="text-base font-black text-purple-700">${teamStats[0]?.avgScore || 0}%</b>
+                                <div class="bg-purple-50 border border-purple-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أفضل متوسط أداء</span>
+                                    <div class="text-[11px] font-black text-purple-950 mt-0.5">${topAvgEmp}</div>
+                                    <b class="text-sm font-black text-purple-700">${teamStats[0]?.avgScore || 0}%</b>
                                 </div>
-                                <div class="bg-blue-50 border border-blue-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أعلى عدد مكالمات</span>
-                                    <div class="text-xs font-black text-blue-950 mt-0.5">${topCallsEmp}</div>
-                                    <b class="text-base font-black text-blue-700">${maxCallsVal}</b>
+                                <div class="bg-blue-50 border border-blue-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أعلى عدد مكالمات</span>
+                                    <div class="text-[11px] font-black text-blue-950 mt-0.5">${topCallsEmp}</div>
+                                    <b class="text-sm font-black text-blue-700">${maxCallsVal}</b>
                                 </div>
-                                <div class="bg-indigo-50 border border-indigo-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أعلى Leads</span>
-                                    <div class="text-xs font-black text-indigo-950 mt-0.5">${topLeadsEmp}</div>
-                                    <b class="text-base font-black text-indigo-700">${maxLeadsVal}</b>
+                                <div class="bg-indigo-50 border border-indigo-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أعلى Leads</span>
+                                    <div class="text-[11px] font-black text-indigo-950 mt-0.5">${topLeadsEmp}</div>
+                                    <b class="text-sm font-black text-indigo-700">${maxLeadsVal}</b>
                                 </div>
-                                <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أعلى Customer</span>
-                                    <div class="text-xs font-black text-emerald-950 mt-0.5">${topCustEmp}</div>
-                                    <b class="text-base font-black text-emerald-700">${maxCustVal}</b>
+                                <div class="bg-emerald-50 border border-emerald-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أعلى Customer</span>
+                                    <div class="text-[11px] font-black text-emerald-950 mt-0.5">${topCustEmp}</div>
+                                    <b class="text-sm font-black text-emerald-700">${maxCustVal}</b>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Footer Note -->
-                        <div class="text-center text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-100">
+                        <div class="text-center text-[9px] text-slate-400 font-bold pt-1.5 border-t border-slate-100">
                             متوسط الأداء العام = مؤشر مركب يعتمد على نسبة الرد + نسبة التوقيع + مساهمة Leads + مساهمة Customer الموثقة بسحابة نبضي.
                         </div>
 
                     </div>
                 `;
 
-                // Render Donut Chart
                 setTimeout(() => {
                     const canvas = document.getElementById('reportDonutCanvas');
                     if (canvas) {
@@ -1992,7 +1214,7 @@
                             data: {
                                 labels: ['مكتملة / مجابة', 'لا يوجد رد', 'ملغاة'],
                                 datasets: [{
-                                    data: [answeredCalls || 1, unansweredCalls, canceledCalls],
+                                    data: [answeredCalls || (totalCalls === 0 ? 1 : 0), unansweredCalls, canceledCalls],
                                     backgroundColor: ['#2563eb', '#7c3aed', '#94a3b8'],
                                     borderWidth: 2
                                 }]
@@ -2009,57 +1231,360 @@
                 return;
             }
 
-            // باقي التقارير الأخرى (مكالمات، واتساب، اجتماعات، عقود...)
+            // ==========================================
+            // 2. تقرير المكالمات والاتصالات التفصيلي
+            // ==========================================
             if (reportType === 'CALLS_REPORT') {
                 const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
+                const ans = callTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+                const unans = callTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+                const total = callTasks.length;
+                const ansRate = total > 0 ? Math.round((ans / total) * 100) : 0;
+
                 area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير المكالمات التفصيلي (${callTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-blue-100 font-black">
-                            <tr><th class="p-2 border">الوقت</th><th class="p-2 border">الموظف</th><th class="p-2 border">العميل</th><th class="p-2 border">النوع</th><th class="p-2 border">الملاحظات</th></tr>
-                        </thead>
-                        <tbody>
-                            ${callTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date} ${t.time}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-indigo-900">${t.customer}</td><td class="p-2 border">${t.category}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('📞 تقرير المكالمات والاتصالات التفصيلي')}
+                        
+                        <div class="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+                            <div class="bg-blue-50 border border-blue-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">إجمالي المكالمات</span><b class="text-lg text-blue-950 font-black">${total}</b></div>
+                            <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">تم الرد</span><b class="text-lg text-emerald-700 font-black">${ans}</b></div>
+                            <div class="bg-rose-50 border border-rose-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">لم يتم الرد</span><b class="text-lg text-rose-600 font-black">${unans}</b></div>
+                            <div class="bg-indigo-50 border border-indigo-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">نسبة الرد</span><b class="text-lg text-indigo-900 font-black">${ansRate}%</b></div>
+                        </div>
+
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-blue-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">الوقت والتاريخ</th>
+                                    <th class="p-2 border">الموظف</th>
+                                    <th class="p-2 border">العميل / المنشأة</th>
+                                    <th class="p-2 border">الهاتف</th>
+                                    <th class="p-2 border">النوع</th>
+                                    <th class="p-2 border">الملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${callTasks.length > 0 ? callTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date} ${t.time || ''}</td>
+                                        <td class="p-2 border font-bold">${t.agent}</td>
+                                        <td class="p-2 border font-bold text-indigo-900">${t.customer}</td>
+                                        <td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td>
+                                        <td class="p-2 border font-bold ${t.category === 'مكالمة (تم الرد)' ? 'text-emerald-700' : 'text-rose-600'}">${t.category}</td>
+                                        <td class="p-2 border">${t.notes}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد مكالمات مسجلة في هذا النطاق.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
-            } else if (reportType === 'WHATSAPP_REPORT') {
+            }
+
+            // ==========================================
+            // 3. تقرير رسائل الواتساب
+            // ==========================================
+            else if (reportType === 'WHATSAPP_REPORT') {
                 const waTasks = filteredTasks.filter(t => t.category === 'إرسال واتساب');
                 area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير رسائل الواتساب (${waTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-emerald-100 font-black">
-                            <tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الموظف</th><th class="p-2 border">الجهة</th><th class="p-2 border">الهاتف</th><th class="p-2 border">الإجراء المتخذ</th></tr>
-                        </thead>
-                        <tbody>
-                            ${waTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-slate-900">${t.customer}</td><td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('💬 تقرير إرسال رسائل الواتساب')}
+                        
+                        <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex justify-between items-center">
+                            <div>
+                                <h3 class="text-xs font-black text-emerald-950">إجمالي رسائل الواتساب المرسلة: ${waTasks.length} رسالة</h3>
+                                <p class="text-[10px] text-emerald-800">متابعات العروض، الاتفاقيات، والاستفسارات السريعة.</p>
+                            </div>
+                            <i class="fa-brands fa-whatsapp text-3xl text-emerald-600"></i>
+                        </div>
+
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-emerald-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">التاريخ</th>
+                                    <th class="p-2 border">الموظف</th>
+                                    <th class="p-2 border">الجهة</th>
+                                    <th class="p-2 border">رقم الواتساب</th>
+                                    <th class="p-2 border">الإجراء المتخذ</th>
+                                    <th class="p-2 border">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${waTasks.length > 0 ? waTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date}</td>
+                                        <td class="p-2 border font-bold">${t.agent}</td>
+                                        <td class="p-2 border font-bold text-slate-900">${t.customer}</td>
+                                        <td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td>
+                                        <td class="p-2 border">${t.notes}</td>
+                                        <td class="p-2 border font-bold text-emerald-700">${t.status}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لم يتم تسجيل رسائل واتساب في هذه الفترة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
-            } else if (reportType === 'MEETINGS_REPORT') {
+            }
+
+            // ==========================================
+            // 4. تقرير الاجتماعات
+            // ==========================================
+            else if (reportType === 'MEETINGS_REPORT') {
                 const meetTasks = filteredTasks.filter(t => t.category === 'اجتماع');
                 area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير الاجتماعات والزيارات (${meetTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-purple-100 font-black">
-                            <tr><th class="p-2 border">الموعد</th><th class="p-2 border">الموظف</th><th class="p-2 border">المنشأة</th><th class="p-2 border">التفاصيل والقرارات</th></tr>
-                        </thead>
-                        <tbody>
-                            ${meetTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date} ${t.time}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-purple-950">${t.customer}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('🤝 تقرير الاجتماعات والزيارات المنعقدة')}
+                        
+                        <div class="bg-purple-50 border border-purple-200 p-3 rounded-2xl flex justify-between items-center">
+                            <div>
+                                <h3 class="text-xs font-black text-purple-950">إجمالي الاجتماعات المنعقدة: ${meetTasks.length} اجتماع</h3>
+                                <p class="text-[10px] text-purple-800">جلسات التفاوض المباشر وعرض خدمات المنظومة.</p>
+                            </div>
+                            <i class="fa-solid fa-handshake text-3xl text-purple-600"></i>
+                        </div>
+
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-purple-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">الموعد</th>
+                                    <th class="p-2 border">الموظف</th>
+                                    <th class="p-2 border">المنشأة</th>
+                                    <th class="p-2 border">التفاصيل والقرارات</th>
+                                    <th class="p-2 border">حالة المتابعة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${meetTasks.length > 0 ? meetTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date} ${t.time || ''}</td>
+                                        <td class="p-2 border font-bold">${t.agent}</td>
+                                        <td class="p-2 border font-bold text-purple-950">${t.customer}</td>
+                                        <td class="p-2 border">${t.notes}</td>
+                                        <td class="p-2 border font-bold text-purple-800">${t.status}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لا توجد اجتماعات مسجلة في هذا النطاق.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
-            } else {
+            }
+
+            // ==========================================
+            // 5. تقرير العقود
+            // ==========================================
+            else if (reportType === 'CONTRACTS_REPORT') {
+                const contractTasks = filteredTasks.filter(t => t.category && t.category.includes('عقد'));
                 area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير سجل الأنشطة والعمليات (${filteredTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-slate-100 font-black">
-                            <tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الموظف</th><th class="p-2 border">العميل</th><th class="p-2 border">النشاط</th><th class="p-2 border">التفاصيل</th></tr>
-                        </thead>
-                        <tbody>
-                            ${filteredTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-slate-900">${t.customer}</td><td class="p-2 border">${t.category}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('📑 تقرير توقيع العقود وإغلاق الصفقات')}
+                        
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-amber-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">تاريخ الإجراء</th>
+                                    <th class="p-2 border">الموظف</th>
+                                    <th class="p-2 border">الجهة المتعاقدة</th>
+                                    <th class="p-2 border">نوع العقد</th>
+                                    <th class="p-2 border">تفاصيل الاتفاق</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${contractTasks.length > 0 ? contractTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date}</td>
+                                        <td class="p-2 border font-bold">${t.agent}</td>
+                                        <td class="p-2 border font-bold text-slate-900">${t.customer}</td>
+                                        <td class="p-2 border font-bold ${t.category === 'عقد (الطرفين)' ? 'text-emerald-700' : 'text-amber-700'}">${t.category}</td>
+                                        <td class="p-2 border">${t.notes}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لا توجد عقود مسجلة خلال الفترة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // ==========================================
+            // 6. تقرير التصعيد للمدير
+            // ==========================================
+            else if (reportType === 'ESCALATIONS_REPORT') {
+                const escTasks = filteredTasks.filter(t => t.status === 'تصعيد للمدير');
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('⚠️ تقرير حالات التصعيد للمدير والمهام الحرجة')}
+                        
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-rose-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">التاريخ والوقت</th>
+                                    <th class="p-2 border">الموظف</th>
+                                    <th class="p-2 border">العميل</th>
+                                    <th class="p-2 border">الهاتف</th>
+                                    <th class="p-2 border">سبب وملاحظات التصعيد</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${escTasks.length > 0 ? escTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date} ${t.time || ''}</td>
+                                        <td class="p-2 border font-bold">${t.agent}</td>
+                                        <td class="p-2 border font-bold text-slate-900">${t.customer}</td>
+                                        <td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td>
+                                        <td class="p-2 border text-rose-800 font-medium">${t.notes}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لا توجد حالات تصعيد مسجلة (العمل يسير بسلاسة).</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // ==========================================
+            // 7. تقرير رحلة العملاء (Funnel Stages)
+            // ==========================================
+            else if (reportType === 'FUNNEL_STAGES') {
+                const stageCounts = (window.FUNNEL_STAGES || []).map(st => {
+                    return { stage: st, count: allClients.filter(c => c.stage === st).length };
+                });
+
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('🎯 تقرير رحلة العملاء ومسار الفانل (Funnel Conversion)', `إجمالي الجهات المسجلة: ${allClients.length}`)}
+                        
+                        <div class="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+                            ${stageCounts.map(item => `
+                                <div class="bg-slate-50 border border-slate-200 p-2 rounded-xl">
+                                    <span class="text-[10px] text-slate-600 font-bold block">${item.stage}</span>
+                                    <b class="text-sm text-indigo-900 font-black">${item.count}</b>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-indigo-950 text-white font-black">
+                                <tr>
+                                    <th class="p-2 border">المنشأة</th>
+                                    <th class="p-2 border">المسؤول</th>
+                                    <th class="p-2 border">الهاتف</th>
+                                    <th class="p-2 border">المدينة</th>
+                                    <th class="p-2 border">المرحلة الحالية</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allClients.length > 0 ? allClients.map(c => `
+                                    <tr>
+                                        <td class="p-2 border font-bold text-indigo-900">${c.name}</td>
+                                        <td class="p-2 border">${c.contactPerson || '-'}</td>
+                                        <td class="p-2 border font-mono dir-ltr">${c.phone}</td>
+                                        <td class="p-2 border">${c.city || 'الرياض'}</td>
+                                        <td class="p-2 border font-black text-purple-900">${c.stage || 'تم اتصال مكتمل'}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لا توجد جهات مسجلة حتى الآن.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // ==========================================
+            // 8. تقرير العمولات والحسابات والآيبان
+            // ==========================================
+            else if (reportType === 'BANK_COMMISSIONS') {
+                const finClients = allClients.filter(c => c.accountNumber || c.iban || c.commission);
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('💰 تقرير العمولات والحسابات البنكية والآيبان', `الجهات الموثق لها بيانات مالية: ${finClients.length} من أصل ${allClients.length}`)}
+                        
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-emerald-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">الجهة / العميل</th>
+                                    <th class="p-2 border">رقم الحساب</th>
+                                    <th class="p-2 border">رقم الآيبان (IBAN)</th>
+                                    <th class="p-2 border">العمولة المتفق عليها</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allClients.length > 0 ? allClients.map(c => `
+                                    <tr>
+                                        <td class="p-2 border font-bold text-slate-900">${c.name}</td>
+                                        <td class="p-2 border font-bold">${c.accountNumber || 'غير مدخل'}</td>
+                                        <td class="p-2 border font-mono dir-ltr text-right">${c.iban || 'غير مدخل'}</td>
+                                        <td class="p-2 border font-black text-emerald-700">${c.commission || 'غير محددة'}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">لا توجد بيانات مالية مسجلة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // ==========================================
+            // 9. تقرير نوع المنشآت والتوزيع الجغرافي
+            // ==========================================
+            else if (reportType === 'ENTITIES_GEO') {
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('🗺️ تقرير نوع المنشآت والتوزيع الجغرافي')}
+                        
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-indigo-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">اسم المنشأة</th>
+                                    <th class="p-2 border">نوع المنشأة</th>
+                                    <th class="p-2 border">التخصص</th>
+                                    <th class="p-2 border">المدينة</th>
+                                    <th class="p-2 border">الهاتف</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${allClients.length > 0 ? allClients.map(c => `
+                                    <tr>
+                                        <td class="p-2 border font-bold text-slate-900">${c.name}</td>
+                                        <td class="p-2 border font-bold text-indigo-800">${c.entityType || 'عيادة'}</td>
+                                        <td class="p-2 border">${c.specialty || '-'}</td>
+                                        <td class="p-2 border font-bold">${c.city || 'الرياض'}</td>
+                                        <td class="p-2 border font-mono dir-ltr">${c.phone}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لا توجد جهات مسجلة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // ==========================================
+            // 10. تقرير السجل الشامل لكافة الأنشطة
+            // ==========================================
+            else {
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('📋 تقرير سجل كافة التفاصيل والأنشطة', `إجمالي العمليات المنفذة: ${filteredTasks.length}`)}
+                        
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-slate-100 text-slate-900 font-black">
+                                <tr>
+                                    <th class="p-2 border">الوقت والتاريخ</th>
+                                    <th class="p-2 border">الموظف والشفت</th>
+                                    <th class="p-2 border">العميل</th>
+                                    <th class="p-2 border">النشاط</th>
+                                    <th class="p-2 border">التفاصيل</th>
+                                    <th class="p-2 border">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredTasks.length > 0 ? filteredTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date} ${t.time || ''}</td>
+                                        <td class="p-2 border font-bold">${t.agent} (${t.shift})</td>
+                                        <td class="p-2 border font-bold text-indigo-900">${t.customer}</td>
+                                        <td class="p-2 border font-bold text-brand-700">${t.category}</td>
+                                        <td class="p-2 border">${t.notes}</td>
+                                        <td class="p-2 border font-bold">${t.status}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد سجلات في الفترة المحددة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             }
         }
