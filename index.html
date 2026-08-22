@@ -1856,6 +1856,7 @@
                 return;
             }
 
+            const isNewClient = !id;
             const clientData = {
                 id: id || null,
                 name, contactPerson, phone, stage, city, entityType, specialty, address, notes,
@@ -1865,6 +1866,37 @@
             };
 
             window.saveClientToCloud(clientData);
+
+            // عند تسجيل عميل جديد لأول مرة، يتم تلقائياً إضافة إجراء حركي أول بسجله
+            if (isNewClient) {
+                const currentAgentName = window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام';
+                const currentEmpObj = (window.employees || []).find(e => e.name === currentAgentName);
+                const empShift = currentEmpObj ? currentEmpObj.shift : 'شفت صباحي';
+                const todayStr = new Date().toISOString().split('T')[0];
+                const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+                const initialTask = {
+                    id: 'task_' + Date.now(),
+                    clientId: clientData.id,
+                    time: currentTimeStr,
+                    date: window.currentDateFilter || todayStr,
+                    shift: empShift,
+                    agent: currentAgentName,
+                    customer: name,
+                    phone: phone,
+                    entityType: entityType,
+                    specialty: specialty,
+                    city: city,
+                    category: 'تسجيل جهة جديدة',
+                    channel: 'نظام نبضي',
+                    priority: 'عادية',
+                    status: 'مكتمل',
+                    notes: `تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.${notes ? ' ملاحظات: ' + notes : ''}`
+                };
+
+                window.saveTaskToCloud(initialTask);
+            }
+
             showToast(`تم حفظ الجهة (${name}) والعمولات والمستندات بالسحابة!`);
             closeAddClientModal();
         }
@@ -2105,9 +2137,10 @@
 
             container.innerHTML = clientTasks.map((t) => {
                 let iconClass = "fa-phone bg-blue-500 text-white";
-                if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
-                if (t.category === 'اجتماع') iconClass = "fa-handshake bg-purple-600 text-white";
-                if (t.category && t.category.includes('عقد')) iconClass = "fa-file-signature bg-amber-500 text-white";
+                if (t.category === 'تسجيل جهة جديدة') iconClass = "fa-user-plus bg-emerald-600 text-white";
+                else if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
+                else if (t.category === 'اجتماع') iconClass = "fa-handshake bg-purple-600 text-white";
+                else if (t.category && t.category.includes('عقد')) iconClass = "fa-file-signature bg-amber-500 text-white";
 
                 return `
                     <div class="relative flex items-start gap-3 z-10">
