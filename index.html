@@ -1509,6 +1509,7 @@
                 if (taskList.length > 0) {
                     window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                     window.saveLocalBackup();
+                    window.syncTasksToClients();
                     renderApp();
                     if (window.activeProfileClientId) {
                         renderClientTimelineUI(window.activeProfileClientId);
@@ -1522,6 +1523,7 @@
                 if (clientList.length > 0) {
                     window.clients = clientList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                     window.saveLocalBackup();
+                    window.syncTasksToClients();
                     renderClientSelectInTaskForm();
                     renderLeadsTable();
                     updateClientsCountBadges();
@@ -1529,6 +1531,62 @@
                 }
             });
         }
+
+        window.syncTasksToClients = function() {
+            if (!window.tasks || window.tasks.length === 0) return;
+            window.clients = window.clients || [];
+            let updatedAny = false;
+
+            window.tasks.forEach(t => {
+                if (!t.customer && !t.phone) return;
+                
+                let client = window.clients.find(c => 
+                    (t.clientId && c.id === t.clientId) ||
+                    (t.phone && c.phone && c.phone.trim() === t.phone.trim()) ||
+                    (t.customer && c.name && c.name.trim().toLowerCase() === t.customer.trim().toLowerCase())
+                );
+
+                if (!client && t.customer) {
+                    let newStage = (window.FUNNEL_STAGES && window.FUNNEL_STAGES[0]) ? window.FUNNEL_STAGES[0] : 'تم اتصال مكتمل';
+                    if (t.category === 'اجتماع') newStage = 'اجتماع محدد';
+                    else if (t.category === 'عقد (طرف نبضي)') newStage = 'العقد أُرسل';
+                    else if (t.category === 'عقد (الطرفين)') newStage = 'عقد موقع';
+
+                    const newClient = {
+                        id: t.clientId || ('lead_' + Date.now() + '_' + Math.floor(Math.random()*1000)),
+                        name: t.customer.trim(),
+                        phone: t.phone ? t.phone.trim() : '',
+                        contactPerson: '',
+                        city: t.city || 'الرياض',
+                        entityType: t.entityType || 'عيادة',
+                        specialty: t.specialty || '',
+                        stage: newStage,
+                        addedBy: t.agent || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام'),
+                        createdAt: t.createdAt || Date.now()
+                    };
+
+                    t.clientId = newClient.id;
+                    window.clients.unshift(newClient);
+                    updatedAny = true;
+
+                    if (window.dbUser) {
+                        try {
+                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', newClient.id);
+                            setDoc(docRef, newClient);
+                        } catch(e) {}
+                    }
+                } else if (client && !t.clientId) {
+                    t.clientId = client.id;
+                }
+            });
+
+            if (updatedAny) {
+                window.saveLocalBackup();
+                renderClientSelectInTaskForm();
+                renderLeadsTable();
+                updateClientsCountBadges();
+            }
+        };
 
         window.saveClientToCloud = async function(clientData) {
             if (!clientData.id) clientData.id = 'lead_' + Date.now();
@@ -1609,24 +1667,44 @@
             if (!taskData.id) taskData.id = 'task_' + Date.now();
             taskData.createdAt = taskData.createdAt || Date.now();
 
-            const idx = window.tasks.findIndex(t => t.id === taskData.id);
-            if (idx !== -1) window.tasks[idx] = taskData;
-            else window.tasks.unshift(taskData);
+            if (taskData.customer) {
+                let matchedClient = (window.clients || []).find(c => 
+                    (taskData.clientId && c.id === taskData.clientId) ||
+                    (taskData.phone && c.phone && c.phone.trim() === taskData.phone.trim()) ||
+                    (c.name && c.name.trim().toLowerCase() === taskData.customer.trim().toLowerCase())
+                );
 
-            if (taskData.clientId) {
-                let matchedClient = (window.clients || []).find(c => c.id === taskData.clientId);
-                if (matchedClient) {
-                    let newStage = matchedClient.stage;
-                    if (taskData.category === 'اجتماع') newStage = 'اجتماع محدد';
-                    else if (taskData.category === 'عقد (طرف نبضي)') newStage = 'العقد أُرسل';
-                    else if (taskData.category === 'عقد (الطرفين)') newStage = 'عقد موقع';
+                let stageForTask = matchedClient ? matchedClient.stage : (window.FUNNEL_STAGES ? window.FUNNEL_STAGES[0] : 'تم اتصال مكتمل');
+                if (taskData.category === 'اجتماع') stageForTask = 'اجتماع محدد';
+                else if (taskData.category === 'عقد (طرف نبضي)') stageForTask = 'العقد أُرسل';
+                else if (taskData.category === 'عقد (الطرفين)') stageForTask = 'عقد موقع';
 
-                    if (newStage !== matchedClient.stage) {
-                        matchedClient.stage = newStage;
+                if (!matchedClient) {
+                    matchedClient = {
+                        id: taskData.clientId || ('lead_' + Date.now()),
+                        name: taskData.customer.trim(),
+                        phone: taskData.phone ? taskData.phone.trim() : '',
+                        contactPerson: '',
+                        city: taskData.city || 'الرياض',
+                        entityType: taskData.entityType || 'عيادة',
+                        specialty: taskData.specialty || '',
+                        stage: stageForTask,
+                        addedBy: taskData.agent || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام'),
+                        createdAt: Date.now()
+                    };
+                    window.saveClientToCloud(matchedClient);
+                } else {
+                    taskData.clientId = matchedClient.id;
+                    if (stageForTask !== matchedClient.stage) {
+                        matchedClient.stage = stageForTask;
                         window.saveClientToCloud(matchedClient);
                     }
                 }
             }
+
+            const idx = window.tasks.findIndex(t => t.id === taskData.id);
+            if (idx !== -1) window.tasks[idx] = taskData;
+            else window.tasks.unshift(taskData);
 
             window.saveLocalBackup();
             renderApp();
