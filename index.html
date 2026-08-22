@@ -187,7 +187,6 @@
                     <div id="userBadge" class="flex items-center gap-2 bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
                         <i class="fa-solid fa-user-check text-emerald-600"></i>
                         <span id="currentUserName">زائر</span>
-                        <button id="btnChangeSelfPin" onclick="openSelfChangePinModal()" class="hidden text-brand-600 hover:text-brand-800 text-[11px] font-bold border-r border-slate-300 pr-2 cursor-pointer" title="تغيير كلمة المرور الخاصة بي">🔑 تغيير الرمز</button>
                         <button onclick="logout()" class="text-rose-600 hover:text-rose-800 text-[11px] font-bold mr-1 border-r border-slate-300 pr-2 cursor-pointer" title="تسجيل الخروج">خروج</button>
                     </div>
 
@@ -430,7 +429,7 @@
                         <div>
                             <span class="bg-white/20 text-purple-200 border border-white/20 text-xs px-3 py-1 rounded-full font-bold">لوحة المتابعة المباشرة والتقارير الشاملة</span>
                             <h2 class="text-2xl font-black mt-2">متابعة الأداء والتقارير والعمولات والبيانات المالية</h2>
-                            <p class="text-purple-200 text-xs mt-1">إدارة شاملة لرحلة العملائ، بيانات الحسابات، الآيبان، العمولات المبرمة، واستخراج التقارير قبل الطباعة.</p>
+                            <p class="text-purple-200 text-xs mt-1">إدارة شاملة لرحلة العملاء، بيانات الحسابات، الآيبان، العمولات المبرمة، واستخراج التقارير قبل الطباعة.</p>
                         </div>
                     </div>
 
@@ -1230,7 +1229,7 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL 4: MANAGE EMPLOYEES MODAL (إدارة الموظفين - مع التعديل) -->
+    <!-- MODAL 4: MANAGE EMPLOYEES MODAL (إدارة الموظفين) -->
     <!-- ============================================================== -->
     <div id="manageEmployeesModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[90vh] flex flex-col">
@@ -1245,13 +1244,12 @@
             </div>
 
             <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
-                <!-- Add/Edit Employee Form -->
+                <!-- Add Employee Form -->
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                    <h4 id="empFormTitle" class="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                    <h4 class="font-black text-slate-800 text-xs flex items-center gap-1.5">
                         <i class="fa-solid fa-user-plus text-amber-600"></i>
                         <span>إضافة موظف جديد لخدمة العملاء</span>
                     </h4>
-                    <input type="hidden" id="editEmployeeId" value="">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">اسم الموظف الثلاثي *</label>
                         <input type="text" id="newEmployeeName" placeholder="مثال: أحمد محمود العلي" 
@@ -1267,18 +1265,13 @@
                         </div>
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">رمز الدخول السرّي (PIN)</label>
-                            <input type="text" id="newEmployeePin" placeholder="123456" 
+                            <input type="password" id="newEmployeePin" placeholder="123456" 
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none">
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button type="button" id="btnSaveEmployee" onclick="addNewEmployee()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl shadow-sm transition-all cursor-pointer">
-                            + حفظ وإضافة الموظف
-                        </button>
-                        <button type="button" id="btnCancelEditEmp" onclick="resetEmployeeForm()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl cursor-pointer">
-                            إلغاء
-                        </button>
-                    </div>
+                    <button type="button" onclick="addNewEmployee()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl shadow-sm transition-all cursor-pointer">
+                        + حفظ وإضافة الموظف
+                    </button>
                 </div>
 
                 <!-- Existing Employees List -->
@@ -1296,31 +1289,7 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL 4.5: SELF CHANGE PIN (الموظف يغير كلمة سره بنفسه) -->
-    <!-- ============================================================== -->
-    <div id="selfChangePinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl border border-slate-100 overflow-hidden my-auto p-6 space-y-4 text-right">
-            <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
-                <i class="fa-solid fa-key text-brand-600"></i>
-                <span>تغيير رمز الدخول السرّي (PIN)</span>
-            </h3>
-            <p class="text-xs text-slate-500 font-bold">أدخل الرمز السري الجديد الخاص بك لتسجيل الدخول به لاحقاً:</p>
-            <div>
-                <input type="password" id="selfNewPinInput" placeholder="أدخل رمز سري جديد" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 focus:outline-none focus:border-brand-500">
-            </div>
-            <div class="flex gap-2 pt-2">
-                <button type="button" onclick="saveSelfPinChange()" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-extrabold py-2.5 rounded-xl text-xs cursor-pointer shadow-md">
-                    حفظ الرمز السري
-                </button>
-                <button type="button" onclick="closeSelfChangePinModal()" class="bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs cursor-pointer">
-                    إلغاء
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- MODAL 5: DIVERSE REPORTS & FILTERING ENGINE & PREVIEW (موسع وشامل) -->
+    <!-- MODAL 5: DIVERSE REPORTS & FILTERING ENGINE & PREVIEW (طلب خاص) -->
     <!-- ============================================================== -->
     <div id="dailySummaryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col print-container">
@@ -1340,33 +1309,28 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوبة:</label>
-                        <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none cursor-pointer">
-                            <option value="CALLS_REPORT">📞 تقرير المكالمات والاتصالات التفصيلي</option>
-                            <option value="WHATSAPP_REPORT">💬 تقرير إرسال رسائل الواتساب</option>
-                            <option value="MEETINGS_REPORT">🤝 تقرير الاجتماعات والزيارات المنعقدة</option>
-                            <option value="CONTRACTS_REPORT">📑 تقرير توقيع العقود وإغلاق الصفقات</option>
-                            <option value="ESCALATIONS_REPORT">⚠️ تقرير حالات التصعيد للمدير والمهام الحرجة</option>
-                            <option value="SHIFT_AGENT">📊 تقرير أداء الشفتات والموظفين الشامل</option>
+                        <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none">
+                            <option value="SHIFT_AGENT">📊 تقرير أداء الشفتات والموظفين</option>
                             <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء وتحول الفانل</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
                             <option value="ENTITIES_GEO">🗺️ تقرير نوع المنشآت والتوزيع الجغرافي</option>
-                            <option value="DETAILED_LOG">📋 تقرير سجل كافة التفاصيل والأنشطة</option>
+                            <option value="DETAILED_LOG">📋 تقرير سجل التفاصيل والأنشطة</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">من تاريخ:</label>
-                        <input type="date" id="summaryStartDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <input type="date" id="summaryStartDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">إلى تاريخ:</label>
-                        <input type="date" id="summaryEndDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <input type="date" id="summaryEndDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">تصفية الشفت:</label>
-                        <select id="summaryShiftFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <select id="summaryShiftFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                             <option value="ALL">جميع الشفتات</option>
                             <option value="شفت صباحي">شفت صباحي</option>
                             <option value="شفت مسائي">شفت مسائي</option>
@@ -1375,7 +1339,7 @@
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">الموظف المسؤول:</label>
-                        <select id="summaryAgentFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <select id="summaryAgentFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                         </select>
                     </div>
                 </div>
@@ -2453,14 +2417,12 @@
             const roleSwitcher = document.getElementById('roleSwitcherContainer');
             const btnManageEmp = document.getElementById('btnManageEmp');
             const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
-            const btnChangeSelfPin = document.getElementById('btnChangeSelfPin');
 
             if (role === 'manager') {
                 nameSpan.innerText = 'المدير العام';
                 roleSwitcher.classList.remove('hidden');
                 btnManageEmp.classList.remove('hidden');
                 agentSelectorWrapper.classList.remove('hidden');
-                if (btnChangeSelfPin) btnChangeSelfPin.classList.add('hidden');
                 window.currentAgent = 'ALL';
                 switchRole('manager');
             } else {
@@ -2468,7 +2430,6 @@
                 roleSwitcher.classList.add('hidden');
                 btnManageEmp.classList.add('hidden');
                 agentSelectorWrapper.classList.add('hidden');
-                if (btnChangeSelfPin) btnChangeSelfPin.classList.remove('hidden');
                 window.currentAgent = agentName;
                 switchRole('agent');
             }
@@ -2565,7 +2526,6 @@
         }
 
         function openEmployeeModal() {
-            resetEmployeeForm();
             renderEmployeeListUI();
             document.getElementById('manageEmployeesModal').classList.remove('hidden');
         }
@@ -2593,45 +2553,14 @@
                         </span>
                         <span class="text-[10px] text-slate-500 font-semibold block">${emp.shift} | PIN: ${emp.pin || '123456'}</span>
                     </div>
-                    <div class="flex items-center gap-1">
-                        <button type="button" onclick="editEmployeeData('${emp.id}')" class="text-amber-600 hover:text-amber-800 p-1.5 rounded-lg bg-amber-50 cursor-pointer" title="تعديل بيانات الموظف والشفت">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                        <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
+                    <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>
             `).join('');
         }
 
-        function editEmployeeData(id) {
-            const emp = (window.employees || []).find(e => e.id === id);
-            if (!emp) return;
-
-            document.getElementById('editEmployeeId').value = emp.id;
-            document.getElementById('newEmployeeName').value = emp.name;
-            document.getElementById('newEmployeeShift').value = emp.shift || 'شفت صباحي';
-            document.getElementById('newEmployeePin').value = emp.pin || '123456';
-
-            document.getElementById('empFormTitle').innerHTML = '<i class="fa-solid fa-user-pen text-amber-600"></i> <span>تعديل بيانات الموظف والشفت والرمز السري</span>';
-            document.getElementById('btnSaveEmployee').innerText = '💾 حفظ التعديلات';
-            document.getElementById('btnCancelEditEmp').classList.remove('hidden');
-        }
-
-        function resetEmployeeForm() {
-            document.getElementById('editEmployeeId').value = '';
-            document.getElementById('newEmployeeName').value = '';
-            document.getElementById('newEmployeeShift').value = 'شفت صباحي';
-            document.getElementById('newEmployeePin').value = '';
-
-            document.getElementById('empFormTitle').innerHTML = '<i class="fa-solid fa-user-plus text-amber-600"></i> <span>إضافة موظف جديد لخدمة العملاء</span>';
-            document.getElementById('btnSaveEmployee').innerText = '+ حفظ وإضافة الموظف';
-            document.getElementById('btnCancelEditEmp').classList.add('hidden');
-        }
-
         function addNewEmployee() {
-            const editId = document.getElementById('editEmployeeId').value;
             const nameInput = document.getElementById('newEmployeeName');
             const shiftSelect = document.getElementById('newEmployeeShift');
             const pinInput = document.getElementById('newEmployeePin');
@@ -2644,40 +2573,12 @@
                 return;
             }
 
-            const empObj = { id: editId ? editId : ('emp_' + Date.now()), name, shift, pin };
-            window.saveEmployeeToCloud(empObj);
+            const newEmp = { id: 'emp_' + Date.now(), name, shift, pin };
+            window.saveEmployeeToCloud(newEmp);
 
-            showToast(editId ? `تم تعديل بيانات الموظف (${name}) بنجاح` : `تمت إضافة الموظف (${name})`);
-            resetEmployeeForm();
-        }
-
-        // تغيير الموظف لكلمة سره بنفسه
-        function openSelfChangePinModal() {
-            document.getElementById('selfNewPinInput').value = '';
-            document.getElementById('selfChangePinModal').classList.remove('hidden');
-        }
-
-        function closeSelfChangePinModal() {
-            document.getElementById('selfChangePinModal').classList.add('hidden');
-        }
-
-        function saveSelfPinChange() {
-            const newPin = document.getElementById('selfNewPinInput').value.trim();
-            if (!newPin) {
-                showToast("يرجى كتابة الرمز السري الجديد", "error");
-                return;
-            }
-
-            const loggedName = window.currentLoggedInAgent;
-            const emp = (window.employees || []).find(e => e.name === loggedName);
-            if (emp) {
-                emp.pin = newPin;
-                window.saveEmployeeToCloud(emp);
-                showToast("تم تحديث رمز الدخول السري بنجاح!");
-                closeSelfChangePinModal();
-            } else {
-                showToast("تعذر تحديد حساب الموظف", "error");
-            }
+            nameInput.value = '';
+            pinInput.value = '';
+            showToast(`تمت إضافة الموظف (${name})`);
         }
 
         function onAgentChanged() {
@@ -2862,7 +2763,7 @@
         }
 
         // ==========================================
-        // DIVERSE REPORTS GENERATOR & LIVE PREVIEW (المحرك الموسع)
+        // DIVERSE REPORTS GENERATOR & LIVE PREVIEW (طلب خاص)
         // ==========================================
         function openDailySummaryModal() {
             renderEmployeeSelects();
@@ -2901,7 +2802,7 @@
             let html = `
                 <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-center">
                     <div>
-                        <h2 class="font-black text-slate-900 text-lg">منصة نبضي CRM - التقرير التحليلي والإحصائي المعتمد</h2>
+                        <h2 class="font-black text-slate-900 text-lg">منصة نبضي CRM - تقرير المبيعات والعمليات والحسابات</h2>
                         <p class="text-xs text-purple-800 font-bold mt-1">المدى الزمني: من <b>${start}</b> إلى <b>${end}</b> | الشفت: <b>${shift}</b> | الموظف: <b>${agent}</b></p>
                     </div>
                     <div class="text-left text-xs font-bold text-slate-500">
@@ -2911,208 +2812,7 @@
                 </div>
             `;
 
-            // 1. تقرير المكالمات والاتصالات التفصيلي
-            if (reportType === 'CALLS_REPORT') {
-                const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
-                const ans = callTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-                const unans = callTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
-                const total = callTasks.length;
-                const ansRate = total > 0 ? Math.round((ans / total) * 100) : 0;
-
-                html += `
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                        <div class="bg-blue-50 p-3.5 rounded-2xl border border-blue-200 text-center"><span class="text-xs text-blue-800 font-bold block">إجمالي المكالمات المنجزة</span><b class="text-2xl text-blue-950 font-black">${total}</b></div>
-                        <div class="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 text-center"><span class="text-xs text-emerald-800 font-bold block">مكالمات تم الرد عليها</span><b class="text-2xl text-emerald-700 font-black">${ans}</b></div>
-                        <div class="bg-rose-50 p-3.5 rounded-2xl border border-rose-200 text-center"><span class="text-xs text-rose-800 font-bold block">مكالمات لم يتم الرد</span><b class="text-2xl text-rose-600 font-black">${unans}</b></div>
-                        <div class="bg-indigo-50 p-3.5 rounded-2xl border border-indigo-200 text-center"><span class="text-xs text-indigo-800 font-bold block">نسبة نجاح الاتصال</span><b class="text-2xl text-indigo-900 font-black">${ansRate}%</b></div>
-                    </div>
-
-                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">سجل المكالمات والاتصالات المنفذة:</h3>
-                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
-                        <thead class="bg-blue-100 text-slate-900 font-black">
-                            <tr>
-                                <th class="p-2 border border-slate-300">الوقت والتاريخ</th>
-                                <th class="p-2 border border-slate-300">الموظف</th>
-                                <th class="p-2 border border-slate-300">العميل / المنشأة</th>
-                                <th class="p-2 border border-slate-300">رقم الهاتف</th>
-                                <th class="p-2 border border-slate-300">نوع المكالمة</th>
-                                <th class="p-2 border border-slate-300">نتيجة المكالمة والملاحظات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${callTasks.length > 0 ? callTasks.map(t => `
-                                <tr>
-                                    <td class="p-2 border border-slate-300 dir-ltr text-right">${t.date} ${t.time}</td>
-                                    <td class="p-2 border border-slate-300 font-bold">${t.agent}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-indigo-900">${t.customer}</td>
-                                    <td class="p-2 border border-slate-300 font-mono dir-ltr">${t.phone || '-'}</td>
-                                    <td class="p-2 border border-slate-300 font-bold ${t.category === 'مكالمة (تم الرد)' ? 'text-emerald-700' : 'text-rose-600'}">${t.category}</td>
-                                    <td class="p-2 border border-slate-300">${t.notes}</td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد مكالمات مسجلة خلال الفترة.</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-            } 
-            // 2. تقرير إرسال الواتساب
-            else if (reportType === 'WHATSAPP_REPORT') {
-                const waTasks = filteredTasks.filter(t => t.category === 'إرسال واتساب');
-                html += `
-                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl mb-4 flex justify-between items-center">
-                        <div>
-                            <h3 class="text-sm font-black text-emerald-950">إجمالي رسائل الواتساب المرسلة للعملاء: ${waTasks.length} رسالة</h3>
-                            <p class="text-xs text-emerald-800 font-semibold mt-0.5">يشمل عروض الأسعار، نماذج العقود، والرد على الاستفسارات الفورية.</p>
-                        </div>
-                        <i class="fa-brands fa-whatsapp text-4xl text-emerald-600"></i>
-                    </div>
-
-                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">سجل المحادثات والمتابعات عبر الواتساب:</h3>
-                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
-                        <thead class="bg-emerald-100 text-slate-900 font-black">
-                            <tr>
-                                <th class="p-2 border border-slate-300">التاريخ والوقت</th>
-                                <th class="p-2 border border-slate-300">الموظف المرسل</th>
-                                <th class="p-2 border border-slate-300">اسم الجهة</th>
-                                <th class="p-2 border border-slate-300">رقم الواتساب</th>
-                                <th class="p-2 border border-slate-300">المدينة</th>
-                                <th class="p-2 border border-slate-300">محتوى الإجراء المرسل</th>
-                                <th class="p-2 border border-slate-300">الحالة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${waTasks.length > 0 ? waTasks.map(t => `
-                                <tr>
-                                    <td class="p-2 border border-slate-300 dir-ltr text-right">${t.date} ${t.time}</td>
-                                    <td class="p-2 border border-slate-300 font-bold">${t.agent}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-slate-900">${t.customer}</td>
-                                    <td class="p-2 border border-slate-300 font-mono dir-ltr">${t.phone || '-'}</td>
-                                    <td class="p-2 border border-slate-300">${t.city || 'الرياض'}</td>
-                                    <td class="p-2 border border-slate-300">${t.notes}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-emerald-700">${t.status}</td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-400 font-bold">لم يتم تسجيل رسائل واتساب خلال الفترة.</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-            }
-            // 3. تقرير الاجتماعات والزيارات
-            else if (reportType === 'MEETINGS_REPORT') {
-                const meetTasks = filteredTasks.filter(t => t.category === 'اجتماع');
-                html += `
-                    <div class="bg-purple-50 border border-purple-200 p-4 rounded-2xl mb-4 flex justify-between items-center">
-                        <div>
-                            <h3 class="text-sm font-black text-purple-950">إجمالي الاجتماعات المنعقدة: ${meetTasks.length} اجتماع</h3>
-                            <p class="text-xs text-purple-800 font-semibold mt-0.5">اجتماعات عرض المنظومة والتفاوض المباشر مع مديري المنشآت.</p>
-                        </div>
-                        <i class="fa-solid fa-handshake text-4xl text-purple-600"></i>
-                    </div>
-
-                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">سجل وتفاصيل الاجتماعات:</h3>
-                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
-                        <thead class="bg-purple-100 text-slate-900 font-black">
-                            <tr>
-                                <th class="p-2 border border-slate-300">موعد الاجتماع</th>
-                                <th class="p-2 border border-slate-300">الموظف المسؤول</th>
-                                <th class="p-2 border border-slate-300">المنشأة المستهدفة</th>
-                                <th class="p-2 border border-slate-300">التخصص / المدينة</th>
-                                <th class="p-2 border border-slate-300">مخرجات وقرارات الاجتماع</th>
-                                <th class="p-2 border border-slate-300">حالة المتابعة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${meetTasks.length > 0 ? meetTasks.map(t => `
-                                <tr>
-                                    <td class="p-2 border border-slate-300 dir-ltr text-right">${t.date} ${t.time}</td>
-                                    <td class="p-2 border border-slate-300 font-bold">${t.agent}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-indigo-950">${t.customer}</td>
-                                    <td class="p-2 border border-slate-300">${t.specialty || '-'} (${t.city || 'الرياض'})</td>
-                                    <td class="p-2 border border-slate-300">${t.notes}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-purple-800">${t.status}</td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد اجتماعات مسجلة في هذا النطاق الزمني.</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-            }
-            // 4. تقرير العقود المبرمة
-            else if (reportType === 'CONTRACTS_REPORT') {
-                const contractTasks = filteredTasks.filter(t => t.category && t.category.includes('عقد'));
-                const signedBoth = contractTasks.filter(t => t.category === 'عقد (الطرفين)').length;
-                const signedNabdi = contractTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-
-                html += `
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                        <div class="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 text-center"><span class="text-xs text-amber-800 font-bold block">إجمالي العقود المحركة</span><b class="text-2xl text-amber-950 font-black">${contractTasks.length}</b></div>
-                        <div class="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200 text-center"><span class="text-xs text-emerald-800 font-bold block">عقود مكتملة (الطرفين)</span><b class="text-2xl text-emerald-700 font-black">${signedBoth}</b></div>
-                        <div class="bg-sky-50 p-3.5 rounded-2xl border border-sky-200 text-center"><span class="text-xs text-sky-800 font-bold block">عقود مرسلة (طرف نبضي)</span><b class="text-2xl text-sky-800 font-black">${signedNabdi}</b></div>
-                    </div>
-
-                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">سجل العقود والمؤسسات المنضمة:</h3>
-                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
-                        <thead class="bg-amber-100 text-slate-900 font-black">
-                            <tr>
-                                <th class="p-2 border border-slate-300">تاريخ الإجراء</th>
-                                <th class="p-2 border border-slate-300">الموظف المبرم</th>
-                                <th class="p-2 border border-slate-300">اسم الجهة المتعاقدة</th>
-                                <th class="p-2 border border-slate-300">نوع العقد</th>
-                                <th class="p-2 border border-slate-300">تفاصيل الاتفاق والشروط</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${contractTasks.length > 0 ? contractTasks.map(t => `
-                                <tr>
-                                    <td class="p-2 border border-slate-300 dir-ltr text-right">${t.date}</td>
-                                    <td class="p-2 border border-slate-300 font-bold">${t.agent}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-slate-900">${t.customer}</td>
-                                    <td class="p-2 border border-slate-300 font-bold ${t.category === 'عقد (الطرفين)' ? 'text-emerald-700' : 'text-amber-700'}">${t.category}</td>
-                                    <td class="p-2 border border-slate-300">${t.notes}</td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لا توجد عقود مسجلة في هذه الفترة.</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-            }
-            // 5. تقرير حالات التصعيد للمدير
-            else if (reportType === 'ESCALATIONS_REPORT') {
-                const escTasks = filteredTasks.filter(t => t.status === 'تصعيد للمدير');
-                html += `
-                    <div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl mb-4 flex justify-between items-center">
-                        <div>
-                            <h3 class="text-sm font-black text-rose-950">إجمالي المعاملات المصعدة للمدير: ${escTasks.length} معاملة</h3>
-                            <p class="text-xs text-rose-800 font-semibold mt-0.5">تتطلب تدخلاً إدارياً أو قرارات مالية وفنية خاصة.</p>
-                        </div>
-                        <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-600"></i>
-                    </div>
-
-                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">جدول الحالات الحرجة والمصعدة للإدارة:</h3>
-                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
-                        <thead class="bg-rose-100 text-slate-900 font-black">
-                            <tr>
-                                <th class="p-2 border border-slate-300">تاريخ ووقت التصعيد</th>
-                                <th class="p-2 border border-slate-300">الموظف</th>
-                                <th class="p-2 border border-slate-300">العميل</th>
-                                <th class="p-2 border border-slate-300">رقم الهاتف</th>
-                                <th class="p-2 border border-slate-300">الأولوية</th>
-                                <th class="p-2 border border-slate-300">سبب التصعيد وملاحظات الموظف</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${escTasks.length > 0 ? escTasks.map(t => `
-                                <tr>
-                                    <td class="p-2 border border-slate-300 dir-ltr text-right">${t.date} ${t.time}</td>
-                                    <td class="p-2 border border-slate-300 font-bold">${t.agent}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-slate-900">${t.customer}</td>
-                                    <td class="p-2 border border-slate-300 font-mono dir-ltr">${t.phone || '-'}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-rose-600">${t.priority || 'عالية'}</td>
-                                    <td class="p-2 border border-slate-300 font-medium text-slate-800">${t.notes}</td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد حالات تصعيد مسجلة (جميع المعاملات مستقرة).</td></tr>'}
-                        </tbody>
-                    </table>
-                `;
-            }
-            // 6. تقرير أداء الشفتات والموظفين الشامل
-            else if (reportType === 'SHIFT_AGENT') {
+            if (reportType === 'SHIFT_AGENT') {
                 const totalOps = filteredTasks.length;
                 const calls = filteredTasks.filter(t => t.category.includes('مكالمة')).length;
                 const wa = filteredTasks.filter(t => t.category === 'إرسال واتساب').length;
@@ -3159,9 +2859,7 @@
                         </tbody>
                     </table>
                 `;
-            } 
-            // 7. تقرير رحلة العملاء وتحول الفانل
-            else if (reportType === 'FUNNEL_STAGES') {
+            } else if (reportType === 'FUNNEL_STAGES') {
                 const stageCounts = (window.FUNNEL_STAGES || []).map(st => {
                     return { stage: st, count: allClients.filter(c => c.stage === st).length };
                 });
@@ -3201,9 +2899,7 @@
                         </tbody>
                     </table>
                 `;
-            } 
-            // 8. تقرير العمولات والحسابات
-            else if (reportType === 'BANK_COMMISSIONS') {
+            } else if (reportType === 'BANK_COMMISSIONS') {
                 const clientsWithFin = allClients.filter(c => c.accountNumber || c.iban || c.commission);
 
                 html += `
@@ -3239,9 +2935,7 @@
                         </tbody>
                     </table>
                 `;
-            } 
-            // 9. تقرير نوع المنشآت والتوزيع الجغرافي
-            else if (reportType === 'ENTITIES_GEO') {
+            } else if (reportType === 'ENTITIES_GEO') {
                 html += `
                     <h3 class="font-extrabold text-sm text-slate-900 mb-3">حصر وتوزيع العملاء حسب نوع المنشأة والمدينة:</h3>
                     <table class="w-full text-right text-xs border-collapse border border-slate-300 mb-4">
@@ -3267,9 +2961,7 @@
                         </tbody>
                     </table>
                 `;
-            } 
-            // 10. تقرير السجل الكامل
-            else {
+            } else {
                 html += `
                     <h3 class="font-extrabold text-sm text-slate-900 mb-3">سجل كافة التفاصيل والأنشطة للفترة المحدد:</h3>
                     <table class="w-full text-right text-xs border-collapse border border-slate-300">
