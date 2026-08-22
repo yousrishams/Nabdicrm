@@ -42,10 +42,20 @@
             font-family: 'Cairo', sans-serif;
             background-color: #f8fafc;
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
         .logo-bg-purple {
             background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 50%, #581c87 100%);
         }
@@ -60,38 +70,10 @@
             z-index: 0;
         }
         @media print {
-            @page {
-                size: A4 portrait;
-                margin: 6mm 6mm;
-            }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            body { 
-                background: white !important; 
-                color: #0f172a !important; 
-                padding: 0 !important; 
-                margin: 0 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-            #dailySummaryModal {
-                position: static !important;
-                background: none !important;
-                padding: 0 !important;
-            }
-            .print-container {
-                width: 100% !important;
-                max-width: 100% !important;
-                border: none !important;
-                box-shadow: none !important;
-                border-radius: 0 !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            #summaryContentArea {
-                padding: 0 !important;
-                overflow: visible !important;
-            }
+            body { background: white !important; color: black !important; padding: 0 !important; }
+            .print-container { width: 100% !important; max-width: 100% !important; border: none !important; shadow: none !important; }
         }
     </style>
 </head>
@@ -205,7 +187,6 @@
                     <div id="userBadge" class="flex items-center gap-2 bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
                         <i class="fa-solid fa-user-check text-emerald-600"></i>
                         <span id="currentUserName">زائر</span>
-                        <button id="btnChangeSelfPin" onclick="openSelfChangePinModal()" class="hidden text-brand-600 hover:text-brand-800 text-[11px] font-bold border-r border-slate-300 pr-2 cursor-pointer" title="تغيير كلمة المرور الخاصة بي">🔑 تغيير الرمز</button>
                         <button onclick="logout()" class="text-rose-600 hover:text-rose-800 text-[11px] font-bold mr-1 border-r border-slate-300 pr-2 cursor-pointer" title="تسجيل الخروج">خروج</button>
                     </div>
 
@@ -251,8 +232,12 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        <!-- VIEW 1: AGENT WORKSPACE -->
+        <!-- ========================================== -->
+        <!-- VIEW 1: AGENT WORKSPACE (واجهة الموظف) -->
+        <!-- ========================================== -->
         <div id="agentView" class="space-y-6">
+            
+            <!-- Quick Client Action Banner -->
             <div class="bg-gradient-to-r from-indigo-900 via-purple-900 to-brand-800 text-white p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 border border-purple-500/30">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-indigo-300 text-xl border border-white/20">
@@ -275,7 +260,7 @@
                 </div>
             </div>
 
-            <!-- KPI Cards -->
+            <!-- Dynamic KPI Cards Bar -->
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
                     <div class="flex items-center justify-between text-slate-500 mb-1">
@@ -332,7 +317,7 @@
                 </div>
             </div>
 
-            <!-- Table -->
+            <!-- Agent Task Filters & Table (سجل الأعمال والعمليات اليومية) -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between bg-slate-50/50">
                     <div class="flex items-center gap-2">
@@ -340,6 +325,7 @@
                         <span id="agentTasksCountBadge" class="bg-brand-100 text-brand-700 text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
                     </div>
 
+                    <!-- Filters Toolbar -->
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-xl text-xs">
                             <span class="font-bold text-slate-600">الشفت:</span>
@@ -386,6 +372,7 @@
                     </div>
                 </div>
 
+                <!-- Table -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-right text-xs">
                         <thead class="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
@@ -412,10 +399,14 @@
                     <p class="text-xs font-bold">لا توجد أعمال مسجلة لهذا التاريخ وفق الخيارات المحددة.</p>
                 </div>
             </div>
+
         </div>
 
-        <!-- VIEW 2: MANAGER DASHBOARD -->
+        <!-- ========================================== -->
+        <!-- VIEW 2: MANAGER DASHBOARD (لوحة المدير) -->
+        <!-- ========================================== -->
         <div id="managerView" class="hidden space-y-6">
+
             <div class="logo-bg-purple text-white rounded-3xl p-6 shadow-xl relative overflow-hidden border border-purple-500/30">
                 <div class="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div class="flex items-center gap-4">
@@ -438,15 +429,106 @@
                         <div>
                             <span class="bg-white/20 text-purple-200 border border-white/20 text-xs px-3 py-1 rounded-full font-bold">لوحة المتابعة المباشرة والتقارير الشاملة</span>
                             <h2 class="text-2xl font-black mt-2">متابعة الأداء والتقارير والعمولات والبيانات المالية</h2>
-                            <p class="text-purple-200 text-xs mt-1">إدارة شاملة لرحلة العملاء، بيانات الحسابات، الآيبان، واستخراج التقارير الإنفوجرافية قبل الطباعة.</p>
+                            <p class="text-purple-200 text-xs mt-1">إدارة شاملة لرحلة العملائ، بيانات الحسابات، الآيبان، العمولات المبرمة، واستخراج التقارير قبل الطباعة.</p>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2 no-print">
                         <button onclick="openDailySummaryModal()" class="bg-amber-400 hover:bg-amber-500 text-purple-950 text-xs px-4 py-2.5 rounded-xl font-black shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-amber-300">
-                            <i class="fa-solid fa-chart-pie text-sm"></i>
-                            <span>مركز التقارير المتنوعة والإنفوجرافيك</span>
+                            <i class="fa-solid fa-chart-line text-sm"></i>
+                            <span>مركز التقارير المتقدم والمعاينة</span>
                         </button>
+                        <button onclick="window.print()" class="bg-white text-purple-900 hover:bg-purple-50 font-black text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-print"></i>
+                            <span>طباعة الشاشة</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shift Comparison Card -->
+            <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                    <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-code-compare text-brand-600 text-base"></i>
+                        <span>جدول المقارنة المباشرة بين الشفت الصباحي والمسائي</span>
+                    </h3>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold">مقارنة لحظية حية</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gradient-to-br from-amber-50/80 to-amber-100/30 border border-amber-200/80 p-4 rounded-2xl relative overflow-hidden">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-black text-amber-900 text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-sun text-amber-500 text-base"></i>
+                                الشفت الصباحي
+                            </span>
+                            <span id="shiftMornEmpCount" class="text-[11px] font-bold bg-amber-200/60 text-amber-900 px-2.5 py-0.5 rounded-full">0 موظفين</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">المكالمات</span>
+                                <span id="shiftMornCalls" class="font-black text-slate-800 text-sm">0</span>
+                                <div class="text-[9px] text-slate-500 font-bold mt-0.5">رد: <b id="shiftMornAns" class="text-emerald-600">0</b> | لم يرد: <b id="shiftMornUnans" class="text-rose-500">0</b></div>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">إرسال واتساب</span>
+                                <span id="shiftMornWa" class="font-black text-emerald-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">الاجتماعات</span>
+                                <span id="shiftMornMeet" class="font-black text-purple-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">عقود (نبضي)</span>
+                                <span id="shiftMornNabdi" class="font-black text-amber-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">عقود (الطرفين)</span>
+                                <span id="shiftMornBoth" class="font-black text-emerald-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">نسبة الإنجاز</span>
+                                <span id="shiftMornRate" class="font-black text-brand-600 text-sm">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-indigo-50/80 to-purple-100/30 border border-indigo-200/80 p-4 rounded-2xl relative overflow-hidden">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-black text-indigo-900 text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-moon text-indigo-500 text-base"></i>
+                                الشفت المسائي
+                            </span>
+                            <span id="shiftEveEmpCount" class="text-[11px] font-bold bg-indigo-200/60 text-indigo-900 px-2.5 py-0.5 rounded-full">0 موظفين</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">المكالمات</span>
+                                <span id="shiftEveCalls" class="font-black text-slate-800 text-sm">0</span>
+                                <div class="text-[9px] text-slate-500 font-bold mt-0.5">رد: <b id="shiftEveAns" class="text-emerald-600">0</b> | لم يرد: <b id="shiftEveUnans" class="text-rose-500">0</b></div>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">إرسال واتساب</span>
+                                <span id="shiftEveWa" class="font-black text-emerald-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">الاجتماعات</span>
+                                <span id="shiftEveMeet" class="font-black text-purple-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">عقود (نبضي)</span>
+                                <span id="shiftEveNabdi" class="font-black text-amber-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">عقود (الطرفين)</span>
+                                <span id="shiftEveBoth" class="font-black text-emerald-600 text-sm">0</span>
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
+                                <span class="text-slate-500 font-bold block text-[10px]">نسبة الإنجاز</span>
+                                <span id="shiftEveRate" class="font-black text-brand-600 text-sm">0%</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -527,11 +609,42 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Team Summary Table -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-users-gear text-brand-600"></i>
+                        <span>ملخص إنجاز الموظفين وتغطية الشفتات</span>
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
+                            <tr class="text-center">
+                                <th class="p-3 text-right">اسم الموظف</th>
+                                <th class="p-3">المكالمات</th>
+                                <th class="p-3">واتساب</th>
+                                <th class="p-3">الاجتماعات</th>
+                                <th class="p-3">عقود (نبضي)</th>
+                                <th class="p-3">عقود (الطرفين)</th>
+                                <th class="p-3">نسبة الإنجاز</th>
+                                <th class="p-3">الحالة اليومية</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mgrTeamSummaryBody" class="divide-y divide-slate-100">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
     </main>
 
-    <!-- MODAL 1: ADD TASK -->
+    <!-- ============================================================== -->
+    <!-- MODAL 1: ADD / EDIT TASK WITH CLIENT LOOKUP & SELECTION -->
+    <!-- ============================================================== -->
     <div id="addTaskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             <div class="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
@@ -546,11 +659,13 @@
 
             <form id="taskForm" onsubmit="handleSaveTask(event)" class="p-5 space-y-3.5 text-xs overflow-y-auto custom-scrollbar">
                 <input type="hidden" id="taskId" value="">
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">تاريخ الإجراء والمتابعة *</label>
                         <input type="date" id="formDate" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
                     </div>
+
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">الشفت</label>
                         <select id="formShift" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
@@ -566,10 +681,13 @@
                         <select id="formAgent" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
                         </select>
                     </div>
+
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="font-bold text-indigo-900">اختيار من العملاء المسجلين</label>
-                            <button type="button" onclick="openAddClientModal()" class="text-[10px] text-brand-600 font-extrabold hover:underline cursor-pointer">+ إضافة عميل جديد</button>
+                            <button type="button" onclick="openAddClientModal()" class="text-[10px] text-brand-600 font-extrabold hover:underline cursor-pointer">
+                                + إضافة عميل جديد
+                            </button>
                         </div>
                         <select id="formClientSelect" onchange="onTaskClientSelectChanged()" class="w-full bg-indigo-50/80 border border-indigo-200 rounded-xl p-2.5 font-bold text-indigo-900 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="">-- اختر عميل مسجل لتشغيل الاستدعاء التلقائي --</option>
@@ -580,18 +698,21 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">اسم العميل / المنشأة *</label>
-                        <input type="text" id="formCustomer" required placeholder="مثال: عيادة د. محمد..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500">
+                        <input type="text" id="formCustomer" required placeholder="مثال: عيادة د. محمد / صيدلية الشفاء..." 
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500">
                     </div>
+
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">رقم الهاتف *</label>
-                        <input type="tel" id="formPhone" required placeholder="05xxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500" dir="ltr">
+                        <input type="tel" id="formPhone" required placeholder="05xxxxxxxx" 
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500" dir="ltr">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">نوع المنشأة</label>
-                        <select id="formEntityType" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
+                        <select id="formEntityType" onchange="filterClientDropdownByEntityType()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="عيادة">عيادة</option>
                             <option value="مركز طبي">مركز طبي</option>
                             <option value="صيدلية">صيدلية</option>
@@ -601,13 +722,15 @@
                             <option value="منشأة أخرى">منشأة أخرى</option>
                         </select>
                     </div>
+
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">التخصص</label>
                         <select id="formSpecialty" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
                         </select>
                     </div>
+
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">المدينة</label>
+                        <label class="block font-bold text-slate-700 mb-1">المدينة (المملكة)</label>
                         <select id="formCity" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="الرياض">الرياض</option>
                             <option value="جدة">جدة</option>
@@ -620,9 +743,15 @@
                             <option value="تبوك">تبوك</option>
                             <option value="حائل">حائل</option>
                             <option value="بريدة (القصيم)">بريدة (القصيم)</option>
+                            <option value="عنيزة">عنيزة</option>
                             <option value="خميس مشيط">خميس مشيط</option>
                             <option value="أبها">أبها</option>
                             <option value="جازان">جازان</option>
+                            <option value="نجران">نجران</option>
+                            <option value="الباحة">الباحة</option>
+                            <option value="حفر الباطن">حفر الباطن</option>
+                            <option value="ينبع">ينبع</option>
+                            <option value="القطيف">القطيف</option>
                             <option value="مدينة أخرى">مدينة أخرى</option>
                         </select>
                     </div>
@@ -630,11 +759,10 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">نوع الخدمة / النشاط *</label>
+                        <label class="block font-bold text-slate-700 mb-1">نوع الخدمة / النشاط (ضروري)</label>
                         <select id="formCategory" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="مكالمة (تم الرد)">مكالمة (تم الرد)</option>
                             <option value="مكالمة (لم يرد)">مكالمة (لم يرد)</option>
-                            <option value="مكالمة (ملغاة)">مكالمة (ملغاة)</option>
                             <option value="إرسال واتساب">إرسال واتساب</option>
                             <option value="اجتماع">اجتماع مع العميل</option>
                             <option value="عقد (طرف نبضي)">عقد (موقع من طرف نبضي)</option>
@@ -642,30 +770,55 @@
                             <option value="استفسار ودعم عام">استفسار ودعم عام</option>
                         </select>
                     </div>
+
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">حالة العمل</label>
+                        <label class="block font-bold text-slate-700 mb-1">قناة التواصل</label>
+                        <select id="formChannel" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
+                            <option value="مكالمة هاتفية">مكالمة هاتفية</option>
+                            <option value="واتساب">واتساب</option>
+                            <option value="اجتماع مباشر">اجتماع مباشر</option>
+                            <option value="بريد إلكتروني">بريد إلكتروني</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">الأولوية</label>
+                        <select id="formPriority" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
+                            <option value="عادية">عادية</option>
+                            <option value="متوسطة">متوسطة</option>
+                            <option value="عالية جداً">عالية جداً</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">حالة العمل الحالي</label>
                         <select id="formStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
-                            <option value="مكتمل">مكتمل</option>
-                            <option value="قيد المعالجة">قيد المعالجة</option>
-                            <option value="تصعيد للمدير">تصعيد للمدير</option>
+                            <option value="مكتمل">مكتمل (تم الإنجاز)</option>
+                            <option value="قيد المعالجة">قيد المعالجة (متابعة)</option>
+                            <option value="تصعيد للمدير">تصعيد للمدير (مهم)</option>
                         </select>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block font-bold text-slate-700 mb-1">الإجراء المتخذ والتفاصيل</label>
-                    <textarea id="formNotes" rows="2.5" required placeholder="اكتب تفاصيل ما تم مع العميل..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500 resize-none"></textarea>
+                    <label class="block font-bold text-slate-700 mb-1">الإجراء المتخذ والتفاصيل والنتائج</label>
+                    <textarea id="formNotes" rows="2.5" required placeholder="اكتب تفاصيل الإجراء المتخذ مع العميل والنتيجة لتوثيقها في سجل العميل..." 
+                              class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-brand-500 resize-none"></textarea>
                 </div>
 
                 <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
                     <button type="button" onclick="closeAddTaskModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ وإرسال بالسحابة</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ وإرسال للسحابة</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL 2: ADD CLIENT -->
+    <!-- ============================================================== -->
+    <!-- MODAL 2: ADD / EDIT CLIENT FORM WITH BANK DETAILS & ATTACHMENTS -->
+    <!-- ============================================================== -->
     <div id="addClientModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             <div class="bg-indigo-900 text-white p-4 flex justify-between items-center shrink-0">
@@ -680,133 +833,404 @@
 
             <form id="clientForm" onsubmit="handleSaveClient(event)" class="p-5 space-y-4 text-xs overflow-y-auto custom-scrollbar">
                 <input type="hidden" id="clientId" value="">
+
+                <!-- 1. الأساسيات -->
                 <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+                    <h4 class="font-black text-slate-800 text-xs flex items-center justify-between">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-building text-indigo-600"></i> بيانات المنشأة الأساسية</span>
+                        <span class="text-[10px] text-slate-500 font-normal">مع إمكانية إرفاق مستند العقد / السجل</span>
+                    </h4>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">اسم العميل / المنشأة *</label>
-                            <input type="text" id="clientName" required placeholder="مثال: مجمع الشفاء الطبي" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-slate-700">اسم العميل / المنشأة *</label>
+                                <label class="text-[10px] text-indigo-600 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> إرفاق مستند
+                                    <input type="file" onchange="handleFileSelected(event, 'docMainName')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="clientName" required placeholder="مثال: عيادة د. خالد الأحمد / مجمع الشفاء الطبي" 
+                                   class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <span id="badge_docMainName" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
+
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">اسم الشخص المسؤول</label>
-                            <input type="text" id="clientContactPerson" placeholder="اسم الطبيب / المدير..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-slate-700">اسم الشخص المسؤول</label>
+                                <label class="text-[10px] text-indigo-600 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> إرفاق مستند
+                                    <input type="file" onchange="handleFileSelected(event, 'docContactPerson')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="clientContactPerson" placeholder="اسم الطبيب / المدير المساق..." 
+                                   class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <span id="badge_docContactPerson" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
                     </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">رقم الهاتف / الجوال *</label>
-                            <input type="tel" id="clientPhone" required placeholder="05xxxxxxxx" dir="ltr" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-slate-700">رقم الهاتف / الجوال *</label>
+                                <label class="text-[10px] text-indigo-600 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> إرفاق مستند
+                                    <input type="file" onchange="handleFileSelected(event, 'docPhone')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="tel" id="clientPhone" required placeholder="05xxxxxxxx" dir="ltr" 
+                                   class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <span id="badge_docPhone" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
+
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">مرحلة العميل (Funnel Stage) *</label>
-                            <select id="clientStage" required class="w-full bg-purple-50 border border-purple-300 rounded-xl p-2.5 font-bold text-purple-900 focus:outline-none cursor-pointer">
+                            <label class="block font-bold text-slate-700 mb-1">مرحلة العميل الموحدة في الفانل (Funnel Stage) *</label>
+                            <select id="clientStage" required class="w-full bg-purple-50 border border-purple-300 rounded-xl p-2.5 font-bold text-purple-900 focus:outline-none focus:border-indigo-500 cursor-pointer">
                             </select>
                         </div>
                     </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">نوع المنشأة</label>
-                            <select id="clientEntityType" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none cursor-pointer">
+                            <label class="block font-bold text-slate-700 mb-1">نوع المنشأة *</label>
+                            <select id="clientEntityType" required class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
                                 <option value="عيادة">عيادة</option>
                                 <option value="مركز طبي">مركز طبي</option>
                                 <option value="صيدلية">صيدلية</option>
                                 <option value="متجر">متجر</option>
                                 <option value="مستشفى">مستشفى</option>
+                                <option value="معامل تحاليل/أشعة">معامل تحاليل/أشعة</option>
                                 <option value="منشأة أخرى">منشأة أخرى</option>
                             </select>
                         </div>
+
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">التخصص</label>
-                            <select id="clientSpecialty" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none cursor-pointer"></select>
+                            <label class="block font-bold text-slate-700 mb-1">التخصص *</label>
+                            <select id="clientSpecialty" required class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            </select>
                         </div>
+
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">المدينة</label>
-                            <select id="clientCity" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none cursor-pointer">
+                            <label class="block font-bold text-slate-700 mb-1">المدينة *</label>
+                            <select id="clientCity" required class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
                                 <option value="الرياض">الرياض</option>
                                 <option value="جدة">جدة</option>
                                 <option value="مكة المكرمة">مكة المكرمة</option>
+                                <option value="المدينة المنورة">المدينة المنورة</option>
                                 <option value="الدمام">الدمام</option>
                                 <option value="الخبر">الخبر</option>
+                                <option value="الأحساء / الهفوف">الأحساء / الهفوف</option>
+                                <option value="الطائف">الطائف</option>
+                                <option value="تبوك">تبوك</option>
+                                <option value="حائل">حائل</option>
+                                <option value="بريدة (القصيم)">بريدة (القصيم)</option>
+                                <option value="عنيزة">عنيزة</option>
+                                <option value="خميس مشيط">خميس مشيط</option>
+                                <option value="أبها">أبها</option>
+                                <option value="جازان">جازان</option>
+                                <option value="نجران">نجران</option>
+                                <option value="الباحة">الباحة</option>
+                                <option value="حفر الباطن">حفر الباطن</option>
+                                <option value="ينبع">ينبع</option>
+                                <option value="القطيف">القطيف</option>
+                                <option value="مدينة أخرى">مدينة أخرى</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
+                <!-- 2. البيانات المالية والحسابات والعمولات (طلب خاص) -->
                 <div class="bg-emerald-50/80 border border-emerald-200 p-3.5 rounded-2xl space-y-3">
+                    <div class="flex items-center justify-between text-emerald-950 font-extrabold text-xs">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-money-check-dollar text-emerald-600"></i> البيانات المالية والحسابات والعمولات المتفق عليها</span>
+                        <span class="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md font-bold">مُرفق لكل خانة</span>
+                    </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                            <label class="block font-bold text-slate-800 text-[11px] mb-1">رقم الحساب البنكي</label>
-                            <input type="text" id="clientAccountNumber" placeholder="1234567890" class="w-full bg-white border border-emerald-300 rounded-xl p-2 font-bold text-xs" dir="ltr">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-slate-800 text-[11px]">رقم الحساب البنكي</label>
+                                <label class="text-[10px] text-emerald-700 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> إرفاق مستند
+                                    <input type="file" onchange="handleFileSelected(event, 'docAccountNum')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="clientAccountNumber" placeholder="مثال: 1234567890" class="w-full bg-white border border-emerald-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none" dir="ltr">
+                            <span id="badge_docAccountNum" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md"></span>
                         </div>
+
                         <div>
-                            <label class="block font-bold text-slate-800 text-[11px] mb-1">رقم الآيبان (IBAN)</label>
-                            <input type="text" id="clientIban" placeholder="SA0000000000" class="w-full bg-white border border-emerald-300 rounded-xl p-2 font-bold text-xs" dir="ltr">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-slate-800 text-[11px]">رقم الآيبان (IBAN)</label>
+                                <label class="text-[10px] text-emerald-700 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> إرفاق مستند
+                                    <input type="file" onchange="handleFileSelected(event, 'docIban')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="clientIban" placeholder="SA0000000000000000000000" class="w-full bg-white border border-emerald-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none" dir="ltr">
+                            <span id="badge_docIban" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md"></span>
                         </div>
+
                         <div>
-                            <label class="block font-bold text-slate-800 text-[11px] mb-1">العمولة المتفق عليها</label>
-                            <input type="text" id="clientCommission" placeholder="10% أو 500 ريال" class="w-full bg-white border border-emerald-300 rounded-xl p-2 font-bold text-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-slate-800 text-[11px]">العمولة المتفق عليها</label>
+                                <label class="text-[10px] text-emerald-700 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> إرفاق مستند
+                                    <input type="file" onchange="handleFileSelected(event, 'docCommission')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="clientCommission" placeholder="مثال: 10% أو 500 ريال" class="w-full bg-white border border-emerald-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none">
+                            <span id="badge_docCommission" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md"></span>
                         </div>
                     </div>
+                </div>
+
+                <!-- 3. Attached Contract Preparation Fields -->
+                <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl space-y-3">
+                    <div class="flex items-center justify-between gap-1.5 text-amber-950 font-extrabold text-xs">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-file-contract text-amber-600"></i> بيانات عمل العقد والتجهيز</span>
+                        <span class="text-[10px] text-amber-800">تُرفق تلقائياً برحلة العميل</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5">
+                                <label class="font-bold text-slate-700 text-[11px]">الاسم التجاري الرسمي بالعقد</label>
+                                <label class="text-[10px] text-amber-800 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> مستند العقد
+                                    <input type="file" onchange="handleFileSelected(event, 'docTradeName')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="contractTradeName" placeholder="الاسم بالسجل التجاري" class="w-full bg-white border border-amber-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none">
+                            <span id="badge_docTradeName" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md"></span>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5">
+                                <label class="font-bold text-slate-700 text-[11px]">رقم السجل التجاري (CR)</label>
+                                <label class="text-[10px] text-amber-800 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> مستند السجل
+                                    <input type="file" onchange="handleFileSelected(event, 'docCr')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="contractCrNumber" placeholder="1010xxxxxx" class="w-full bg-white border border-amber-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none" dir="ltr">
+                            <span id="badge_docCr" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md"></span>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5">
+                                <label class="font-bold text-slate-700 text-[11px]">الرقم الضريبي (VAT ID)</label>
+                                <label class="text-[10px] text-amber-800 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> الشهادة الضريبية
+                                    <input type="file" onchange="handleFileSelected(event, 'docVat')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="contractVatNumber" placeholder="3000xxxxxxxxx" class="w-full bg-white border border-amber-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none" dir="ltr">
+                            <span id="badge_docVat" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md"></span>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-0.5">
+                                <label class="font-bold text-slate-700 text-[11px]">اسم المفوض بالتوقيع</label>
+                                <label class="text-[10px] text-amber-800 font-extrabold cursor-pointer hover:underline flex items-center gap-1">
+                                    <i class="fa-solid fa-paperclip"></i> الهوية / التفويض
+                                    <input type="file" onchange="handleFileSelected(event, 'docSigner')" class="hidden">
+                                </label>
+                            </div>
+                            <input type="text" id="contractSignerName" placeholder="الاسم الثلاثي للمفوض" class="w-full bg-white border border-amber-300 rounded-xl p-2 font-bold text-slate-800 text-xs focus:outline-none">
+                            <span id="badge_docSigner" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">العنوان التفصيلي</label>
+                    <input type="text" id="clientAddress" placeholder="اسم الشارع / الحي / رقم المبنى..." 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">ملاحظات العميل / المتابعة</label>
+                    <textarea id="clientNotes" rows="2" placeholder="أي تفاصيل خاصة بالعميل أو مواعيد المتابعة..." 
+                              class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-semibold focus:outline-none focus:border-indigo-500 resize-none"></textarea>
                 </div>
 
                 <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
                     <button type="button" onclick="closeAddClientModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ العميل بالسحابة</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ العميل والمستندات بالسحابة</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL 3.5: DIRECTORY -->
+    <!-- ============================================================== -->
+    <!-- MODAL 3.5: LEADS & CLIENTS DIRECTORY MODAL -->
+    <!-- ============================================================== -->
     <div id="clientDirectoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-7xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[92vh] flex flex-col">
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-4 flex justify-between items-center shrink-0">
                 <div class="flex items-center gap-2.5">
                     <i class="fa-solid fa-address-book text-amber-400 text-lg"></i>
-                    <h3 class="font-extrabold text-sm sm:text-base">دليل الجهات المسجلة والحسابات والعمولات</h3>
+                    <h3 class="font-extrabold text-sm sm:text-base">دليل الجهات المسجلة والحسابات والعمولات والمستندات المرفقة</h3>
                 </div>
                 <button type="button" onclick="closeClientDirectoryModal()" class="text-slate-300 hover:text-white text-xl cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
+            <!-- Directory Toolbar -->
             <div class="p-4 bg-slate-100 border-b border-slate-200 flex flex-wrap gap-3 items-center justify-between text-xs shrink-0">
                 <div class="flex items-center gap-2">
                     <button onclick="openAddClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer">
                         <i class="fa-solid fa-user-plus"></i>
                         <span>+ تسجيل جهة جديدة</span>
                     </button>
+
+                    <div class="flex items-center gap-1.5 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl text-xs">
+                        <span class="font-bold text-slate-600">المرحلة الحالية:</span>
+                        <select id="filterFunnelStage" onchange="renderLeadsTable()" class="font-bold text-purple-900 bg-transparent focus:outline-none cursor-pointer">
+                            <option value="ALL">جميع المراحل</option>
+                        </select>
+                    </div>
                 </div>
+
                 <div class="relative w-full sm:w-72">
-                    <input type="text" id="leadSearchInput" onkeyup="renderLeadsTable()" placeholder="بحث باسم الجهة، الهاتف..." class="w-full bg-white border border-slate-300 rounded-xl pr-8 pl-3 py-1.5 text-xs font-semibold focus:outline-none">
+                    <input type="text" id="leadSearchInput" onkeyup="renderLeadsTable()" placeholder="بحث باسم الجهة، الحساب، الآيبان، الهاتف..." 
+                           class="w-full bg-white border border-slate-300 rounded-xl pr-8 pl-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-brand-500">
                     <i class="fa-solid fa-search absolute right-2.5 top-2.5 text-slate-400 text-xs"></i>
                 </div>
             </div>
 
+            <!-- Directory Content Table -->
             <div class="p-4 overflow-y-auto custom-scrollbar flex-1">
-                <table class="w-full text-right text-xs">
-                    <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0 z-10">
-                        <tr>
-                            <th class="p-3">اسم الجهة والمسؤول</th>
-                            <th class="p-3">نوع المنشأة</th>
-                            <th class="p-3">الهاتف والمدينة</th>
-                            <th class="p-3">الحساب والعمولة</th>
-                            <th class="p-3">المرحلة</th>
-                            <th class="p-3 text-center">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leadsTableBody" class="divide-y divide-slate-100">
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0 bg-slate-100 z-10">
+                            <tr>
+                                <th class="p-3">اسم الجهة والمسؤول</th>
+                                <th class="p-3">نوع المنشأة والتخصص</th>
+                                <th class="p-3">رقم الهاتف والمدينة</th>
+                                <th class="p-3">الحساب والآيبان والعمولة</th>
+                                <th class="p-3">المستندات المرفقة</th>
+                                <th class="p-3">المرحلة الحالية</th>
+                                <th class="p-3 text-center">رحلة العميل والعقد</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leadsTableBody" class="divide-y divide-slate-100">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="leadsEmptyState" class="hidden p-10 text-center text-slate-400">
+                    <i class="fa-solid fa-folder-open text-4xl mb-2 text-slate-300"></i>
+                    <p class="font-bold text-xs">لا توجد جهات مسجلة تطابق التصفية الحالية.</p>
+                </div>
             </div>
 
-            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs">
-                <span class="font-bold">إجمالي الجهات: <b id="clientsCountBadge" class="text-brand-700">0</b></span>
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-600 shrink-0">
+                <span class="font-bold">إجمالي الجهات المسجلة: <b id="clientsCountBadge" class="text-brand-700">0</b></span>
                 <button type="button" onclick="closeClientDirectoryModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL 4: MANAGE EMPLOYEES -->
+    <!-- ============================================================== -->
+    <!-- MODAL 3: FULL CLIENT TIMELINE & ATTACHED DOCUMENTS PROFILE -->
+    <!-- ============================================================== -->
+    <div id="clientProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
+            
+            <div class="bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-5 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center text-xl text-purple-300 border border-white/20">
+                        <i class="fa-solid fa-hospital-user"></i>
+                    </div>
+                    <div>
+                        <h3 id="profClientName" class="font-black text-lg">اسم الجهة</h3>
+                        <p id="profClientSubtitle" class="text-xs text-purple-200 font-bold">عيادة - الرياض - 05xxxxxxxx</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeClientProfileModal()" class="text-slate-300 hover:text-white text-xl cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 text-xs">
+                
+                <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-[11px] text-slate-500 font-bold block mb-1">المرحلة الحالية للجهة في مسار المبيعات (Funnel):</span>
+                        <div id="profStageBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-purple-100 text-purple-900 border border-purple-200">
+                            <span>جاري التحميل...</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <div class="w-full sm:w-auto">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">تحديث المرحلة فوراً:</label>
+                            <select id="profStageSelector" onchange="updateClientStageFromProfile(this.value)" class="bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none cursor-pointer">
+                            </select>
+                        </div>
+
+                        <button id="profBtnAddFollowup" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-3.5 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 self-end cursor-pointer">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>تسجيل متابعة جديدة</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Financial & Attached Documents Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Bank & Financial Box -->
+                    <div class="bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl space-y-2">
+                        <h4 class="font-extrabold text-xs text-emerald-950 flex items-center gap-2">
+                            <i class="fa-solid fa-money-check-dollar text-emerald-600"></i>
+                            <span>البيانات المالية والحسابات الموثقة</span>
+                        </h4>
+                        <div id="profBankSummaryBox" class="space-y-1.5 text-slate-800 text-[11px] font-bold pt-1">
+                        </div>
+                    </div>
+
+                    <!-- Contract & Documents Box -->
+                    <div class="bg-amber-50/80 border border-amber-200 p-4 rounded-2xl space-y-2">
+                        <h4 class="font-extrabold text-xs text-amber-950 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-amber-600"></i>
+                            <span>مستندات العقد والوثائق المرفقة</span>
+                        </h4>
+                        <div id="profDocsSummaryBox" class="space-y-1 text-slate-800 text-[11px] font-semibold pt-1">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-extrabold text-sm text-slate-800 flex items-center gap-2 mb-1">
+                        <i class="fa-solid fa-clock-rotate-left text-brand-600"></i>
+                        <span>سجل المتابعات والرحلة التاريخية</span>
+                    </h4>
+                    <p class="text-slate-500 text-[11px]">يعرض جميع التواصلات والنتائج المسجلة لهذه الجهة مرتبة من الأحدث للأقدم:</p>
+                </div>
+
+                <div id="clientTimelineContainer" class="relative pr-6 timeline-line space-y-4">
+                </div>
+
+                <div id="timelineEmptyState" class="hidden text-center py-8 text-slate-400">
+                    <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300"></i>
+                    <p class="font-bold text-xs">لم يتم تسجيل أي اتصالات أو متابعات سابقة مع هذه الجهة بعد.</p>
+                </div>
+
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs">
+                <span id="profInteractionCountText" class="font-bold text-slate-600">إجمالي المتابعات المسجلة: 0</span>
+                <button type="button" onclick="closeClientProfileModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 4: MANAGE EMPLOYEES MODAL (إدارة الموظفين) -->
+    <!-- ============================================================== -->
     <div id="manageEmployeesModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[90vh] flex flex-col">
             <div class="bg-amber-600 text-white p-4 flex justify-between items-center shrink-0">
@@ -820,12 +1244,16 @@
             </div>
 
             <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
+                <!-- Add Employee Form -->
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                    <h4 id="empFormTitle" class="font-black text-slate-800 text-xs">إضافة موظف جديد</h4>
-                    <input type="hidden" id="editEmployeeId" value="">
+                    <h4 class="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-plus text-amber-600"></i>
+                        <span>إضافة موظف جديد لخدمة العملاء</span>
+                    </h4>
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">اسم الموظف الثلاثي *</label>
-                        <input type="text" id="newEmployeeName" placeholder="أحمد محمود" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none">
+                        <input type="text" id="newEmployeeName" placeholder="مثال: أحمد محمود العلي" 
+                               class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500">
                     </div>
                     <div class="grid grid-cols-2 gap-2.5">
                         <div>
@@ -836,35 +1264,40 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">رمز الدخول (PIN)</label>
-                            <input type="text" id="newEmployeePin" placeholder="123456" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none">
+                            <label class="block font-bold text-slate-700 mb-1">رمز الدخول السرّي (PIN)</label>
+                            <input type="password" id="newEmployeePin" placeholder="123456" 
+                                   class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none">
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button type="button" id="btnSaveEmployee" onclick="addNewEmployee()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl text-xs cursor-pointer">+ حفظ الموظف</button>
-                        <button type="button" id="btnCancelEditEmp" onclick="resetEmployeeForm()" class="hidden bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl cursor-pointer">إلغاء</button>
-                    </div>
+                    <button type="button" onclick="addNewEmployee()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 rounded-xl shadow-sm transition-all cursor-pointer">
+                        + حفظ وإضافة الموظف
+                    </button>
                 </div>
 
+                <!-- Existing Employees List -->
                 <div>
-                    <h4 class="font-black text-slate-800 text-xs mb-2">الموظفون المسجلون:</h4>
-                    <div id="employeesListContainer" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar"></div>
+                    <h4 class="font-black text-slate-800 text-xs mb-2">قائمة الموظفين الحاليين المسجلين:</h4>
+                    <div id="employeesListContainer" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                    </div>
                 </div>
             </div>
+
             <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
                 <button type="button" onclick="closeEmployeeModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL 5: DIVERSE REPORTS & INFOGRAPHIC ENGINE (المحرك الشامل للتقارير) -->
+    <!-- ============================================================== -->
+    <!-- MODAL 5: DIVERSE REPORTS & FILTERING ENGINE & PREVIEW (طلب خاص) -->
+    <!-- ============================================================== -->
     <div id="dailySummaryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col print-container">
             
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-4 flex justify-between items-center shrink-0 no-print">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-chart-pie text-amber-300 text-lg"></i>
-                    <h3 class="font-extrabold text-base">مركز التقارير المتنوعة والإنفوجرافيك المعتمد</h3>
+                    <h3 class="font-extrabold text-base">مركز التقارير المتنوعة والفلترة المتقدمة والمعاينة</h3>
                 </div>
                 <button type="button" onclick="closeDailySummaryModal()" class="text-slate-300 hover:text-white text-xl cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
@@ -875,33 +1308,29 @@
             <div class="p-4 bg-slate-100 border-b border-slate-200 space-y-3 no-print shrink-0 text-xs">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوب:</label>
-                        <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none cursor-pointer">
-                            <option value="INFOGRAPHIC_MAIN">🌟 إنفوجرافيك أداء خدمة العملاء المعتمد (صفحة واحدة A4)</option>
-                            <option value="CALLS_REPORT">📞 تقرير المكالمات والاتصالات التفصيلي</option>
-                            <option value="WHATSAPP_REPORT">💬 تقرير إرسال رسائل الواتساب</option>
-                            <option value="MEETINGS_REPORT">🤝 تقرير الاجتماعات والزيارات المنعقدة</option>
-                            <option value="CONTRACTS_REPORT">📑 تقرير توقيع العقود وإغلاق الصفقات</option>
-                            <option value="ESCALATIONS_REPORT">⚠️ تقرير حالات التصعيد للمدير والمهام الحرجة</option>
-                            <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء ومراحل الفانل</option>
+                        <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوبة:</label>
+                        <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none">
+                            <option value="SHIFT_AGENT">📊 تقرير أداء الشفتات والموظفين</option>
+                            <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء وتحول الفانل</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
-                            <option value="DETAILED_LOG">📋 تقرير سجل كافة التفاصيل والأنشطة</option>
+                            <option value="ENTITIES_GEO">🗺️ تقرير نوع المنشآت والتوزيع الجغرافي</option>
+                            <option value="DETAILED_LOG">📋 تقرير سجل التفاصيل والأنشطة</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">من تاريخ:</label>
-                        <input type="date" id="summaryStartDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <input type="date" id="summaryStartDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">إلى تاريخ:</label>
-                        <input type="date" id="summaryEndDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <input type="date" id="summaryEndDate" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                     </div>
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">تصفية الشفت:</label>
-                        <select id="summaryShiftFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <select id="summaryShiftFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                             <option value="ALL">جميع الشفتات</option>
                             <option value="شفت صباحي">شفت صباحي</option>
                             <option value="شفت مسائي">شفت مسائي</option>
@@ -910,19 +1339,22 @@
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">الموظف المسؤول:</label>
-                        <select id="summaryAgentFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800 cursor-pointer">
+                        <select id="summaryAgentFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                         </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Report Live Preview Area -->
+            <!-- Report Live Preview Area (قابل للمراجعة والمعاينة) -->
             <div id="summaryContentArea" class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white space-y-4 font-semibold text-slate-800">
+                <!-- Dynamic Content Formated Here -->
             </div>
 
-            <!-- Footer Actions -->
+            <!-- Modal Footer Actions -->
             <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center shrink-0 text-xs gap-2 no-print">
-                <span class="text-slate-500 font-bold"><i class="fa-solid fa-eye text-indigo-600"></i> قالب التقرير مهيأ للطباعة والتصدير بجودة A4 فائقة</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-500 font-bold"><i class="fa-solid fa-eye text-indigo-600"></i> حالة المعاينة: جاهز للطباعة والمراجعة</span>
+                </div>
                 <div class="flex items-center gap-2">
                     <button type="button" onclick="window.print()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-md cursor-pointer">
                         <i class="fa-solid fa-print"></i>
@@ -940,6 +1372,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, collection, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Firebase Setup & Initialization
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'cs-shifts-app';
         const firebaseConfig = {
             apiKey: "AIzaSyDI1SJ696IKaAk8567rXWeyDRz6Yjv94Nc",
@@ -955,15 +1388,27 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // Firestore Paths
         const employeesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
         const tasksColRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
         const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
 
+        // Global Unified Funnel Stages
         window.FUNNEL_STAGES = [
-            "تم اتصال مكتمل", "مهتم", "اجتماع محدد", "الاجتماع تم", "العرض أُرسل",
-            "العقد أُرسل", "تفاوض", "عقد موقع", "تفعيل الجهة", "مؤجل", "غير مهتم"
+            "تم اتصال مكتمل",
+            "مهتم",
+            "اجتماع محدد",
+            "الاجتماع تم",
+            "العرض أُرسل",
+            "العقد أُرسل",
+            "تفاوض",
+            "عقد موقع",
+            "تفعيل الجهة",
+            "مؤجل",
+            "غير مهتم"
         ];
 
+        // Global State Variables
         window.currentUserRole = null; 
         window.currentLoggedInAgent = null; 
         window.currentAgent = 'ALL';
@@ -973,22 +1418,38 @@
         window.currentTempDocs = {};
 
         window.employees = [
-            { id: 'emp_1', name: 'نور', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_2', name: 'رنيم', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_3', name: 'امنية', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_4', name: 'اماني', shift: 'شفت مسائي', pin: '123456' },
-            { id: 'emp_5', name: 'ملك', shift: 'شفت صباحي', pin: '123456' },
-            { id: 'emp_6', name: 'يمني', shift: 'شفت مسائي', pin: '123456' },
-            { id: 'emp_7', name: 'حبيبة', shift: 'شفت مسائي', pin: '123456' }
+            { id: 'emp_1', name: 'سارة خالد', shift: 'شفت صباحي', pin: '123456' },
+            { id: 'emp_2', name: 'محمد العتيبي', shift: 'شفت صباحي', pin: '123456' },
+            { id: 'emp_3', name: 'عبدالله الشمري', shift: 'شفت مسائي', pin: '123456' },
+            { id: 'emp_4', name: 'ريم الدوسري', shift: 'شفت مسائي', pin: '123456' }
         ];
         window.tasks = [];
         window.clients = [];
 
         window.specialtiesList = [
-            "طب وجراحة العيون", "طب وجراحة الأسنان", "الجلدية والتجميل", "الباطنة والقلب",
-            "طب الأطفال وحديثي الولادة", "العظام والمفاصل", "الجراحة العامة", "النساء والتوليد والعقم",
-            "المخ والأعصاب", "الأنف والأذن والحنجرة", "المسالك البولية والتناسلية", "العلاج الطبيعي والتأهيل",
-            "الأورام وجراحتها", "الأمراض الصدرية والتنفسية", "صيدلة عامة ودواء", "مختبرات وتحاليل طبية", "خدمات طبية عامة وأخرى"
+            "طب وجراحة العيون",
+            "طب وجراحة الأسنان",
+            "الجلدية والتجميل",
+            "الباطنة والقلب",
+            "طب الأطفال وحديثي الولادة",
+            "العظام والمفاصل",
+            "الجراحة العامة",
+            "النساء والتوليد والعقم",
+            "المخ والأعصاب",
+            "الأنف والأذن والحنجرة",
+            "المسالك البولية والتناسلية",
+            "العلاج الطبيعي والتأهيل",
+            "الأورام وجراحتها",
+            "الأمراض الصدرية والتنفسية",
+            "الغدد الصماء والسكري",
+            "الكلى والجهاز الهضمي",
+            "النفسية والعصبية",
+            "طب الأسرة والصحة العامة",
+            "صيدلة عامة ودواء",
+            "مختبرات وتحاليل طبية",
+            "أشعة وتشخيص طبي",
+            "تجارة وتوزيع مستلزمات طبية",
+            "خدمات طبية عامة وأخرى"
         ];
 
         window.getStageColorClasses = function(stage) {
@@ -996,7 +1457,14 @@
                 case "تم اتصال مكتمل": return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" };
                 case "مهتم": return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" };
                 case "اجتماع محدد": return { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" };
+                case "الاجتماع تم": return { bg: "bg-indigo-100", text: "text-indigo-900", border: "border-indigo-300" };
+                case "العرض أُرسل": return { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200" };
+                case "العقد أُرسل": return { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300" };
+                case "تفاوض": return { bg: "bg-amber-100", text: "text-amber-900", border: "border-amber-400" };
                 case "عقد موقع": return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-400" };
+                case "تفعيل الجهة": return { bg: "bg-purple-100", text: "text-purple-900", border: "border-purple-400" };
+                case "مؤجل": return { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300" };
+                case "غير مهتم": return { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" };
                 default: return { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
             }
         };
@@ -1005,8 +1473,10 @@
             try {
                 const storedEmp = localStorage.getItem('cs_nabdi_employees');
                 if (storedEmp) window.employees = JSON.parse(storedEmp);
+
                 const storedTasks = localStorage.getItem('cs_nabdi_tasks');
                 if (storedTasks) window.tasks = JSON.parse(storedTasks);
+
                 const storedClients = localStorage.getItem('cs_nabdi_clients');
                 if (storedClients) window.clients = JSON.parse(storedClients);
             } catch(e) {}
@@ -1063,6 +1533,9 @@
                     window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                     window.saveLocalBackup();
                     renderApp();
+                    if (window.activeProfileClientId) {
+                        renderClientTimelineUI(window.activeProfileClientId);
+                    }
                 }
             });
 
@@ -1099,6 +1572,23 @@
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', clientData.id);
                     await setDoc(docRef, clientData);
+                } catch(e) {}
+            }
+        };
+
+        window.deleteClientFromCloud = async function(clientId) {
+            window.clients = window.clients.filter(c => c.id !== clientId);
+            window.tasks = window.tasks.filter(t => t.clientId !== clientId);
+            window.saveLocalBackup();
+            renderClientSelectInTaskForm();
+            renderLeadsTable();
+            updateClientsCountBadges();
+            renderApp();
+
+            if (window.dbUser) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', clientId);
+                    await deleteDoc(docRef);
                 } catch(e) {}
             }
         };
@@ -1145,6 +1635,21 @@
             if (idx !== -1) window.tasks[idx] = taskData;
             else window.tasks.unshift(taskData);
 
+            if (taskData.clientId) {
+                let matchedClient = (window.clients || []).find(c => c.id === taskData.clientId);
+                if (matchedClient) {
+                    let newStage = matchedClient.stage;
+                    if (taskData.category === 'اجتماع') newStage = 'اجتماع محدد';
+                    else if (taskData.category === 'عقد (طرف نبضي)') newStage = 'العقد أُرسل';
+                    else if (taskData.category === 'عقد (الطرفين)') newStage = 'عقد موقع';
+
+                    if (newStage !== matchedClient.stage) {
+                        matchedClient.stage = newStage;
+                        window.saveClientToCloud(matchedClient);
+                    }
+                }
+            }
+
             window.saveLocalBackup();
             renderApp();
 
@@ -1190,39 +1695,91 @@
     <script>
         let teamChartInstance = null;
         let categoryChartInstance = null;
-        let reportDonutChartInstance = null;
 
         function populateFunnelDropdowns() {
             const list = window.FUNNEL_STAGES || [];
             const clientStage = document.getElementById('clientStage');
-            if (clientStage) clientStage.innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+            const filterStage = document.getElementById('filterFunnelStage');
+            const profSelector = document.getElementById('profStageSelector');
+
+            const options = list.map(s => `<option value="${s}">${s}</option>`).join('');
+
+            if (clientStage) clientStage.innerHTML = options;
+            if (profSelector) profSelector.innerHTML = options;
+            if (filterStage) filterStage.innerHTML = '<option value="ALL">جميع المراحل</option>' + options;
         }
 
         function populateSpecialtiesDropdowns() {
             const list = window.specialtiesList || [];
             const formSpec = document.getElementById('formSpecialty');
             const clientSpec = document.getElementById('clientSpecialty');
+
             const optionsHtml = list.map(s => `<option value="${s}">${s}</option>`).join('');
             if (formSpec) formSpec.innerHTML = optionsHtml;
             if (clientSpec) clientSpec.innerHTML = optionsHtml;
         }
 
+        function handleFileSelected(event, key) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const badge = document.getElementById(`badge_${key}`);
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                window.currentTempDocs = window.currentTempDocs || {};
+                window.currentTempDocs[key] = {
+                    name: file.name,
+                    size: (file.size / 1024).toFixed(1) + ' KB',
+                    type: file.type,
+                    data: e.target.result
+                };
+
+                if (badge) {
+                    badge.innerHTML = `<i class="fa-solid fa-file-check"></i> <span>مرفق: ${file.name} (${window.currentTempDocs[key].size})</span>`;
+                    badge.classList.remove('hidden');
+                }
+                showToast(`تم رفع وتوثيق مستند: ${file.name}`);
+            };
+
+            reader.readAsDataURL(file);
+        }
+
         function renderClientSelectInTaskForm() {
             const sel = document.getElementById('formClientSelect');
             if (!sel) return;
+
             const clients = window.clients || [];
             if (clients.length === 0) {
                 sel.innerHTML = '<option value="">لا يوجد عملاء مسجلون - اضغط + إضافة عميل جديد</option>';
                 return;
             }
+
             sel.innerHTML = '<option value="">-- اختر جهة مسجلة لتشغيل التحديث التلقائي --</option>' + 
                 clients.map(c => `<option value="${c.id}">${c.name} - [المرحلة: ${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
+
             updateClientsCountBadges();
+        }
+
+        function filterClientDropdownByEntityType() {
+            const type = document.getElementById('formEntityType').value;
+            const sel = document.getElementById('formClientSelect');
+            if (!sel) return;
+
+            const clients = (window.clients || []).filter(c => !type || c.entityType === type);
+            if (clients.length === 0) {
+                sel.innerHTML = '<option value="">لا يوجد عملاء تطابق هذه المنشأة - اضغط + إضافة</option>';
+                return;
+            }
+
+            sel.innerHTML = '<option value="">-- اختر جهة مسجلة لتشغيل التحديث التلقائي --</option>' + 
+                clients.map(c => `<option value="${c.id}">${c.name} - [${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
         }
 
         function onTaskClientSelectChanged() {
             const clientId = document.getElementById('formClientSelect').value;
             if (!clientId) return;
+
             const client = (window.clients || []).find(c => c.id === clientId);
             if (client) {
                 document.getElementById('formCustomer').value = client.name;
@@ -1234,11 +1791,59 @@
             }
         }
 
-        function openAddClientModal() {
+        function openAddClientModal(prefillData = null) {
             populateFunnelDropdowns();
             const modal = document.getElementById('addClientModal');
-            document.getElementById('clientForm').reset();
-            document.getElementById('clientId').value = '';
+            const form = document.getElementById('clientForm');
+            window.currentTempDocs = {};
+
+            const badgeKeys = ['docMainName', 'docContactPerson', 'docPhone', 'docAccountNum', 'docIban', 'docCommission', 'docTradeName', 'docCr', 'docVat', 'docSigner'];
+            badgeKeys.forEach(key => {
+                const badge = document.getElementById(`badge_${key}`);
+                if (badge) { badge.classList.add('hidden'); badge.innerHTML = ''; }
+            });
+
+            if (prefillData) {
+                document.getElementById('clientModalTitle').innerText = 'تعديل بيانات الجهة والعمولات والمستندات';
+                document.getElementById('clientId').value = prefillData.id;
+                document.getElementById('clientName').value = prefillData.name || '';
+                document.getElementById('clientContactPerson').value = prefillData.contactPerson || '';
+                document.getElementById('clientPhone').value = prefillData.phone || '';
+                document.getElementById('clientStage').value = prefillData.stage || window.FUNNEL_STAGES[0];
+                document.getElementById('clientCity').value = prefillData.city || 'الرياض';
+                document.getElementById('clientEntityType').value = prefillData.entityType || 'عيادة';
+                document.getElementById('clientSpecialty').value = prefillData.specialty || window.specialtiesList[0];
+                document.getElementById('clientAddress').value = prefillData.address || '';
+                document.getElementById('clientNotes').value = prefillData.notes || '';
+
+                document.getElementById('clientAccountNumber').value = prefillData.accountNumber || '';
+                document.getElementById('clientIban').value = prefillData.iban || '';
+                document.getElementById('clientCommission').value = prefillData.commission || '';
+
+                document.getElementById('contractTradeName').value = prefillData.contractTradeName || '';
+                document.getElementById('contractCrNumber').value = prefillData.contractCrNumber || '';
+                document.getElementById('contractVatNumber').value = prefillData.contractVatNumber || '';
+                document.getElementById('contractSignerName').value = prefillData.contractSignerName || '';
+
+                if (prefillData.docs) {
+                    window.currentTempDocs = { ...prefillData.docs };
+                    Object.keys(prefillData.docs).forEach(key => {
+                        const badge = document.getElementById(`badge_${key}`);
+                        if (badge && prefillData.docs[key]) {
+                            badge.innerHTML = `<i class="fa-solid fa-file-check"></i> <span>مرفق: ${prefillData.docs[key].name}</span>`;
+                            badge.classList.remove('hidden');
+                        }
+                    });
+                }
+            } else {
+                document.getElementById('clientModalTitle').innerText = 'تسجيل جهة اتصال / عميل جديد';
+                form.reset();
+                document.getElementById('clientId').value = '';
+                document.getElementById('clientStage').value = window.FUNNEL_STAGES[0];
+                document.getElementById('clientCity').value = 'الرياض';
+                document.getElementById('clientEntityType').value = 'عيادة';
+            }
+
             modal.classList.remove('hidden');
         }
 
@@ -1256,9 +1861,17 @@
             const city = document.getElementById('clientCity').value;
             const entityType = document.getElementById('clientEntityType').value;
             const specialty = document.getElementById('clientSpecialty').value;
+            const address = document.getElementById('clientAddress').value.trim();
+            const notes = document.getElementById('clientNotes').value.trim();
+
             const accountNumber = document.getElementById('clientAccountNumber').value.trim();
             const iban = document.getElementById('clientIban').value.trim();
             const commission = document.getElementById('clientCommission').value.trim();
+
+            const contractTradeName = document.getElementById('contractTradeName').value.trim();
+            const contractCrNumber = document.getElementById('contractCrNumber').value.trim();
+            const contractVatNumber = document.getElementById('contractVatNumber').value.trim();
+            const contractSignerName = document.getElementById('contractSignerName').value.trim();
 
             if (!name || !phone) {
                 showToast("يرجى ملء اسم الجهة ورقم الهاتف", "error");
@@ -1267,39 +1880,125 @@
 
             const clientData = {
                 id: id || null,
-                name, contactPerson, phone, stage, city, entityType, specialty,
-                accountNumber, iban, commission
+                name, contactPerson, phone, stage, city, entityType, specialty, address, notes,
+                accountNumber, iban, commission,
+                contractTradeName, contractCrNumber, contractVatNumber, contractSignerName,
+                docs: window.currentTempDocs || {}
             };
 
             window.saveClientToCloud(clientData);
-            showToast(`تم حفظ الجهة (${name}) بالسحابة!`);
+            showToast(`تم حفظ الجهة (${name}) والعمولات والمستندات بالسحابة!`);
             closeAddClientModal();
         }
 
         function renderLeadsTable() {
+            const filterStage = document.getElementById('filterFunnelStage') ? document.getElementById('filterFunnelStage').value : 'ALL';
+            const searchVal = document.getElementById('leadSearchInput') ? document.getElementById('leadSearchInput').value.trim().toLowerCase() : '';
+
+            const filtered = (window.clients || []).filter(c => {
+                const matchStage = (filterStage === 'ALL') || (c.stage === filterStage);
+                const matchSearch = !searchVal || 
+                    (c.name && c.name.toLowerCase().includes(searchVal)) ||
+                    (c.contactPerson && c.contactPerson.toLowerCase().includes(searchVal)) ||
+                    (c.phone && c.phone.includes(searchVal)) ||
+                    (c.accountNumber && c.accountNumber.includes(searchVal)) ||
+                    (c.iban && c.iban.toLowerCase().includes(searchVal)) ||
+                    (c.commission && c.commission.toLowerCase().includes(searchVal)) ||
+                    (c.contractTradeName && c.contractTradeName.toLowerCase().includes(searchVal)) ||
+                    (c.contractCrNumber && c.contractCrNumber.includes(searchVal));
+                return matchStage && matchSearch;
+            });
+
             const tbody = document.getElementById('leadsTableBody');
+            const empty = document.getElementById('leadsEmptyState');
+            updateClientsCountBadges(filtered.length);
+
             if (!tbody) return;
-            const clients = window.clients || [];
-            tbody.innerHTML = clients.map(c => `
-                <tr class="hover:bg-indigo-50/30 transition-colors">
-                    <td class="p-2.5 font-bold text-slate-900">${c.name}</td>
-                    <td class="p-2.5 font-bold text-indigo-900">${c.entityType || 'عيادة'}</td>
-                    <td class="p-2.5 font-bold text-slate-700">${c.phone} (${c.city || 'الرياض'})</td>
-                    <td class="p-2.5 font-bold text-emerald-800">${c.commission || '-'}</td>
-                    <td class="p-2.5"><span class="px-2.5 py-1 rounded-xl text-[10px] font-black bg-purple-100 text-purple-900">${c.stage || 'جديد'}</span></td>
-                    <td class="p-2.5 text-center">
-                        <button onclick="openAddTaskModal('${c.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">+ إجراء</button>
-                    </td>
-                </tr>
-            `).join('');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                if (empty) empty.classList.remove('hidden');
+                return;
+            }
+            if (empty) empty.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(c => {
+                const colors = window.getStageColorClasses(c.stage);
+                const hasFinancials = c.accountNumber || c.iban || c.commission;
+                const docCount = c.docs ? Object.keys(c.docs).length : 0;
+
+                return `
+                    <tr class="hover:bg-indigo-50/30 transition-colors">
+                        <td class="p-2.5 font-bold text-slate-900 flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-xs shrink-0">
+                                <i class="fa-solid fa-hospital-user"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-black">${c.name}</div>
+                                <div class="text-[10px] text-brand-700 font-extrabold"><i class="fa-solid fa-user-tie text-[9px]"></i> المسؤول: ${c.contactPerson || 'غير محدد'}</div>
+                            </div>
+                        </td>
+                        <td class="p-2.5 font-bold text-indigo-900">
+                            <span class="bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg text-[10px] block w-max">${c.entityType || 'عيادة'}</span>
+                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">${c.specialty || ''}</span>
+                        </td>
+                        <td class="p-2.5 font-bold text-slate-700">
+                            <div class="dir-ltr text-right">${c.phone}</div>
+                            <span class="text-[10px] text-slate-500 font-semibold">${c.city || 'الرياض'}</span>
+                        </td>
+                        <td class="p-2.5 font-bold">
+                            ${hasFinancials ? `
+                                <div class="bg-emerald-50 border border-emerald-200 text-emerald-950 p-1.5 rounded-xl text-[10px] space-y-0.5">
+                                    <div>حساب: <b>${c.accountNumber || '-'}</b></div>
+                                    <div class="dir-ltr text-right font-mono text-[9px]">IBAN: ${c.iban || '-'}</div>
+                                    <div class="text-indigo-900 font-black">عمولة: ${c.commission || 'غير محددة'}</div>
+                                </div>
+                            ` : '<span class="text-slate-400 text-[10px] font-semibold">لم تدخل بيانات مالية</span>'}
+                        </td>
+                        <td class="p-2.5 font-bold">
+                            ${docCount > 0 ? `
+                                <span class="bg-purple-100 text-purple-900 border border-purple-300 px-2.5 py-1 rounded-lg text-[10px] font-extrabold flex items-center gap-1 w-max">
+                                    <i class="fa-solid fa-paperclip text-purple-700"></i> ${docCount} مستندات مرفقة
+                                </span>
+                            ` : '<span class="text-slate-400 text-[10px] font-semibold">لا يوجد مستندات</span>'}
+                        </td>
+                        <td class="p-2.5">
+                            <span class="px-2.5 py-1 rounded-xl text-[10px] font-black border ${colors.bg} ${colors.text} ${colors.border}">
+                                ${c.stage || window.FUNNEL_STAGES[0]}
+                            </span>
+                        </td>
+                        <td class="p-2.5 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <button onclick="openClientProfileModal('${c.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-2xs cursor-pointer" title="عرض رحلة العميل والعقد">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                    <span>رحلة العميل والعقد</span>
+                                </button>
+                                <button onclick="openAddTaskModal('${c.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-2xs cursor-pointer" title="تسجيل إجراء جديد">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>إجراء</span>
+                                </button>
+                                <button onclick="openAddClientModal(window.clients.find(item=>item.id==='${c.id}'))" class="bg-slate-100 text-slate-700 hover:bg-slate-200 p-1 rounded-lg border border-slate-200 cursor-pointer" title="تعديل البيانات والعمولة">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button onclick="deleteClientFromCloud('${c.id}')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-1 rounded-lg border border-rose-200 cursor-pointer" title="حذف">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function updateClientsCountBadges(filteredCount = null) {
             const total = window.clients ? window.clients.length : 0;
+            const count = filteredCount !== null ? filteredCount : total;
+
             const headerBadge = document.getElementById('clientsHeaderCountBadge');
             const modalBadge = document.getElementById('clientsCountBadge');
+
             if (headerBadge) headerBadge.innerText = total;
-            if (modalBadge) modalBadge.innerText = total;
+            if (modalBadge) modalBadge.innerText = count;
         }
 
         function openClientDirectoryModal() {
@@ -1310,6 +2009,147 @@
 
         function closeClientDirectoryModal() {
             document.getElementById('clientDirectoryModal').classList.add('hidden');
+        }
+
+        function openClientProfileModal(clientId) {
+            const client = (window.clients || []).find(c => c.id === clientId);
+            if (!client) return;
+
+            window.activeProfileClientId = clientId;
+            populateFunnelDropdowns();
+
+            document.getElementById('profClientName').innerText = client.name;
+            document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone} | المسؤول: ${client.contactPerson || 'غير محدد'}`;
+            
+            const stageSelector = document.getElementById('profStageSelector');
+            if (stageSelector) stageSelector.value = client.stage || window.FUNNEL_STAGES[0];
+
+            const bankBox = document.getElementById('profBankSummaryBox');
+            if (bankBox) {
+                bankBox.innerHTML = `
+                    <div class="flex justify-between border-b border-emerald-100 pb-1"><span>رقم الحساب:</span> <b class="text-slate-900">${client.accountNumber || 'غير مسجل'}</b></div>
+                    <div class="flex justify-between border-b border-emerald-100 pb-1"><span>رقم الآيبان IBAN:</span> <b class="text-slate-900 font-mono dir-ltr">${client.iban || 'غير مسجل'}</b></div>
+                    <div class="flex justify-between text-indigo-950 font-black"><span>العمولة المتفق عليها:</span> <b class="text-emerald-700">${client.commission || 'غير محددة'}</b></div>
+                `;
+            }
+
+            const docsBox = document.getElementById('profDocsSummaryBox');
+            if (docsBox) {
+                let docsHtml = `
+                    <div class="text-[11px]"><b>اسم العقد الرسمي:</b> ${client.contractTradeName || 'غير مسجل'}</div>
+                    <div class="text-[11px]"><b>السجل CR:</b> ${client.contractCrNumber || '-'} | <b>الرقم الضريبي VAT:</b> ${client.contractVatNumber || '-'}</div>
+                `;
+
+                if (client.docs && Object.keys(client.docs).length > 0) {
+                    docsHtml += `<div class="mt-2 pt-2 border-t border-amber-200">
+                        <b class="text-amber-900 block mb-1">المستندات المرفقة بالحقول:</b>
+                        <div class="flex flex-wrap gap-1">`;
+                    Object.keys(client.docs).forEach(k => {
+                        const d = client.docs[k];
+                        docsHtml += `<a href="${d.data}" download="${d.name}" class="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-bold inline-flex items-center gap-1" title="تنزيل المستند">
+                            <i class="fa-solid fa-download text-amber-700"></i> ${d.name}
+                        </a>`;
+                    });
+                    docsHtml += `</div></div>`;
+                } else {
+                    docsHtml += `<div class="text-slate-400 text-[10px] mt-1 font-semibold">لم يتم إرفاق ملفات مستندات بعد.</div>`;
+                }
+
+                docsBox.innerHTML = docsHtml;
+            }
+
+            const addFollowupBtn = document.getElementById('profBtnAddFollowup');
+            if (addFollowupBtn) {
+                addFollowupBtn.onclick = function() {
+                    closeClientProfileModal();
+                    openAddTaskModal(client.id);
+                };
+            }
+
+            renderClientTimelineUI(clientId);
+            document.getElementById('clientProfileModal').classList.remove('hidden');
+        }
+
+        function closeClientProfileModal() {
+            document.getElementById('clientProfileModal').classList.add('hidden');
+            window.activeProfileClientId = null;
+        }
+
+        function updateClientStageFromProfile(newStage) {
+            if (!window.activeProfileClientId) return;
+            const client = (window.clients || []).find(c => c.id === window.activeProfileClientId);
+            if (client) {
+                client.stage = newStage;
+                window.saveClientToCloud(client);
+                showToast(`تم تحديث مرحلة (${client.name}) إلى: ${newStage}`);
+                renderClientTimelineUI(window.activeProfileClientId);
+            }
+        }
+
+        function renderClientTimelineUI(clientId) {
+            const client = (window.clients || []).find(c => c.id === clientId);
+            if (!client) return;
+
+            const stageBadge = document.getElementById('profStageBadge');
+            if (stageBadge) {
+                const colors = window.getStageColorClasses(client.stage);
+                stageBadge.innerText = client.stage || window.FUNNEL_STAGES[0];
+                stageBadge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black border ${colors.bg} ${colors.text} ${colors.border}`;
+            }
+
+            let clientTasks = (window.tasks || []).filter(t => 
+                (t.clientId && t.clientId === client.id) ||
+                (t.phone && t.phone === client.phone) ||
+                (t.customer && t.customer.trim().toLowerCase() === client.name.trim().toLowerCase())
+            );
+
+            clientTasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+            const container = document.getElementById('clientTimelineContainer');
+            const emptyState = document.getElementById('timelineEmptyState');
+            const countText = document.getElementById('profInteractionCountText');
+
+            if (countText) countText.innerText = `إجمالي المتابعات المسجلة: ${clientTasks.length}`;
+
+            if (clientTasks.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            container.innerHTML = clientTasks.map((t) => {
+                let iconClass = "fa-phone bg-blue-500 text-white";
+                if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
+                if (t.category === 'اجتماع') iconClass = "fa-handshake bg-purple-600 text-white";
+                if (t.category && t.category.includes('عقد')) iconClass = "fa-file-signature bg-amber-500 text-white";
+
+                return `
+                    <div class="relative flex items-start gap-3 z-10">
+                        <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-sm shadow-md shrink-0 ${iconClass}">
+                            <i class="fa-solid ${iconClass}"></i>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-xs flex-1">
+                            <div class="flex flex-wrap justify-between items-center gap-1 mb-1 border-b border-slate-100 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-extrabold text-slate-900 text-xs">${t.category}</span>
+                                    <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg text-[10px] font-bold">بواسطة: ${t.agent}</span>
+                                    <span class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg text-[10px] font-bold">${t.shift}</span>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-400 dir-ltr">${t.date || ''} ${t.time || ''}</span>
+                            </div>
+
+                            <p class="text-slate-800 font-semibold leading-relaxed text-xs">${t.notes}</p>
+
+                            <div class="mt-2 flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                                <span>القناة: ${t.channel || 'هاتف'} | الأولوية: ${t.priority || 'عادية'}</span>
+                                <span class="text-emerald-600">الحالة: ${t.status}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderAgentTasks() {
@@ -1326,10 +2166,18 @@
                 const matchAgent = (activeAgent === 'ALL') || (t.agent === activeAgent);
                 const matchEntityType = (entityTypeVal === 'ALL') || (t.entityType === entityTypeVal);
                 const matchStatus = (statusVal === 'ALL') || (t.status === statusVal);
-                const matchSearch = !searchVal || (t.customer && t.customer.toLowerCase().includes(searchVal)) || (t.notes && t.notes.toLowerCase().includes(searchVal));
+                const matchSearch = !searchVal || 
+                    (t.customer && t.customer.toLowerCase().includes(searchVal)) || 
+                    (t.city && t.city.toLowerCase().includes(searchVal)) ||
+                    (t.entityType && t.entityType.toLowerCase().includes(searchVal)) ||
+                    (t.specialty && t.specialty.toLowerCase().includes(searchVal)) ||
+                    (t.notes && t.notes.toLowerCase().includes(searchVal)) ||
+                    (t.category && t.category.toLowerCase().includes(searchVal));
+
                 return matchShift && matchAgent && matchEntityType && matchStatus && matchSearch;
             });
 
+            // Update KPI Cards
             const answeredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (تم الرد)').length;
             const unansweredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (لم يرد)').length;
             
@@ -1341,10 +2189,12 @@
             if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (طرف نبضي)').length;
             if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (الطرفين)').length;
             if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
+
             if (document.getElementById('agentTasksCountBadge')) document.getElementById('agentTasksCountBadge').innerText = filtered.length;
 
             const tbody = document.getElementById('agentTaskTableBody');
             const emptyState = document.getElementById('agentEmptyState');
+
             if (!tbody) return;
 
             if (filtered.length === 0) {
@@ -1354,45 +2204,87 @@
             }
             if (emptyState) emptyState.classList.add('hidden');
 
-            tbody.innerHTML = filtered.map(t => `
-                <tr class="hover:bg-slate-50/80 transition-colors">
-                    <td class="p-3 text-slate-500 font-bold whitespace-nowrap">${t.time || '10:00 ص'}</td>
-                    <td class="p-3 font-bold whitespace-nowrap text-slate-700">${t.shift}</td>
-                    <td class="p-3 font-extrabold text-slate-900 whitespace-nowrap">${t.agent}</td>
-                    <td class="p-3 font-bold text-slate-900">
-                        <div>${t.customer}</div>
-                        <div class="text-[10px] text-slate-500 font-semibold dir-ltr text-right">${t.phone || ''}</div>
-                    </td>
-                    <td class="p-3 font-bold text-indigo-800 whitespace-nowrap">${t.entityType || 'عيادة'}</td>
-                    <td class="p-3 font-bold text-slate-700 whitespace-nowrap">${t.city || 'الرياض'}</td>
-                    <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${t.category}</td>
-                    <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}</td>
-                    <td class="p-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border">${t.status}</span></td>
-                    <td class="p-3 text-center whitespace-nowrap">
-                        <button type="button" onclick="confirmDeleteTask('${t.id}')" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg border border-rose-200"><i class="fa-solid fa-trash-can"></i></button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = filtered.map(t => {
+                let statusClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                if (t.status === 'قيد المعالجة') statusClass = 'bg-amber-100 text-amber-800 border-amber-200';
+                if (t.status === 'تصعيد للمدير') statusClass = 'bg-rose-100 text-rose-800 border-rose-200';
+
+                let shiftBadge = (t.shift === 'شفت مسائي') ? 'مسائي' : 'صباحي';
+
+                let matchedClient = (window.clients || []).find(c => (c.phone && c.phone === t.phone) || (c.name === t.customer) || (t.clientId && c.id === t.clientId));
+                let clientIdForProfile = matchedClient ? matchedClient.id : null;
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="p-3 text-slate-500 font-bold whitespace-nowrap">${t.time || '10:00 ص'}</td>
+                        <td class="p-3 font-bold whitespace-nowrap text-slate-700">${shiftBadge}</td>
+                        <td class="p-3 font-extrabold text-slate-900 whitespace-nowrap">${t.agent}</td>
+                        <td class="p-3 font-bold text-slate-900">
+                            <div>${t.customer}</div>
+                            <div class="text-[10px] text-slate-500 font-semibold dir-ltr text-right">${t.phone || ''}</div>
+                        </td>
+                        <td class="p-3 font-bold text-indigo-800 whitespace-nowrap">
+                            <span class="bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg text-[10px] block w-max">${t.entityType || 'عيادة'}</span>
+                            <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">${t.specialty || ''}</span>
+                        </td>
+                        <td class="p-3 font-bold text-slate-700 whitespace-nowrap"><span class="bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">${t.city || 'الرياض'}</span></td>
+                        <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${t.category}</td>
+                        <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}</td>
+                        <td class="p-3 whitespace-nowrap">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusClass}">${t.status}</span>
+                        </td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-1.5">
+                                ${clientIdForProfile ? `
+                                    <button type="button" onclick="openClientProfileModal('${clientIdForProfile}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer" title="عرض رحلة العميل والعقد">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                        <span>رحلة العميل والعقد</span>
+                                    </button>
+                                    <button type="button" onclick="openAddTaskModal('${clientIdForProfile}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer" title="تسجيل إجراء جديد">
+                                        <i class="fa-solid fa-plus"></i>
+                                        <span>إجراء</span>
+                                    </button>
+                                ` : ''}
+                                <button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function openAddTaskModal(clientIdToPreselect = null) {
             const modal = document.getElementById('addTaskModal');
-            document.getElementById('taskForm').reset();
+            const form = document.getElementById('taskForm');
+            renderClientSelectInTaskForm();
+
+            form.reset();
             document.getElementById('taskId').value = '';
             document.getElementById('formDate').value = window.currentDateFilter;
-            renderClientSelectInTaskForm();
+            document.getElementById('formEntityType').value = 'عيادة';
+            document.getElementById('formCity').value = 'الرياض';
 
             if (window.currentUserRole === 'agent' && window.currentLoggedInAgent) {
                 document.getElementById('formAgent').value = window.currentLoggedInAgent;
             }
+
             if (clientIdToPreselect) {
                 const client = (window.clients || []).find(c => c.id === clientIdToPreselect);
                 if (client) {
                     document.getElementById('formClientSelect').value = client.id;
                     document.getElementById('formCustomer').value = client.name;
                     document.getElementById('formPhone').value = client.phone || '';
+                    document.getElementById('formEntityType').value = client.entityType || 'عيادة';
+                    document.getElementById('formSpecialty').value = client.specialty || window.specialtiesList[0];
+                    document.getElementById('formCity').value = client.city || 'الرياض';
                 }
             }
+
             modal.classList.remove('hidden');
         }
 
@@ -1413,6 +2305,8 @@
             const specialty = document.getElementById('formSpecialty').value;
             const city = document.getElementById('formCity').value;
             const category = document.getElementById('formCategory').value;
+            const channel = document.getElementById('formChannel').value;
+            const priority = document.getElementById('formPriority').value;
             const status = document.getElementById('formStatus').value;
             const notes = document.getElementById('formNotes').value.trim();
 
@@ -1423,12 +2317,36 @@
                 clientId: selectedClientId || null,
                 time: currentTimeStr,
                 date: taskDate,
-                shift, agent, customer, phone, entityType, specialty, city, category, status, notes
+                shift, agent, customer, phone, entityType, specialty, city, category, channel, priority, status, notes
             };
 
             window.saveTaskToCloud(taskData);
-            showToast("تم حفظ الإجراء بالسحابة بنجاح!");
+            showToast("تم حفظ الإجراء والمتابعة بالسحابة بنجاح!");
             closeAddTaskModal();
+        }
+
+        function editTask(id) {
+            const t = window.tasks.find(item => item.id === id);
+            if (!t) return;
+
+            openAddTaskModal();
+            setTimeout(() => {
+                document.getElementById('modalTitle').innerText = 'تعديل عمل / معاملة';
+                document.getElementById('taskId').value = t.id;
+                document.getElementById('formDate').value = t.date || window.currentDateFilter;
+                document.getElementById('formShift').value = t.shift || 'شفت صباحي';
+                document.getElementById('formAgent').value = t.agent;
+                document.getElementById('formCustomer').value = t.customer;
+                document.getElementById('formPhone').value = t.phone || '';
+                document.getElementById('formEntityType').value = t.entityType || 'عيادة';
+                document.getElementById('formSpecialty').value = t.specialty || window.specialtiesList[0];
+                document.getElementById('formCity').value = t.city || 'الرياض';
+                document.getElementById('formCategory').value = t.category || 'مكالمة (تم الرد)';
+                document.getElementById('formChannel').value = t.channel || 'مكالمة هاتفية';
+                document.getElementById('formPriority').value = t.priority || 'عادية';
+                document.getElementById('formStatus').value = t.status || 'مكتمل';
+                document.getElementById('formNotes').value = t.notes || '';
+            }, 50);
         }
 
         function confirmDeleteTask(id) {
@@ -1451,7 +2369,11 @@
         function populateLoginEmployeeSelect() {
             const sel = document.getElementById('loginEmployeeName');
             if (!sel) return;
-            sel.innerHTML = (window.employees || []).map(e => `<option value="${e.name}">${e.name} (${e.shift})</option>`).join('');
+            if (!window.employees || window.employees.length === 0) {
+                sel.innerHTML = '<option value="">لا يوجد موظفين مسجلين حالياً - أضف كمدير أولاً</option>';
+                return;
+            }
+            sel.innerHTML = window.employees.map(e => `<option value="${e.name}">${e.name} (${e.shift})</option>`).join('');
         }
 
         function handleLogin(e) {
@@ -1462,7 +2384,7 @@
 
             if (role === 'manager') {
                 if (password !== 'admin123') {
-                    showToast("كلمة مرور المدير غير صحيحة", "error");
+                    showToast("كلمة مرور المدير غير صحيحة (استخدم admin123)", "error");
                     return;
                 }
                 applyLoginSession('manager', null);
@@ -1473,19 +2395,24 @@
                 }
                 const empObj = window.employees.find(e => e.name === agentName);
                 const validPin = (empObj && empObj.pin) ? empObj.pin : '123456';
+
                 if (password !== validPin && password !== '123456') {
                     showToast("كلمة مرور الموظف غير صحيحة", "error");
                     return;
                 }
                 applyLoginSession('agent', agentName);
             }
+
+            document.getElementById('loginPassword').value = '';
             showToast("تم تسجيل الدخول بنجاح");
         }
 
         function applyLoginSession(role, agentName) {
             window.currentUserRole = role;
             window.currentLoggedInAgent = agentName;
+
             document.getElementById('loginOverlay').classList.add('hidden');
+
             const nameSpan = document.getElementById('currentUserName');
             const roleSwitcher = document.getElementById('roleSwitcherContainer');
             const btnManageEmp = document.getElementById('btnManageEmp');
@@ -1506,6 +2433,7 @@
                 window.currentAgent = agentName;
                 switchRole('agent');
             }
+
             renderApp();
         }
 
@@ -1519,9 +2447,20 @@
         function showToast(msg, type = 'success') {
             const toastBox = document.getElementById('toastBox');
             const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
             toastMessage.innerText = msg;
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-xmark text-rose-400 text-base";
+            } else if (type === 'info') {
+                toastIcon.className = "fa-solid fa-circle-info text-sky-400 text-base";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-base";
+            }
+
             toastBox.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
             toastBox.classList.add('translate-y-0', 'opacity-100');
+
             setTimeout(() => {
                 toastBox.classList.remove('translate-y-0', 'opacity-100');
                 toastBox.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
@@ -1535,13 +2474,13 @@
             const managerView = document.getElementById('managerView');
 
             if (role === 'agent') {
-                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg bg-white text-brand-600 shadow-sm cursor-pointer";
-                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer";
+                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-white text-brand-600 shadow-sm cursor-pointer";
+                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
                 agentView.classList.remove('hidden');
                 managerView.classList.add('hidden');
             } else {
-                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg bg-white text-brand-600 shadow-sm cursor-pointer";
-                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer";
+                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-white text-brand-600 shadow-sm cursor-pointer";
+                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
                 agentView.classList.add('hidden');
                 managerView.classList.remove('hidden');
                 renderManagerDashboard();
@@ -1570,6 +2509,7 @@
             const agentSelector = document.getElementById('agentSelector');
             const formAgent = document.getElementById('formAgent');
             const summaryAgent = document.getElementById('summaryAgentFilter');
+
             let optionsHtml = '<option value="ALL">جميع الموظفين (الكل)</option>';
             let formOptionsHtml = '';
 
@@ -1581,11 +2521,11 @@
             if (agentSelector) agentSelector.innerHTML = optionsHtml;
             if (formAgent) formAgent.innerHTML = formOptionsHtml;
             if (summaryAgent) summaryAgent.innerHTML = optionsHtml;
+
             populateLoginEmployeeSelect();
         }
 
         function openEmployeeModal() {
-            resetEmployeeForm();
             renderEmployeeListUI();
             document.getElementById('manageEmployeesModal').classList.remove('hidden');
         }
@@ -1597,56 +2537,48 @@
         function renderEmployeeListUI() {
             const container = document.getElementById('employeesListContainer');
             if (!container) return;
-            container.innerHTML = (window.employees || []).map((emp) => `
+
+            let filteredList = window.employees || [];
+            if (filteredList.length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-center py-4 font-bold text-xs">لا يوجد موظفين مسجلين حالياً.</p>';
+                return;
+            }
+
+            container.innerHTML = filteredList.map((emp) => `
                 <div class="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm gap-2">
                     <div>
-                        <span class="font-bold text-slate-800 text-xs flex items-center gap-1.5"><i class="fa-solid fa-user-check text-brand-600"></i> ${emp.name}</span>
+                        <span class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-check text-brand-600"></i>
+                            ${emp.name}
+                        </span>
                         <span class="text-[10px] text-slate-500 font-semibold block">${emp.shift} | PIN: ${emp.pin || '123456'}</span>
                     </div>
-                    <div class="flex items-center gap-1">
-                        <button type="button" onclick="editEmployeeData('${emp.id}')" class="text-amber-600 p-1.5 rounded-lg bg-amber-50 cursor-pointer"><i class="fa-solid fa-pen"></i></button>
-                        <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 p-1.5 rounded-lg bg-rose-50 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
+                    <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>
             `).join('');
         }
 
-        function editEmployeeData(id) {
-            const emp = (window.employees || []).find(e => e.id === id);
-            if (!emp) return;
-            document.getElementById('editEmployeeId').value = emp.id;
-            document.getElementById('newEmployeeName').value = emp.name;
-            document.getElementById('newEmployeeShift').value = emp.shift || 'شفت صباحي';
-            document.getElementById('newEmployeePin').value = emp.pin || '123456';
-            document.getElementById('empFormTitle').innerText = 'تعديل بيانات الموظف';
-            document.getElementById('btnSaveEmployee').innerText = '💾 حفظ التعديلات';
-            document.getElementById('btnCancelEditEmp').classList.remove('hidden');
-        }
-
-        function resetEmployeeForm() {
-            document.getElementById('editEmployeeId').value = '';
-            document.getElementById('newEmployeeName').value = '';
-            document.getElementById('newEmployeeShift').value = 'شفت صباحي';
-            document.getElementById('newEmployeePin').value = '';
-            document.getElementById('empFormTitle').innerText = 'إضافة موظف جديد';
-            document.getElementById('btnSaveEmployee').innerText = '+ حفظ الموظف';
-            document.getElementById('btnCancelEditEmp').classList.add('hidden');
-        }
-
         function addNewEmployee() {
-            const editId = document.getElementById('editEmployeeId').value;
-            const name = document.getElementById('newEmployeeName').value.trim();
-            const shift = document.getElementById('newEmployeeShift').value;
-            const pin = document.getElementById('newEmployeePin').value.trim() || '123456';
+            const nameInput = document.getElementById('newEmployeeName');
+            const shiftSelect = document.getElementById('newEmployeeShift');
+            const pinInput = document.getElementById('newEmployeePin');
+            const name = nameInput.value.trim();
+            const shift = shiftSelect.value;
+            const pin = pinInput.value.trim() || '123456';
 
             if (!name) {
                 showToast("يرجى كتابة اسم الموظف", "error");
                 return;
             }
-            const empObj = { id: editId ? editId : ('emp_' + Date.now()), name, shift, pin };
-            window.saveEmployeeToCloud(empObj);
-            showToast(editId ? `تم تعديل الموظف (${name})` : `تمت إضافة الموظف (${name})`);
-            resetEmployeeForm();
+
+            const newEmp = { id: 'emp_' + Date.now(), name, shift, pin };
+            window.saveEmployeeToCloud(newEmp);
+
+            nameInput.value = '';
+            pinInput.value = '';
+            showToast(`تمت إضافة الموظف (${name})`);
         }
 
         function onAgentChanged() {
@@ -1663,33 +2595,126 @@
 
         function renderManagerDashboard() {
             const dayTasks = getFilteredDateTasks();
+
             const answeredCalls = dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
             const unansweredCalls = dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
             const totalCalls = answeredCalls + unansweredCalls;
+            const whatsappCount = dayTasks.filter(t => t.category === 'إرسال واتساب').length;
+            const meetingsCount = dayTasks.filter(t => t.category === 'اجتماع').length;
+            const nabdiContracts = dayTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
+            const bothContracts = dayTasks.filter(t => t.category === 'عقد (الطرفين)').length;
 
             if (document.getElementById('mgrTotalCalls')) document.getElementById('mgrTotalCalls').innerText = totalCalls;
             if (document.getElementById('mgrAnsweredCalls')) document.getElementById('mgrAnsweredCalls').innerText = answeredCalls;
             if (document.getElementById('mgrUnansweredCalls')) document.getElementById('mgrUnansweredCalls').innerText = unansweredCalls;
-            if (document.getElementById('mgrWhatsappCount')) document.getElementById('mgrWhatsappCount').innerText = dayTasks.filter(t => t.category === 'إرسال واتساب').length;
-            if (document.getElementById('mgrMeetingsCount')) document.getElementById('mgrMeetingsCount').innerText = dayTasks.filter(t => t.category === 'اجتماع').length;
-            if (document.getElementById('mgrNabdiContracts')) document.getElementById('mgrNabdiContracts').innerText = dayTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-            if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = dayTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            if (document.getElementById('mgrWhatsappCount')) document.getElementById('mgrWhatsappCount').innerText = whatsappCount;
+            if (document.getElementById('mgrMeetingsCount')) document.getElementById('mgrMeetingsCount').innerText = meetingsCount;
+            if (document.getElementById('mgrNabdiContracts')) document.getElementById('mgrNabdiContracts').innerText = nabdiContracts;
+            if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = bothContracts;
             if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = window.clients.length;
 
+            // Shift Comparison
+            const mornTasks = dayTasks.filter(t => t.shift === 'شفت صباحي');
+            const eveTasks = dayTasks.filter(t => t.shift === 'شفت مسائي');
+
+            const mornAns = mornTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+            const mornUnans = mornTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+            const mornWa = mornTasks.filter(t => t.category === 'إرسال واتساب').length;
+            const mornMeet = mornTasks.filter(t => t.category === 'اجتماع').length;
+            const mornNabdi = mornTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
+            const mornBoth = mornTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            const mornCallsTotal = mornAns + mornUnans;
+
+            const eveAns = eveTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+            const eveUnans = eveTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+            const eveWa = eveTasks.filter(t => t.category === 'إرسال واتساب').length;
+            const eveMeet = eveTasks.filter(t => t.category === 'اجتماع').length;
+            const eveNabdi = eveTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
+            const eveBoth = eveTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            const eveCallsTotal = eveAns + eveUnans;
+
+            const mornEmps = (window.employees || []).filter(e => e.shift === 'شفت صباحي').length;
+            const eveEmps = (window.employees || []).filter(e => e.shift === 'شفت مسائي').length;
+
+            if (document.getElementById('shiftMornEmpCount')) document.getElementById('shiftMornEmpCount').innerText = `${mornEmps} موظفين`;
+            if (document.getElementById('shiftMornCalls')) document.getElementById('shiftMornCalls').innerText = mornCallsTotal;
+            if (document.getElementById('shiftMornAns')) document.getElementById('shiftMornAns').innerText = mornAns;
+            if (document.getElementById('shiftMornUnans')) document.getElementById('shiftMornUnans').innerText = mornUnans;
+            if (document.getElementById('shiftMornWa')) document.getElementById('shiftMornWa').innerText = mornWa;
+            if (document.getElementById('shiftMornMeet')) document.getElementById('shiftMornMeet').innerText = mornMeet;
+            if (document.getElementById('shiftMornNabdi')) document.getElementById('shiftMornNabdi').innerText = mornNabdi;
+            if (document.getElementById('shiftMornBoth')) document.getElementById('shiftMornBoth').innerText = mornBoth;
+            if (document.getElementById('shiftMornRate')) document.getElementById('shiftMornRate').innerText = (mornTasks.length > 0) ? Math.min(100, Math.round((mornTasks.length / 20) * 100)) + '%' : '0%';
+
+            if (document.getElementById('shiftEveEmpCount')) document.getElementById('shiftEveEmpCount').innerText = `${eveEmps} موظفين`;
+            if (document.getElementById('shiftEveCalls')) document.getElementById('shiftEveCalls').innerText = eveCallsTotal;
+            if (document.getElementById('shiftEveAns')) document.getElementById('shiftEveAns').innerText = eveAns;
+            if (document.getElementById('shiftEveUnans')) document.getElementById('shiftEveUnans').innerText = eveUnans;
+            if (document.getElementById('shiftEveWa')) document.getElementById('shiftEveWa').innerText = eveWa;
+            if (document.getElementById('shiftEveMeet')) document.getElementById('shiftEveMeet').innerText = eveMeet;
+            if (document.getElementById('shiftEveNabdi')) document.getElementById('shiftEveNabdi').innerText = eveNabdi;
+            if (document.getElementById('shiftEveBoth')) document.getElementById('shiftEveBoth').innerText = eveBoth;
+            if (document.getElementById('shiftEveRate')) document.getElementById('shiftEveRate').innerText = (eveTasks.length > 0) ? Math.min(100, Math.round((eveTasks.length / 20) * 100)) + '%' : '0%';
+
+            // Render Team Table Summary
+            renderManagerTeamSummaryTable(dayTasks);
+
+            // Render Chart.js
             renderCharts(dayTasks);
+        }
+
+        function renderManagerTeamSummaryTable(dayTasks) {
+            const tbody = document.getElementById('mgrTeamSummaryBody');
+            if (!tbody) return;
+
+            const emps = window.employees || [];
+            if (emps.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-slate-400 font-bold">لا يوجد موظفين مسجلين.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = emps.map(emp => {
+                const empTasks = dayTasks.filter(t => t.agent === emp.name);
+                const calls = empTasks.filter(t => t.category.includes('مكالمة')).length;
+                const wa = empTasks.filter(t => t.category === 'إرسال واتساب').length;
+                const meet = empTasks.filter(t => t.category === 'اجتماع').length;
+                const nabdi = empTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
+                const both = empTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+                const totalOps = empTasks.length;
+                const rate = Math.min(100, totalOps * 10);
+
+                let statusBadge = (totalOps > 0) ? '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-bold">نشط اليوم</span>' : '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[10px] font-bold">لم يسجل أعمال</span>';
+
+                return `
+                    <tr class="text-center hover:bg-slate-50">
+                        <td class="p-3 text-right font-black text-slate-900">
+                            <div>${emp.name}</div>
+                            <div class="text-[10px] text-slate-500 font-normal">${emp.shift}</div>
+                        </td>
+                        <td class="p-3 font-extrabold text-slate-800">${calls}</td>
+                        <td class="p-3 font-extrabold text-emerald-600">${wa}</td>
+                        <td class="p-3 font-extrabold text-purple-600">${meet}</td>
+                        <td class="p-3 font-extrabold text-amber-600">${nabdi}</td>
+                        <td class="p-3 font-extrabold text-emerald-600">${both}</td>
+                        <td class="p-3 font-black text-brand-600">${rate}%</td>
+                        <td class="p-3">${statusBadge}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function renderCharts(dayTasks) {
             const emps = (window.employees || []).map(e => e.name);
             const empTaskCounts = emps.map(name => dayTasks.filter(t => t.agent === name).length);
 
+            // Team Performance Bar Chart
             const ctx1 = document.getElementById('teamPerformanceChart');
             if (ctx1) {
                 if (teamChartInstance) teamChartInstance.destroy();
                 teamChartInstance = new Chart(ctx1, {
                     type: 'bar',
                     data: {
-                        labels: emps.length > 0 ? emps : ['لا يوجد'],
+                        labels: emps.length > 0 ? emps : ['لا يوجد موظفين'],
                         datasets: [{
                             label: 'عدد الإجراءات اليومية',
                             data: empTaskCounts.length > 0 ? empTaskCounts : [0],
@@ -1697,10 +2722,16 @@
                             borderRadius: 8
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
                 });
             }
 
+            // Task Category Pie Chart
             const ctx2 = document.getElementById('taskCategoryChart');
             if (ctx2) {
                 const categories = ['مكالمة (تم الرد)', 'مكالمة (لم يرد)', 'إرسال واتساب', 'اجتماع', 'عقود'];
@@ -1717,15 +2748,22 @@
                     type: 'doughnut',
                     data: {
                         labels: categories,
-                        datasets: [{ data: counts, backgroundColor: ['#10b981', '#f43f5e', '#3b82f6', '#a855f7', '#f59e0b'] }]
+                        datasets: [{
+                            data: counts,
+                            backgroundColor: ['#10b981', '#f43f5e', '#3b82f6', '#a855f7', '#f59e0b']
+                        }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
                 });
             }
         }
 
         // ==========================================
-        // DIVERSE REPORTS & INFOGRAPHIC ENGINE (المحرك الشامل للتقارير)
+        // DIVERSE REPORTS GENERATOR & LIVE PREVIEW (طلب خاص)
         // ==========================================
         function openDailySummaryModal() {
             renderEmployeeSelects();
@@ -1747,6 +2785,7 @@
             const shift = document.getElementById('summaryShiftFilter').value;
             const agent = document.getElementById('summaryAgentFilter').value;
 
+            // Filter tasks
             const filteredTasks = (window.tasks || []).filter(t => {
                 const matchDate = (!start || t.date >= start) && (!end || t.date <= end);
                 const matchShift = (shift === 'ALL') || (t.shift === shift);
@@ -1754,314 +2793,205 @@
                 return matchDate && matchShift && matchAgent;
             });
 
+            // Filter clients
             const allClients = window.clients || [];
+
             const area = document.getElementById('summaryContentArea');
             if (!area) return;
 
-            // ==========================================
-            // القالب 1: إنفوجرافيك أداء خدمة العملاء المعتمد (صفحة واحدة طبق الأصل)
-            // ==========================================
-            if (reportType === 'INFOGRAPHIC_MAIN') {
-                const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
-                const answeredCalls = callTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-                const unansweredCalls = callTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
-                const canceledCalls = callTasks.filter(t => t.category === 'مكالمة (ملغاة)').length;
-                const totalCalls = callTasks.length;
+            let html = `
+                <div class="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="font-black text-slate-900 text-lg">منصة نبضي CRM - تقرير المبيعات والعمليات والحسابات</h2>
+                        <p class="text-xs text-purple-800 font-bold mt-1">المدى الزمني: من <b>${start}</b> إلى <b>${end}</b> | الشفت: <b>${shift}</b> | الموظف: <b>${agent}</b></p>
+                    </div>
+                    <div class="text-left text-xs font-bold text-slate-500">
+                        <div>تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}</div>
+                        <div>حالة التقرير: مُراجع وموثق</div>
+                    </div>
+                </div>
+            `;
 
-                const leadsCount = allClients.filter(c => c.stage === 'مهتم' || c.stage === 'تم اتصال مكتمل').length;
-                const signedContracts = filteredTasks.filter(t => t.category && t.category.includes('عقد')).length;
-                const whatsappCount = filteredTasks.filter(t => t.category === 'إرسال واتساب').length;
-                const meetingsCount = filteredTasks.filter(t => t.category === 'اجتماع').length;
+            if (reportType === 'SHIFT_AGENT') {
+                const totalOps = filteredTasks.length;
+                const calls = filteredTasks.filter(t => t.category.includes('مكالمة')).length;
+                const wa = filteredTasks.filter(t => t.category === 'إرسال واتساب').length;
+                const meet = filteredTasks.filter(t => t.category === 'اجتماع').length;
+                const contracts = filteredTasks.filter(t => t.category && t.category.includes('عقد')).length;
 
-                const ansPct = totalCalls > 0 ? ((answeredCalls / totalCalls) * 100).toFixed(1) : 0;
-                const unansPct = totalCalls > 0 ? ((unansweredCalls / totalCalls) * 100).toFixed(1) : 0;
-                const cancPct = totalCalls > 0 ? ((canceledCalls / totalCalls) * 100).toFixed(1) : 0;
+                html += `
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+                        <div class="bg-purple-50 p-3 rounded-2xl border border-purple-200 text-center"><span class="text-xs text-purple-800 font-bold block">إجمالي العمليات</span><b class="text-xl text-purple-950 font-black">${totalOps}</b></div>
+                        <div class="bg-blue-50 p-3 rounded-2xl border border-blue-200 text-center"><span class="text-xs text-blue-800 font-bold block">المكالمات</span><b class="text-xl text-blue-950 font-black">${calls}</b></div>
+                        <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-center"><span class="text-xs text-emerald-800 font-bold block">الواتساب</span><b class="text-xl text-emerald-950 font-black">${wa}</b></div>
+                        <div class="bg-indigo-50 p-3 rounded-2xl border border-indigo-200 text-center"><span class="text-xs text-indigo-800 font-bold block">الاجتماعات</span><b class="text-xl text-indigo-950 font-black">${meet}</b></div>
+                        <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 text-center"><span class="text-xs text-amber-800 font-bold block">العقود</span><b class="text-xl text-amber-950 font-black">${contracts}</b></div>
+                    </div>
 
-                // Team Performance Calculations
-                const emps = window.employees || [];
-                let teamStats = emps.map(emp => {
-                    const empTasks = filteredTasks.filter(t => t.agent === emp.name);
-                    const empCalls = empTasks.filter(t => t.category && t.category.includes('مكالمة')).length;
-                    const empAns = empTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-                    const empLeads = empTasks.filter(t => t.category === 'اجتماع' || (t.notes && t.notes.includes('مهتم'))).length;
-                    const empCust = empTasks.filter(t => t.category && t.category.includes('عقد')).length;
-                    const ansRate = empCalls > 0 ? Math.round((empAns / empCalls) * 100) : 0;
-                    const signRate = empLeads > 0 ? Math.min(100, Math.round((empCust / empLeads) * 100)) : 80;
-                    const avgScore = Math.min(99.9, ((ansRate * 0.4) + (signRate * 0.4) + (empCust * 5) + 20)).toFixed(1);
-
-                    return {
-                        name: emp.name,
-                        calls: empCalls,
-                        ans: empAns,
-                        leads: empLeads,
-                        cust: empCust,
-                        ansRate: ansRate + '%',
-                        signRate: signRate + '%',
-                        avgScore: parseFloat(avgScore)
-                    };
+                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">جدول أداء الموظفين التفصيلي خلال الفترة:</h3>
+                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
+                        <thead class="bg-slate-100 text-slate-900 font-black border-b border-slate-300">
+                            <tr>
+                                <th class="p-2 border border-slate-300">اسم الموظف</th>
+                                <th class="p-2 border border-slate-300">الشفت</th>
+                                <th class="p-2 border border-slate-300">المكالمات</th>
+                                <th class="p-2 border border-slate-300">واتساب</th>
+                                <th class="p-2 border border-slate-300">الاجتماعات</th>
+                                <th class="p-2 border border-slate-300">العقود</th>
+                                <th class="p-2 border border-slate-300">إجمالي الأنشطة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(window.employees || []).map(emp => {
+                                const empTasks = filteredTasks.filter(t => t.agent === emp.name);
+                                return `
+                                    <tr class="border-b border-slate-200">
+                                        <td class="p-2 border border-slate-300 font-bold">${emp.name}</td>
+                                        <td class="p-2 border border-slate-300">${emp.shift}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-blue-700">${empTasks.filter(t=>t.category.includes('مكالمة')).length}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-emerald-700">${empTasks.filter(t=>t.category==='إرسال واتساب').length}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-purple-700">${empTasks.filter(t=>t.category==='اجتماع').length}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-amber-700">${empTasks.filter(t=>t.category&&t.category.includes('عقد')).length}</td>
+                                        <td class="p-2 border border-slate-300 font-black text-brand-700">${empTasks.length}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else if (reportType === 'FUNNEL_STAGES') {
+                const stageCounts = (window.FUNNEL_STAGES || []).map(st => {
+                    return { stage: st, count: allClients.filter(c => c.stage === st).length };
                 });
 
-                teamStats.sort((a, b) => b.avgScore - a.avgScore);
-
-                const topAvgEmp = teamStats[0] ? teamStats[0].name : 'لا يوجد';
-                const topCallsEmp = [...teamStats].sort((a,b)=>b.calls - a.calls)[0]?.name || 'لا يوجد';
-                const maxCallsVal = [...teamStats].sort((a,b)=>b.calls - a.calls)[0]?.calls || 0;
-                const topLeadsEmp = [...teamStats].sort((a,b)=>b.leads - a.leads)[0]?.name || 'لا يوجد';
-                const maxLeadsVal = [...teamStats].sort((a,b)=>b.leads - a.leads)[0]?.leads || 0;
-                const topCustEmp = [...teamStats].sort((a,b)=>b.cust - a.cust)[0]?.name || 'لا يوجد';
-                const maxCustVal = [...teamStats].sort((a,b)=>b.cust - a.cust)[0]?.cust || 0;
-
-                area.innerHTML = `
-                    <div class="max-w-[780px] mx-auto bg-white border border-indigo-100 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 text-slate-800">
-                        
-                        <!-- Header Graphic -->
-                        <div class="flex justify-between items-start border-b border-indigo-100 pb-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-800 flex items-center justify-center text-white text-xl shadow-md">
-                                    ⚡
-                                </div>
-                                <div>
-                                    <h1 class="text-2xl font-black text-indigo-950 tracking-tight">تقرير أداء منصة نبضي</h1>
-                                    <p class="text-sm font-bold text-indigo-600">الفترة التشغيلية: من ${start} إلى ${end}</p>
-                                </div>
+                html += `
+                    <h3 class="font-extrabold text-sm text-slate-900 mb-3">توزيع العملاء والجهات على مراحل الفانل (Funnel Conversion):</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                        ${stageCounts.map(item => `
+                            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <span class="text-[11px] text-slate-600 font-bold block">${item.stage}</span>
+                                <b class="text-lg text-indigo-900 font-black">${item.count} جهات</b>
                             </div>
-                            <div class="text-left text-xs font-bold text-slate-400">
-                                <div>منصة نبضي NABDI</div>
-                                <div class="text-purple-700 font-extrabold text-sm">CRM Dashboard</div>
-                            </div>
-                        </div>
-
-                        <!-- Top 6 KPI Cards -->
-                        <div class="grid grid-cols-6 gap-2 text-center">
-                            <div class="bg-purple-50/70 border border-purple-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-purple-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-phone"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">إجمالي المكالمات</span>
-                                <b class="text-lg font-black text-purple-950">${totalCalls}</b>
-                            </div>
-                            <div class="bg-blue-50/70 border border-blue-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-headset"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">المكالمات المجابة</span>
-                                <b class="text-lg font-black text-blue-950">${answeredCalls}</b>
-                            </div>
-                            <div class="bg-indigo-50/70 border border-indigo-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-indigo-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-user-group"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">العملاء المهتمون</span>
-                                <b class="text-lg font-black text-indigo-950">${leadsCount}</b>
-                            </div>
-                            <div class="bg-sky-50/70 border border-sky-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-sky-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-file-signature"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">العقود الموقعة</span>
-                                <b class="text-lg font-black text-sky-950">${signedContracts}</b>
-                            </div>
-                            <div class="bg-emerald-50/70 border border-emerald-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-brands fa-whatsapp"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">رسائل واتساب</span>
-                                <b class="text-lg font-black text-emerald-950">${whatsappCount}</b>
-                            </div>
-                            <div class="bg-amber-50/70 border border-amber-100 p-2 rounded-2xl">
-                                <div class="w-7 h-7 mx-auto bg-amber-600 text-white rounded-full flex items-center justify-center text-xs mb-1"><i class="fa-solid fa-calendar-check"></i></div>
-                                <span class="text-[10px] font-bold text-slate-500 block">عدد الاجتماعات</span>
-                                <b class="text-lg font-black text-amber-950">${meetingsCount}</b>
-                            </div>
-                        </div>
-
-                        <!-- Section: نتائج المكالمات -->
-                        <div class="bg-slate-50/70 border border-slate-200 rounded-2xl p-3.5">
-                            <div class="bg-indigo-900 text-white text-center py-1 rounded-xl text-xs font-black mb-3 w-40 mx-auto">
-                                نتائج المكالمات
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                                <div class="h-36 relative flex items-center justify-center">
-                                    <canvas id="reportDonutCanvas"></canvas>
-                                </div>
-                                <table class="w-full text-right text-xs border-collapse">
-                                    <thead class="bg-indigo-950 text-white font-black">
-                                        <tr>
-                                            <th class="p-1.5 text-center">النتيجة</th>
-                                            <th class="p-1.5 text-center">العدد</th>
-                                            <th class="p-1.5 text-center">النسبة</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-200 font-bold">
-                                        <tr>
-                                            <td class="p-1.5 text-blue-700 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span> مكتملة / مجابة</td>
-                                            <td class="p-1.5 text-center">${answeredCalls}</td>
-                                            <td class="p-1.5 text-center">${ansPct}%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="p-1.5 text-purple-700 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span> لا يوجد رد</td>
-                                            <td class="p-1.5 text-center">${unansweredCalls}</td>
-                                            <td class="p-1.5 text-center">${unansPct}%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="p-1.5 text-slate-500 flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block"></span> ملغاة / أخرى</td>
-                                            <td class="p-1.5 text-center">${canceledCalls}</td>
-                                            <td class="p-1.5 text-center">${cancPct}%</td>
-                                        </tr>
-                                        <tr class="bg-indigo-50 font-black text-indigo-950">
-                                            <td class="p-1.5">إجمالي المكالمات</td>
-                                            <td class="p-1.5 text-center">${totalCalls}</td>
-                                            <td class="p-1.5 text-center">100%</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Section: أداء فريق خدمة العملاء -->
-                        <div>
-                            <div class="bg-indigo-900 text-white text-center py-1 rounded-xl text-xs font-black mb-2 w-48 mx-auto">
-                                أداء فريق خدمة العملاء
-                            </div>
-                            <table class="w-full text-center text-xs border border-indigo-200 rounded-xl overflow-hidden">
-                                <thead class="bg-indigo-950 text-white font-black">
-                                    <tr>
-                                        <th class="p-1.5">الترتيب</th>
-                                        <th class="p-1.5 text-right">الموظف</th>
-                                        <th class="p-1.5">عدد المكالمات</th>
-                                        <th class="p-1.5">المكالمات المجابة</th>
-                                        <th class="p-1.5">Leads</th>
-                                        <th class="p-1.5">Customer</th>
-                                        <th class="p-1.5">نسبة الرد</th>
-                                        <th class="p-1.5">نسبة التوقيع</th>
-                                        <th class="p-1.5 bg-indigo-900">متوسط الأداء العام</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-200 font-bold">
-                                    ${teamStats.map((st, idx) => `
-                                        <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-indigo-50/40">
-                                            <td class="p-1.5 font-black text-indigo-900">${idx + 1}</td>
-                                            <td class="p-1.5 text-right font-black">${st.name}</td>
-                                            <td class="p-1.5">${st.calls}</td>
-                                            <td class="p-1.5 text-blue-700">${st.ans}</td>
-                                            <td class="p-1.5 text-indigo-700">${st.leads}</td>
-                                            <td class="p-1.5 text-emerald-700 font-black">${st.cust}</td>
-                                            <td class="p-1.5">${st.ansRate}</td>
-                                            <td class="p-1.5">${st.signRate}</td>
-                                            <td class="p-1.5 font-black text-purple-900 bg-purple-50/50">${st.avgScore}%</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Section: أبرز المؤشرات -->
-                        <div>
-                            <div class="bg-indigo-900 text-white text-center py-1 rounded-xl text-xs font-black mb-2 w-40 mx-auto">
-                                أبرز المؤشرات
-                            </div>
-                            <div class="grid grid-cols-4 gap-2 text-center">
-                                <div class="bg-purple-50 border border-purple-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أفضل متوسط أداء</span>
-                                    <div class="text-xs font-black text-purple-950 mt-0.5">${topAvgEmp}</div>
-                                    <b class="text-base font-black text-purple-700">${teamStats[0]?.avgScore || 0}%</b>
-                                </div>
-                                <div class="bg-blue-50 border border-blue-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أعلى عدد مكالمات</span>
-                                    <div class="text-xs font-black text-blue-950 mt-0.5">${topCallsEmp}</div>
-                                    <b class="text-base font-black text-blue-700">${maxCallsVal}</b>
-                                </div>
-                                <div class="bg-indigo-50 border border-indigo-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أعلى Leads</span>
-                                    <div class="text-xs font-black text-indigo-950 mt-0.5">${topLeadsEmp}</div>
-                                    <b class="text-base font-black text-indigo-700">${maxLeadsVal}</b>
-                                </div>
-                                <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-2xl">
-                                    <span class="text-[10px] font-bold text-slate-500 block">أعلى Customer</span>
-                                    <div class="text-xs font-black text-emerald-950 mt-0.5">${topCustEmp}</div>
-                                    <b class="text-base font-black text-emerald-700">${maxCustVal}</b>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Footer Note -->
-                        <div class="text-center text-[10px] text-slate-400 font-bold pt-2 border-t border-slate-100">
-                            متوسط الأداء العام = مؤشر مركب يعتمد على نسبة الرد + نسبة التوقيع + مساهمة Leads + مساهمة Customer الموثقة بسحابة نبضي.
-                        </div>
-
+                        `).join('')}
                     </div>
-                `;
 
-                // Render Donut Chart
-                setTimeout(() => {
-                    const canvas = document.getElementById('reportDonutCanvas');
-                    if (canvas) {
-                        if (reportDonutChartInstance) reportDonutChartInstance.destroy();
-                        reportDonutChartInstance = new Chart(canvas, {
-                            type: 'doughnut',
-                            data: {
-                                labels: ['مكتملة / مجابة', 'لا يوجد رد', 'ملغاة'],
-                                datasets: [{
-                                    data: [answeredCalls || 1, unansweredCalls, canceledCalls],
-                                    backgroundColor: ['#2563eb', '#7c3aed', '#94a3b8'],
-                                    borderWidth: 2
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: { legend: { display: false } }
-                            }
-                        });
-                    }
-                }, 50);
-
-                return;
-            }
-
-            // باقي التقارير الأخرى (مكالمات، واتساب، اجتماعات، عقود...)
-            if (reportType === 'CALLS_REPORT') {
-                const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
-                area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير المكالمات التفصيلي (${callTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-blue-100 font-black">
-                            <tr><th class="p-2 border">الوقت</th><th class="p-2 border">الموظف</th><th class="p-2 border">العميل</th><th class="p-2 border">النوع</th><th class="p-2 border">الملاحظات</th></tr>
+                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">تفاصيل العملاء المسجلين ومراحلهم الحالية:</h3>
+                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
+                        <thead class="bg-slate-100 text-slate-900 font-black">
+                            <tr>
+                                <th class="p-2 border border-slate-300">اسم المنشأة</th>
+                                <th class="p-2 border border-slate-300">المسؤول</th>
+                                <th class="p-2 border border-slate-300">الهاتف</th>
+                                <th class="p-2 border border-slate-300">المدينة</th>
+                                <th class="p-2 border border-slate-300">المرحلة الحالية</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${callTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date} ${t.time}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-indigo-900">${t.customer}</td><td class="p-2 border">${t.category}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
+                            ${allClients.map(c => `
+                                <tr>
+                                    <td class="p-2 border border-slate-300 font-bold text-indigo-900">${c.name}</td>
+                                    <td class="p-2 border border-slate-300">${c.contactPerson || '-'}</td>
+                                    <td class="p-2 border border-slate-300 font-mono dir-ltr">${c.phone}</td>
+                                    <td class="p-2 border border-slate-300">${c.city || 'الرياض'}</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.stage || 'تم اتصال مكتمل'}</td>
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>
                 `;
-            } else if (reportType === 'WHATSAPP_REPORT') {
-                const waTasks = filteredTasks.filter(t => t.category === 'إرسال واتساب');
-                area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير رسائل الواتساب (${waTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-emerald-100 font-black">
-                            <tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الموظف</th><th class="p-2 border">الجهة</th><th class="p-2 border">الهاتف</th><th class="p-2 border">الإجراء المتخذ</th></tr>
+            } else if (reportType === 'BANK_COMMISSIONS') {
+                const clientsWithFin = allClients.filter(c => c.accountNumber || c.iban || c.commission);
+
+                html += `
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl mb-4 text-emerald-950 font-bold text-xs flex justify-between items-center">
+                        <span>إجمالي الجهات المسجل لها بيانات مالية وعمولات: <b>${clientsWithFin.length} من أصل ${allClients.length}</b></span>
+                        <span class="text-[11px] bg-emerald-200 px-2 py-0.5 rounded-lg">بيانات معتمدة وموثقة</span>
+                    </div>
+
+                    <h3 class="font-extrabold text-sm text-slate-900 mb-2">جدول بيانات الحسابات، الأيبان، والعمولات المتفق عليها:</h3>
+                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
+                        <thead class="bg-emerald-100 text-slate-900 font-black">
+                            <tr>
+                                <th class="p-2 border border-slate-300">الجهة / العميل</th>
+                                <th class="p-2 border border-slate-300">رقم الحساب البنكي</th>
+                                <th class="p-2 border border-slate-300">رقم الآيبان IBAN</th>
+                                <th class="p-2 border border-slate-300">العمولة المتفق عليها</th>
+                                <th class="p-2 border border-slate-300">المستندات المالية المرفقة</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${waTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-slate-900">${t.customer}</td><td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
+                            ${allClients.map(c => {
+                                const docCount = c.docs ? Object.keys(c.docs).length : 0;
+                                return `
+                                    <tr>
+                                        <td class="p-2 border border-slate-300 font-bold text-slate-900">${c.name}</td>
+                                        <td class="p-2 border border-slate-300 font-bold">${c.accountNumber || 'غير مدخل'}</td>
+                                        <td class="p-2 border border-slate-300 font-mono dir-ltr text-right">${c.iban || 'غير مدخل'}</td>
+                                        <td class="p-2 border border-slate-300 font-black text-emerald-700">${c.commission || 'غير مدخلة'}</td>
+                                        <td class="p-2 border border-slate-300 font-bold">${docCount > 0 ? `مرفق (${docCount} ملفات)` : 'لا يوجد'}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                 `;
-            } else if (reportType === 'MEETINGS_REPORT') {
-                const meetTasks = filteredTasks.filter(t => t.category === 'اجتماع');
-                area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير الاجتماعات والزيارات (${meetTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-purple-100 font-black">
-                            <tr><th class="p-2 border">الموعد</th><th class="p-2 border">الموظف</th><th class="p-2 border">المنشأة</th><th class="p-2 border">التفاصيل والقرارات</th></tr>
+            } else if (reportType === 'ENTITIES_GEO') {
+                html += `
+                    <h3 class="font-extrabold text-sm text-slate-900 mb-3">حصر وتوزيع العملاء حسب نوع المنشأة والمدينة:</h3>
+                    <table class="w-full text-right text-xs border-collapse border border-slate-300 mb-4">
+                        <thead class="bg-indigo-100 text-slate-900 font-black">
+                            <tr>
+                                <th class="p-2 border border-slate-300">اسم المنشأة</th>
+                                <th class="p-2 border border-slate-300">نوع المنشأة</th>
+                                <th class="p-2 border border-slate-300">التخصص</th>
+                                <th class="p-2 border border-slate-300">المدينة</th>
+                                <th class="p-2 border border-slate-300">العنوان</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${meetTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date} ${t.time}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-purple-950">${t.customer}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
+                            ${allClients.map(c => `
+                                <tr>
+                                    <td class="p-2 border border-slate-300 font-bold text-slate-900">${c.name}</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-indigo-800">${c.entityType || 'عيادة'}</td>
+                                    <td class="p-2 border border-slate-300">${c.specialty || '-'}</td>
+                                    <td class="p-2 border border-slate-300 font-bold">${c.city || 'الرياض'}</td>
+                                    <td class="p-2 border border-slate-300 text-slate-600">${c.address || '-'}</td>
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>
                 `;
             } else {
-                area.innerHTML = `
-                    <h3 class="font-black text-base text-slate-900 mb-2">تقرير سجل الأنشطة والعمليات (${filteredTasks.length})</h3>
-                    <table class="w-full text-right text-xs border border-slate-300">
-                        <thead class="bg-slate-100 font-black">
-                            <tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الموظف</th><th class="p-2 border">العميل</th><th class="p-2 border">النشاط</th><th class="p-2 border">التفاصيل</th></tr>
+                html += `
+                    <h3 class="font-extrabold text-sm text-slate-900 mb-3">سجل كافة التفاصيل والأنشطة للفترة المحدد:</h3>
+                    <table class="w-full text-right text-xs border-collapse border border-slate-300">
+                        <thead class="bg-slate-100 text-slate-900 font-black">
+                            <tr>
+                                <th class="p-2 border border-slate-300">التاريخ والوقت</th>
+                                <th class="p-2 border border-slate-300">الشفت والموظف</th>
+                                <th class="p-2 border border-slate-300">اسم العميل</th>
+                                <th class="p-2 border border-slate-300">نوع الإجراء</th>
+                                <th class="p-2 border border-slate-300">تفاصيل المتابعة</th>
+                                <th class="p-2 border border-slate-300">الحالة</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${filteredTasks.map(t => `<tr><td class="p-2 border dir-ltr text-right">${t.date}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-slate-900">${t.customer}</td><td class="p-2 border">${t.category}</td><td class="p-2 border">${t.notes}</td></tr>`).join('')}
+                            ${filteredTasks.map(t => `
+                                <tr>
+                                    <td class="p-2 border border-slate-300 dir-ltr text-right">${t.date} ${t.time}</td>
+                                    <td class="p-2 border border-slate-300 font-bold">${t.agent} (${t.shift})</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-indigo-900">${t.customer}</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-brand-700">${t.category}</td>
+                                    <td class="p-2 border border-slate-300">${t.notes}</td>
+                                    <td class="p-2 border border-slate-300 font-bold">${t.status}</td>
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>
                 `;
             }
+
+            area.innerHTML = html;
         }
     </script>
 </body>
