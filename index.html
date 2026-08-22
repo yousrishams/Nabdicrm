@@ -59,8 +59,6 @@
             background-color: #e2e8f0;
             z-index: 0;
         }
-        
-        /* ضبط الطباعة A4 */
         @media print {
             @page {
                 size: A4 portrait;
@@ -178,7 +176,6 @@
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row justify-between items-center py-3 md:h-16 gap-3 md:gap-0">
-                
                 <div class="flex items-center space-x-3 space-x-reverse w-full md:w-auto justify-between md:justify-start">
                     <div class="flex items-center gap-3">
                         <div class="logo-bg-purple p-2 rounded-2xl shadow-md border border-purple-400/30 flex items-center justify-center">
@@ -196,7 +193,6 @@
                                 <path d="M 0 50 L 25 50 L 32 35 L 40 65 L 48 20 L 56 80 L 64 40 L 72 55 L 80 50 L 100 50" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                             </svg>
                         </div>
-
                         <div>
                             <div class="flex items-center gap-2">
                                 <h1 class="font-black text-lg text-slate-900 leading-tight">منصة نبضي <span class="text-xs text-brand-600 font-bold">| Nabdi CRM</span></h1>
@@ -884,7 +880,593 @@
         </div>
     </div>
 
+    <!-- JAVASCRIPT LOGIC ENGINE -->
     <script>
+        // مصفوفة الموظفين الأساسية الفورية
+        window.employees = [
+            { id: 'emp_1', name: 'نور', shift: 'شفت صباحي', pin: '123456' },
+            { id: 'emp_2', name: 'رنيم', shift: 'شفت صباحي', pin: '123456' },
+            { id: 'emp_3', name: 'امنية', shift: 'شفت صباحي', pin: '123456' },
+            { id: 'emp_4', name: 'اماني', shift: 'شفت مسائي', pin: '123456' },
+            { id: 'emp_5', name: 'ملك', shift: 'شفت صباحي', pin: '123456' },
+            { id: 'emp_6', name: 'يمني', shift: 'شفت مسائي', pin: '123456' },
+            { id: 'emp_7', name: 'حبيبة', shift: 'شفت مسائي', pin: '123456' }
+        ];
+        window.tasks = [];
+        window.clients = [];
+        window.currentUserRole = null;
+        window.currentLoggedInAgent = null;
+        window.currentAgent = 'ALL';
+        window.currentDateFilter = new Date().toISOString().split('T')[0];
+
+        let teamChartInstance = null;
+        let categoryChartInstance = null;
+        let reportDonutChartInstance = null;
+
+        // تهيئة فورية لملء القوائم لحظياً
+        function initAppImmediately() {
+            try {
+                const storedEmp = localStorage.getItem('cs_nabdi_employees');
+                if (storedEmp) {
+                    const parsed = JSON.parse(storedEmp);
+                    if (parsed && parsed.length > 0) window.employees = parsed;
+                }
+                const storedTasks = localStorage.getItem('cs_nabdi_tasks');
+                if (storedTasks) window.tasks = JSON.parse(storedTasks);
+                const storedClients = localStorage.getItem('cs_nabdi_clients');
+                if (storedClients) window.clients = JSON.parse(storedClients);
+            } catch(e) {}
+
+            populateLoginEmployeeSelect();
+            renderEmployeeSelects();
+            populateFunnelDropdowns();
+            populateSpecialtiesDropdowns();
+
+            const datePicker = document.getElementById('globalDatePicker');
+            if (datePicker) datePicker.value = window.currentDateFilter;
+        }
+
+        function populateLoginEmployeeSelect() {
+            const sel = document.getElementById('loginEmployeeName');
+            if (!sel) return;
+            sel.innerHTML = (window.employees || []).map(e => `<option value="${e.name}">${e.name} (${e.shift})</option>`).join('');
+        }
+
+        function renderEmployeeSelects() {
+            const agentSelector = document.getElementById('agentSelector');
+            const formAgent = document.getElementById('formAgent');
+            const summaryAgent = document.getElementById('summaryAgentFilter');
+            let optionsHtml = '<option value="ALL">جميع الموظفين (الكل)</option>';
+            let formOptionsHtml = '';
+
+            (window.employees || []).forEach(emp => {
+                optionsHtml += `<option value="${emp.name}">${emp.name}</option>`;
+                formOptionsHtml += `<option value="${emp.name}">${emp.name} (${emp.shift})</option>`;
+            });
+
+            if (agentSelector) agentSelector.innerHTML = optionsHtml;
+            if (formAgent) formAgent.innerHTML = formOptionsHtml;
+            if (summaryAgent) summaryAgent.innerHTML = optionsHtml;
+            populateLoginEmployeeSelect();
+        }
+
+        function populateFunnelDropdowns() {
+            const list = window.FUNNEL_STAGES || ["تم اتصال مكتمل", "مهتم", "اجتماع محدد", "عقد موقع", "غير مهتم"];
+            const clientStage = document.getElementById('clientStage');
+            if (clientStage) clientStage.innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        function populateSpecialtiesDropdowns() {
+            const list = window.specialtiesList || ["طب وجراحة العيون", "طب وجراحة الأسنان", "الجلدية والتجميل", "الباطنة والقلب", "طب الأطفال", "الجراحة العامة", "صيدلة عامة"];
+            const formSpec = document.getElementById('formSpecialty');
+            const clientSpec = document.getElementById('clientSpecialty');
+            const optionsHtml = list.map(s => `<option value="${s}">${s}</option>`).join('');
+            if (formSpec) formSpec.innerHTML = optionsHtml;
+            if (clientSpec) clientSpec.innerHTML = optionsHtml;
+        }
+
+        function toggleLoginInputs() {
+            const role = document.getElementById('loginRole').value;
+            const container = document.getElementById('loginEmpSelectContainer');
+            if (role === 'manager') container.classList.add('hidden');
+            else {
+                container.classList.remove('hidden');
+                populateLoginEmployeeSelect();
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const role = document.getElementById('loginRole').value;
+            const password = document.getElementById('loginPassword').value.trim();
+            const agentName = document.getElementById('loginEmployeeName').value;
+
+            if (role === 'manager') {
+                if (password !== 'admin123') {
+                    showToast("كلمة مرور المدير غير صحيحة", "error");
+                    return;
+                }
+                applyLoginSession('manager', null);
+            } else {
+                if (!agentName) {
+                    showToast("يرجى اختيار اسم الموظف", "error");
+                    return;
+                }
+                const empObj = window.employees.find(e => e.name === agentName);
+                const validPin = (empObj && empObj.pin) ? empObj.pin : '123456';
+                if (password !== validPin && password !== '123456') {
+                    showToast("كلمة مرور الموظف غير صحيحة", "error");
+                    return;
+                }
+                applyLoginSession('agent', agentName);
+            }
+            showToast("تم تسجيل الدخول بنجاح");
+        }
+
+        function applyLoginSession(role, agentName) {
+            window.currentUserRole = role;
+            window.currentLoggedInAgent = agentName;
+            document.getElementById('loginOverlay').classList.add('hidden');
+            const nameSpan = document.getElementById('currentUserName');
+            const roleSwitcher = document.getElementById('roleSwitcherContainer');
+            const btnManageEmp = document.getElementById('btnManageEmp');
+            const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
+
+            if (role === 'manager') {
+                nameSpan.innerText = 'المدير العام';
+                roleSwitcher.classList.remove('hidden');
+                btnManageEmp.classList.remove('hidden');
+                agentSelectorWrapper.classList.remove('hidden');
+                window.currentAgent = 'ALL';
+                switchRole('manager');
+            } else {
+                nameSpan.innerText = `الموظف: ${agentName}`;
+                roleSwitcher.classList.add('hidden');
+                btnManageEmp.classList.add('hidden');
+                agentSelectorWrapper.classList.add('hidden');
+                window.currentAgent = agentName;
+                switchRole('agent');
+            }
+            renderApp();
+        }
+
+        function logout() {
+            window.currentUserRole = null;
+            window.currentLoggedInAgent = null;
+            document.getElementById('loginOverlay').classList.remove('hidden');
+            showToast("تم تسجيل الخروج", "info");
+        }
+
+        function showToast(msg, type = 'success') {
+            const toastBox = document.getElementById('toastBox');
+            const toastMessage = document.getElementById('toastMessage');
+            if (!toastBox || !toastMessage) return;
+            toastMessage.innerText = msg;
+            toastBox.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            toastBox.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toastBox.classList.remove('translate-y-0', 'opacity-100');
+                toastBox.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        function switchRole(role) {
+            const btnAgent = document.getElementById('btnRoleAgent');
+            const btnManager = document.getElementById('btnRoleManager');
+            const agentView = document.getElementById('agentView');
+            const managerView = document.getElementById('managerView');
+
+            if (role === 'agent') {
+                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg bg-white text-brand-600 shadow-sm cursor-pointer";
+                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer";
+                agentView.classList.remove('hidden');
+                managerView.classList.add('hidden');
+            } else {
+                if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg bg-white text-brand-600 shadow-sm cursor-pointer";
+                if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg text-slate-600 hover:text-slate-900 cursor-pointer";
+                agentView.classList.add('hidden');
+                managerView.classList.remove('hidden');
+                renderManagerDashboard();
+            }
+        }
+
+        function setTodayDate() {
+            window.currentDateFilter = new Date().toISOString().split('T')[0];
+            document.getElementById('globalDatePicker').value = window.currentDateFilter;
+            renderApp();
+            showToast("تم الانتقال لليوم الحالي");
+        }
+
+        function onDateFilterChanged(newDate) {
+            if (!newDate) return;
+            window.currentDateFilter = newDate;
+            renderApp();
+        }
+
+        function getFilteredDateTasks() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            return (window.tasks || []).filter(t => (t.date || todayStr) === window.currentDateFilter);
+        }
+
+        function openEmployeeModal() {
+            resetEmployeeForm();
+            renderEmployeeListUI();
+            document.getElementById('manageEmployeesModal').classList.remove('hidden');
+        }
+
+        function closeEmployeeModal() {
+            document.getElementById('manageEmployeesModal').classList.add('hidden');
+        }
+
+        function renderEmployeeListUI() {
+            const container = document.getElementById('employeesListContainer');
+            if (!container) return;
+            container.innerHTML = (window.employees || []).map((emp) => `
+                <div class="flex justify-between items-center bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm gap-2">
+                    <div>
+                        <span class="font-bold text-slate-800 text-xs flex items-center gap-1.5"><i class="fa-solid fa-user-check text-brand-600"></i> ${emp.name}</span>
+                        <span class="text-[10px] text-slate-500 font-semibold block">${emp.shift} | PIN: ${emp.pin || '123456'}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="editEmployeeData('${emp.id}')" class="text-amber-600 p-1.5 rounded-lg bg-amber-50 cursor-pointer"><i class="fa-solid fa-pen"></i></button>
+                        <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 p-1.5 rounded-lg bg-rose-50 cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editEmployeeData(id) {
+            const emp = (window.employees || []).find(e => e.id === id);
+            if (!emp) return;
+            document.getElementById('editEmployeeId').value = emp.id;
+            document.getElementById('newEmployeeName').value = emp.name;
+            document.getElementById('newEmployeeShift').value = emp.shift || 'شفت صباحي';
+            document.getElementById('newEmployeePin').value = emp.pin || '123456';
+            document.getElementById('empFormTitle').innerText = 'تعديل بيانات الموظف';
+            document.getElementById('btnSaveEmployee').innerText = '💾 حفظ التعديلات';
+            document.getElementById('btnCancelEditEmp').classList.remove('hidden');
+        }
+
+        function resetEmployeeForm() {
+            document.getElementById('editEmployeeId').value = '';
+            document.getElementById('newEmployeeName').value = '';
+            document.getElementById('newEmployeeShift').value = 'شفت صباحي';
+            document.getElementById('newEmployeePin').value = '';
+            document.getElementById('empFormTitle').innerText = 'إضافة موظف جديد';
+            document.getElementById('btnSaveEmployee').innerText = '+ حفظ الموظف';
+            document.getElementById('btnCancelEditEmp').classList.add('hidden');
+        }
+
+        function addNewEmployee() {
+            const editId = document.getElementById('editEmployeeId').value;
+            const name = document.getElementById('newEmployeeName').value.trim();
+            const shift = document.getElementById('newEmployeeShift').value;
+            const pin = document.getElementById('newEmployeePin').value.trim() || '123456';
+
+            if (!name) {
+                showToast("يرجى كتابة اسم الموظف", "error");
+                return;
+            }
+            const empObj = { id: editId ? editId : ('emp_' + Date.now()), name, shift, pin };
+            window.saveEmployeeToCloud(empObj);
+            showToast(editId ? `تم تعديل الموظف (${name})` : `تمت إضافة الموظف (${name})`);
+            resetEmployeeForm();
+        }
+
+        function onAgentChanged() {
+            window.currentAgent = document.getElementById('agentSelector').value;
+            renderAgentTasks();
+        }
+
+        function renderApp() {
+            renderAgentTasks();
+            if (window.currentUserRole === 'manager') {
+                renderManagerDashboard();
+            }
+        }
+
+        function renderManagerDashboard() {
+            const dayTasks = getFilteredDateTasks();
+            const answeredCalls = dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+            const unansweredCalls = dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+            const totalCalls = answeredCalls + unansweredCalls;
+
+            if (document.getElementById('mgrTotalCalls')) document.getElementById('mgrTotalCalls').innerText = totalCalls;
+            if (document.getElementById('mgrAnsweredCalls')) document.getElementById('mgrAnsweredCalls').innerText = answeredCalls;
+            if (document.getElementById('mgrUnansweredCalls')) document.getElementById('mgrUnansweredCalls').innerText = unansweredCalls;
+            if (document.getElementById('mgrWhatsappCount')) document.getElementById('mgrWhatsappCount').innerText = dayTasks.filter(t => t.category === 'إرسال واتساب').length;
+            if (document.getElementById('mgrMeetingsCount')) document.getElementById('mgrMeetingsCount').innerText = dayTasks.filter(t => t.category === 'اجتماع').length;
+            if (document.getElementById('mgrNabdiContracts')) document.getElementById('mgrNabdiContracts').innerText = dayTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
+            if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = dayTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = window.clients.length;
+
+            renderCharts(dayTasks);
+        }
+
+        function renderCharts(dayTasks) {
+            const emps = (window.employees || []).map(e => e.name);
+            const empTaskCounts = emps.map(name => dayTasks.filter(t => t.agent === name).length);
+
+            const ctx1 = document.getElementById('teamPerformanceChart');
+            if (ctx1) {
+                if (teamChartInstance) teamChartInstance.destroy();
+                teamChartInstance = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: emps.length > 0 ? emps : ['لا يوجد'],
+                        datasets: [{
+                            label: 'عدد الإجراءات اليومية',
+                            data: empTaskCounts.length > 0 ? empTaskCounts : [0],
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 8
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+
+            const ctx2 = document.getElementById('taskCategoryChart');
+            if (ctx2) {
+                const categories = ['مكالمة (تم الرد)', 'مكالمة (لم يرد)', 'إرسال واتساب', 'اجتماع', 'عقود'];
+                const counts = [
+                    dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length,
+                    dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length,
+                    dayTasks.filter(t => t.category === 'إرسال واتساب').length,
+                    dayTasks.filter(t => t.category === 'اجتماع').length,
+                    dayTasks.filter(t => t.category && t.category.includes('عقد')).length
+                ];
+
+                if (categoryChartInstance) categoryChartInstance.destroy();
+                categoryChartInstance = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: categories,
+                        datasets: [{ data: counts, backgroundColor: ['#10b981', '#f43f5e', '#3b82f6', '#a855f7', '#f59e0b'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+        }
+
+        function renderAgentTasks() {
+            const shiftVal = document.getElementById('agentFilterShift') ? document.getElementById('agentFilterShift').value : 'ALL';
+            const entityTypeVal = document.getElementById('agentFilterEntityType') ? document.getElementById('agentFilterEntityType').value : 'ALL';
+            const statusVal = document.getElementById('agentFilterStatus') ? document.getElementById('agentFilterStatus').value : 'ALL';
+            const searchVal = document.getElementById('agentSearchInput') ? document.getElementById('agentSearchInput').value.trim().toLowerCase() : '';
+
+            let dayTasks = getFilteredDateTasks();
+            let activeAgent = (window.currentUserRole === 'agent') ? window.currentLoggedInAgent : window.currentAgent;
+
+            let filtered = dayTasks.filter(t => {
+                const matchShift = (shiftVal === 'ALL') || (t.shift === shiftVal);
+                const matchAgent = (activeAgent === 'ALL') || (t.agent === activeAgent);
+                const matchEntityType = (entityTypeVal === 'ALL') || (t.entityType === entityTypeVal);
+                const matchStatus = (statusVal === 'ALL') || (t.status === statusVal);
+                const matchSearch = !searchVal || (t.customer && t.customer.toLowerCase().includes(searchVal)) || (t.notes && t.notes.toLowerCase().includes(searchVal));
+                return matchShift && matchAgent && matchEntityType && matchStatus && matchSearch;
+            });
+
+            const answeredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (تم الرد)').length;
+            const unansweredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (لم يرد)').length;
+            
+            if (document.getElementById('agentTotalCalls')) document.getElementById('agentTotalCalls').innerText = answeredCalls + unansweredCalls;
+            if (document.getElementById('agentAnsweredCalls')) document.getElementById('agentAnsweredCalls').innerText = answeredCalls;
+            if (document.getElementById('agentUnansweredCalls')) document.getElementById('agentUnansweredCalls').innerText = unansweredCalls;
+            if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'إرسال واتساب').length;
+            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'اجتماع').length;
+            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (طرف نبضي)').length;
+            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (الطرفين)').length;
+            if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
+            if (document.getElementById('agentTasksCountBadge')) document.getElementById('agentTasksCountBadge').innerText = filtered.length;
+
+            const tbody = document.getElementById('agentTaskTableBody');
+            const emptyState = document.getElementById('agentEmptyState');
+            if (!tbody) return;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                if (emptyState) emptyState.classList.remove('hidden');
+                return;
+            }
+            if (emptyState) emptyState.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(t => `
+                <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="p-3 text-slate-500 font-bold whitespace-nowrap">${t.time || '10:00 ص'}</td>
+                    <td class="p-3 font-bold whitespace-nowrap text-slate-700">${t.shift}</td>
+                    <td class="p-3 font-extrabold text-slate-900 whitespace-nowrap">${t.agent}</td>
+                    <td class="p-3 font-bold text-slate-900">
+                        <div>${t.customer}</div>
+                        <div class="text-[10px] text-slate-500 font-semibold dir-ltr text-right">${t.phone || ''}</div>
+                    </td>
+                    <td class="p-3 font-bold text-indigo-800 whitespace-nowrap">${t.entityType || 'عيادة'}</td>
+                    <td class="p-3 font-bold text-slate-700 whitespace-nowrap">${t.city || 'الرياض'}</td>
+                    <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${t.category}</td>
+                    <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}</td>
+                    <td class="p-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 border">${t.status}</span></td>
+                    <td class="p-3 text-center whitespace-nowrap">
+                        <button type="button" onclick="confirmDeleteTask('${t.id}')" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg border border-rose-200"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddTaskModal(clientIdToPreselect = null) {
+            const modal = document.getElementById('addTaskModal');
+            document.getElementById('taskForm').reset();
+            document.getElementById('taskId').value = '';
+            document.getElementById('formDate').value = window.currentDateFilter;
+            renderClientSelectInTaskForm();
+
+            if (window.currentUserRole === 'agent' && window.currentLoggedInAgent) {
+                document.getElementById('formAgent').value = window.currentLoggedInAgent;
+            }
+            if (clientIdToPreselect) {
+                const client = (window.clients || []).find(c => c.id === clientIdToPreselect);
+                if (client) {
+                    document.getElementById('formClientSelect').value = client.id;
+                    document.getElementById('formCustomer').value = client.name;
+                    document.getElementById('formPhone').value = client.phone || '';
+                }
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeAddTaskModal() {
+            document.getElementById('addTaskModal').classList.add('hidden');
+        }
+
+        function renderClientSelectInTaskForm() {
+            const sel = document.getElementById('formClientSelect');
+            if (!sel) return;
+            const clients = window.clients || [];
+            if (clients.length === 0) {
+                sel.innerHTML = '<option value="">لا يوجد عملاء مسجلون - اضغط + إضافة عميل جديد</option>';
+                return;
+            }
+            sel.innerHTML = '<option value="">-- اختر جهة مسجلة لتشغيل التحديث التلقائي --</option>' + 
+                clients.map(c => `<option value="${c.id}">${c.name} - [المرحلة: ${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
+        }
+
+        function onTaskClientSelectChanged() {
+            const clientId = document.getElementById('formClientSelect').value;
+            if (!clientId) return;
+            const client = (window.clients || []).find(c => c.id === clientId);
+            if (client) {
+                document.getElementById('formCustomer').value = client.name;
+                document.getElementById('formPhone').value = client.phone || '';
+                document.getElementById('formEntityType').value = client.entityType || 'عيادة';
+                document.getElementById('formSpecialty').value = client.specialty || window.specialtiesList[0];
+                document.getElementById('formCity').value = client.city || 'الرياض';
+                showToast(`تم استدعاء بيانات الجهة (${client.name})`);
+            }
+        }
+
+        function handleSaveTask(e) {
+            e.preventDefault();
+            const taskId = document.getElementById('taskId').value;
+            const taskDate = document.getElementById('formDate').value || window.currentDateFilter;
+            const shift = document.getElementById('formShift').value;
+            const agent = document.getElementById('formAgent').value;
+            const selectedClientId = document.getElementById('formClientSelect').value;
+            const customer = document.getElementById('formCustomer').value.trim();
+            const phone = document.getElementById('formPhone').value.trim();
+            const entityType = document.getElementById('formEntityType').value;
+            const specialty = document.getElementById('formSpecialty').value;
+            const city = document.getElementById('formCity').value;
+            const category = document.getElementById('formCategory').value;
+            const status = document.getElementById('formStatus').value;
+            const notes = document.getElementById('formNotes').value.trim();
+
+            const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+            const taskData = {
+                id: taskId || null,
+                clientId: selectedClientId || null,
+                time: currentTimeStr,
+                date: taskDate,
+                shift, agent, customer, phone, entityType, specialty, city, category, status, notes
+            };
+
+            window.saveTaskToCloud(taskData);
+            showToast("تم حفظ الإجراء بالسحابة بنجاح!");
+            closeAddTaskModal();
+        }
+
+        function confirmDeleteTask(id) {
+            if (confirm("هل تريد حذف هذا الإجراء بشكل نهائي؟")) {
+                window.deleteTaskFromCloud(id);
+                showToast("تم حذف الإجراء بنجاح", "info");
+            }
+        }
+
+        function openAddClientModal() {
+            populateFunnelDropdowns();
+            const modal = document.getElementById('addClientModal');
+            document.getElementById('clientForm').reset();
+            document.getElementById('clientId').value = '';
+            modal.classList.remove('hidden');
+        }
+
+        function closeAddClientModal() {
+            document.getElementById('addClientModal').classList.add('hidden');
+        }
+
+        function handleSaveClient(e) {
+            e.preventDefault();
+            const id = document.getElementById('clientId').value;
+            const name = document.getElementById('clientName').value.trim();
+            const contactPerson = document.getElementById('clientContactPerson').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            const stage = document.getElementById('clientStage').value;
+            const city = document.getElementById('clientCity').value;
+            const entityType = document.getElementById('clientEntityType').value;
+            const specialty = document.getElementById('clientSpecialty').value;
+            const accountNumber = document.getElementById('clientAccountNumber').value.trim();
+            const iban = document.getElementById('clientIban').value.trim();
+            const commission = document.getElementById('clientCommission').value.trim();
+
+            if (!name || !phone) {
+                showToast("يرجى ملء اسم الجهة ورقم الهاتف", "error");
+                return;
+            }
+
+            const clientData = {
+                id: id || null,
+                name, contactPerson, phone, stage, city, entityType, specialty,
+                accountNumber, iban, commission
+            };
+
+            window.saveClientToCloud(clientData);
+            showToast(`تم حفظ الجهة (${name}) بالسحابة!`);
+            closeAddClientModal();
+        }
+
+        function openClientDirectoryModal() {
+            populateFunnelDropdowns();
+            renderLeadsTable();
+            document.getElementById('clientDirectoryModal').classList.remove('hidden');
+        }
+
+        function closeClientDirectoryModal() {
+            document.getElementById('clientDirectoryModal').classList.add('hidden');
+        }
+
+        function renderLeadsTable() {
+            const tbody = document.getElementById('leadsTableBody');
+            if (!tbody) return;
+            const clients = window.clients || [];
+            tbody.innerHTML = clients.map(c => `
+                <tr class="hover:bg-indigo-50/30 transition-colors">
+                    <td class="p-2.5 font-bold text-slate-900">${c.name}</td>
+                    <td class="p-2.5 font-bold text-indigo-900">${c.entityType || 'عيادة'}</td>
+                    <td class="p-2.5 font-bold text-slate-700">${c.phone} (${c.city || 'الرياض'})</td>
+                    <td class="p-2.5 font-bold text-emerald-800">${c.commission || '-'}</td>
+                    <td class="p-2.5"><span class="px-2.5 py-1 rounded-xl text-[10px] font-black bg-purple-100 text-purple-900">${c.stage || 'جديد'}</span></td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="openAddTaskModal('${c.id}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">+ إجراء</button>
+                    </td>
+                </tr>
+            `).join('');
+            const headerBadge = document.getElementById('clientsHeaderCountBadge');
+            const modalBadge = document.getElementById('clientsCountBadge');
+            if (headerBadge) headerBadge.innerText = clients.length;
+            if (modalBadge) modalBadge.innerText = clients.length;
+        }
+
+        function openDailySummaryModal() {
+            renderEmployeeSelects();
+            const today = window.currentDateFilter || new Date().toISOString().split('T')[0];
+            document.getElementById('summaryStartDate').value = today;
+            document.getElementById('summaryEndDate').value = today;
+            generateReportContent();
+            document.getElementById('dailySummaryModal').classList.remove('hidden');
+        }
+
+        function closeDailySummaryModal() {
+            document.getElementById('dailySummaryModal').classList.add('hidden');
+        }
+
         function openSelfChangePinModal() {
             document.getElementById('selfNewPinInput').value = '';
             document.getElementById('selfChangePinModal').classList.remove('hidden');
@@ -911,6 +1493,351 @@
                 showToast("تعذر تحديد حساب الموظف", "error");
             }
         }
+
+        function generateReportContent() {
+            const reportType = document.getElementById('reportTypeSelect').value;
+            const start = document.getElementById('summaryStartDate').value;
+            const end = document.getElementById('summaryEndDate').value;
+            const shift = document.getElementById('summaryShiftFilter').value;
+            const agent = document.getElementById('summaryAgentFilter').value;
+
+            const filteredTasks = (window.tasks || []).filter(t => {
+                const taskDate = t.date || '';
+                const matchDate = (!start || taskDate >= start) && (!end || taskDate <= end);
+                const matchShift = (shift === 'ALL') || (t.shift === shift);
+                const matchAgent = (agent === 'ALL') || (t.agent === agent);
+                return matchDate && matchShift && matchAgent;
+            });
+
+            const allClients = window.clients || [];
+            const area = document.getElementById('summaryContentArea');
+            if (!area) return;
+
+            const getReportHeader = (title, subtitle) => `
+                <div class="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="font-black text-slate-900 text-base sm:text-lg">${title}</h2>
+                        <p class="text-xs text-purple-800 font-bold mt-0.5">${subtitle || `المدى الزمني: من ${start} إلى ${end} | الشفت: ${shift} | الموظف: ${agent}`}</p>
+                    </div>
+                    <div class="text-left text-[11px] font-bold text-slate-500">
+                        <div>منصة نبضي NABDI CRM</div>
+                        <div>تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}</div>
+                    </div>
+                </div>
+            `;
+
+            if (reportType === 'INFOGRAPHIC_MAIN') {
+                const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
+                const answeredCalls = callTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+                const unansweredCalls = callTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+                const canceledCalls = callTasks.filter(t => t.category === 'مكالمة (ملغاة)').length;
+                const totalCalls = callTasks.length;
+
+                const leadsCount = allClients.filter(c => c.stage === 'مهتم' || c.stage === 'تم اتصال مكتمل').length;
+                const signedContracts = filteredTasks.filter(t => t.category && t.category.includes('عقد')).length;
+                const whatsappCount = filteredTasks.filter(t => t.category === 'إرسال واتساب').length;
+                const meetingsCount = filteredTasks.filter(t => t.category === 'اجتماع').length;
+
+                const ansPct = totalCalls > 0 ? ((answeredCalls / totalCalls) * 100).toFixed(1) : "0.0";
+                const unansPct = totalCalls > 0 ? ((unansweredCalls / totalCalls) * 100).toFixed(1) : "0.0";
+                const cancPct = totalCalls > 0 ? ((canceledCalls / totalCalls) * 100).toFixed(1) : "0.0";
+
+                const emps = window.employees || [];
+                let teamStats = emps.map(emp => {
+                    const empTasks = filteredTasks.filter(t => t.agent === emp.name);
+                    const empCalls = empTasks.filter(t => t.category && t.category.includes('مكالمة')).length;
+                    const empAns = empTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+                    const empLeads = empTasks.filter(t => t.category === 'اجتماع' || (t.notes && t.notes.includes('مهتم'))).length;
+                    const empCust = empTasks.filter(t => t.category && t.category.includes('عقد')).length;
+                    const ansRate = empCalls > 0 ? Math.round((empAns / empCalls) * 100) : 0;
+                    const signRate = empLeads > 0 ? Math.min(100, Math.round((empCust / empLeads) * 100)) : 80;
+                    const avgScore = Math.min(99.9, ((ansRate * 0.4) + (signRate * 0.4) + (empCust * 5) + 20)).toFixed(1);
+
+                    return {
+                        name: emp.name,
+                        calls: empCalls,
+                        ans: empAns,
+                        leads: empLeads,
+                        cust: empCust,
+                        ansRate: ansRate + '%',
+                        signRate: signRate + '%',
+                        avgScore: parseFloat(avgScore)
+                    };
+                });
+
+                teamStats.sort((a, b) => b.avgScore - a.avgScore);
+
+                const topAvgEmp = teamStats[0]?.name || 'لا يوجد';
+                const topCallsEmp = [...teamStats].sort((a,b)=>b.calls - a.calls)[0]?.name || 'لا يوجد';
+                const maxCallsVal = [...teamStats].sort((a,b)=>b.calls - a.calls)[0]?.calls || 0;
+                const topLeadsEmp = [...teamStats].sort((a,b)=>b.leads - a.leads)[0]?.name || 'لا يوجد';
+                const maxLeadsVal = [...teamStats].sort((a,b)=>b.leads - a.leads)[0]?.leads || 0;
+                const topCustEmp = [...teamStats].sort((a,b)=>b.cust - a.cust)[0]?.name || 'لا يوجد';
+                const maxCustVal = [...teamStats].sort((a,b)=>b.cust - a.cust)[0]?.cust || 0;
+
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-indigo-100 rounded-3xl p-4 sm:p-5 shadow-sm space-y-3.5 text-slate-800">
+                        <div class="flex justify-between items-start border-b border-indigo-100 pb-2.5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-800 flex items-center justify-center text-white text-xl shadow-md">
+                                    ⚡
+                                </div>
+                                <div>
+                                    <h1 class="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight">تقرير أداء منصة نبضي</h1>
+                                    <p class="text-xs font-bold text-indigo-600">الفترة التشغيلية: من ${start} إلى ${end}</p>
+                                </div>
+                            </div>
+                            <div class="text-left text-[11px] font-bold text-slate-400">
+                                <div>منصة نبضي NABDI</div>
+                                <div class="text-purple-700 font-extrabold text-xs">CRM Performance Sheet</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-6 gap-1.5 text-center">
+                            <div class="bg-purple-50/80 border border-purple-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-phone"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">إجمالي المكالمات</span>
+                                <b class="text-base font-black text-purple-950">${totalCalls}</b>
+                            </div>
+                            <div class="bg-blue-50/80 border border-blue-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-headset"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">المكالمات المجابة</span>
+                                <b class="text-base font-black text-blue-950">${answeredCalls}</b>
+                            </div>
+                            <div class="bg-indigo-50/80 border border-indigo-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-user-group"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">العملاء المهتمون</span>
+                                <b class="text-base font-black text-indigo-950">${leadsCount}</b>
+                            </div>
+                            <div class="bg-sky-50/80 border border-sky-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-sky-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-file-signature"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">العقود الموقعة</span>
+                                <b class="text-base font-black text-sky-950">${signedContracts}</b>
+                            </div>
+                            <div class="bg-emerald-50/80 border border-emerald-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-emerald-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-brands fa-whatsapp"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">رسائل واتساب</span>
+                                <b class="text-base font-black text-emerald-950">${whatsappCount}</b>
+                            </div>
+                            <div class="bg-amber-50/80 border border-amber-100 p-1.5 rounded-2xl">
+                                <div class="w-6 h-6 mx-auto bg-amber-600 text-white rounded-full flex items-center justify-center text-[10px] mb-1"><i class="fa-solid fa-calendar-check"></i></div>
+                                <span class="text-[9px] font-bold text-slate-500 block">عدد الاجتماعات</span>
+                                <b class="text-base font-black text-amber-950">${meetingsCount}</b>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50/70 border border-slate-200 rounded-2xl p-2.5">
+                            <div class="bg-indigo-900 text-white text-center py-0.5 rounded-xl text-xs font-black mb-2 w-36 mx-auto">
+                                نتائج المكالمات
+                            </div>
+                            <div class="grid grid-cols-2 gap-3 items-center">
+                                <div class="h-28 relative flex items-center justify-center">
+                                    <canvas id="reportDonutCanvas"></canvas>
+                                </div>
+                                <table class="w-full text-right text-xs border-collapse">
+                                    <thead class="bg-indigo-950 text-white font-black text-[11px]">
+                                        <tr>
+                                            <th class="p-1 text-center">النتيجة</th>
+                                            <th class="p-1 text-center">العدد</th>
+                                            <th class="p-1 text-center">النسبة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200 font-bold text-[11px]">
+                                        <tr>
+                                            <td class="p-1 text-blue-700 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-600 inline-block"></span> مكتملة / مجابة</td>
+                                            <td class="p-1 text-center">${answeredCalls}</td>
+                                            <td class="p-1 text-center">${ansPct}%</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-1 text-purple-700 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-600 inline-block"></span> لا يوجد رد</td>
+                                            <td class="p-1 text-center">${unansweredCalls}</td>
+                                            <td class="p-1 text-center">${unansPct}%</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="p-1 text-slate-500 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span> ملغاة / أخرى</td>
+                                            <td class="p-1 text-center">${canceledCalls}</td>
+                                            <td class="p-1 text-center">${cancPct}%</td>
+                                        </tr>
+                                        <tr class="bg-indigo-50 font-black text-indigo-950">
+                                            <td class="p-1">إجمالي المكالمات</td>
+                                            <td class="p-1 text-center">${totalCalls}</td>
+                                            <td class="p-1 text-center">100%</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="bg-indigo-900 text-white text-center py-0.5 rounded-xl text-xs font-black mb-1.5 w-44 mx-auto">
+                                أداء فريق خدمة العملاء
+                            </div>
+                            <table class="w-full text-center text-xs border border-indigo-200 rounded-xl overflow-hidden">
+                                <thead class="bg-indigo-950 text-white font-black text-[11px]">
+                                    <tr>
+                                        <th class="p-1">الترتيب</th>
+                                        <th class="p-1 text-right">الموظف</th>
+                                        <th class="p-1">المكالمات</th>
+                                        <th class="p-1">المجابة</th>
+                                        <th class="p-1">Leads</th>
+                                        <th class="p-1">Customer</th>
+                                        <th class="p-1">نسبة الرد</th>
+                                        <th class="p-1">نسبة التوقيع</th>
+                                        <th class="p-1 bg-indigo-900">الأداء العام</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 font-bold text-[11px]">
+                                    ${teamStats.map((st, idx) => `
+                                        <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}">
+                                            <td class="p-1 font-black text-indigo-900">${idx + 1}</td>
+                                            <td class="p-1 text-right font-black">${st.name}</td>
+                                            <td class="p-1">${st.calls}</td>
+                                            <td class="p-1 text-blue-700">${st.ans}</td>
+                                            <td class="p-1 text-indigo-700">${st.leads}</td>
+                                            <td class="p-1 text-emerald-700 font-black">${st.cust}</td>
+                                            <td class="p-1">${st.ansRate}</td>
+                                            <td class="p-1">${st.signRate}</td>
+                                            <td class="p-1 font-black text-purple-900 bg-purple-50/50">${st.avgScore}%</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div>
+                            <div class="bg-indigo-900 text-white text-center py-0.5 rounded-xl text-xs font-black mb-1.5 w-36 mx-auto">
+                                أبرز المؤشرات
+                            </div>
+                            <div class="grid grid-cols-4 gap-2 text-center">
+                                <div class="bg-purple-50 border border-purple-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أفضل متوسط أداء</span>
+                                    <div class="text-[11px] font-black text-purple-950 mt-0.5">${topAvgEmp}</div>
+                                    <b class="text-sm font-black text-purple-700">${teamStats[0]?.avgScore || 0}%</b>
+                                </div>
+                                <div class="bg-blue-50 border border-blue-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أعلى عدد مكالمات</span>
+                                    <div class="text-[11px] font-black text-blue-950 mt-0.5">${topCallsEmp}</div>
+                                    <b class="text-sm font-black text-blue-700">${maxCallsVal}</b>
+                                </div>
+                                <div class="bg-indigo-50 border border-indigo-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أعلى Leads</span>
+                                    <div class="text-[11px] font-black text-indigo-950 mt-0.5">${topLeadsEmp}</div>
+                                    <b class="text-sm font-black text-indigo-700">${maxLeadsVal}</b>
+                                </div>
+                                <div class="bg-emerald-50 border border-emerald-200 p-1.5 rounded-2xl">
+                                    <span class="text-[9px] font-bold text-slate-500 block">أعلى Customer</span>
+                                    <div class="text-[11px] font-black text-emerald-950 mt-0.5">${topCustEmp}</div>
+                                    <b class="text-sm font-black text-emerald-700">${maxCustVal}</b>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center text-[9px] text-slate-400 font-bold pt-1.5 border-t border-slate-100">
+                            متوسط الأداء العام = مؤشر مركب يعتمد على نسبة الرد + نسبة التوقيع + مساهمة Leads + مساهمة Customer الموثقة بسحابة نبضي.
+                        </div>
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    const canvas = document.getElementById('reportDonutCanvas');
+                    if (canvas) {
+                        if (reportDonutChartInstance) reportDonutChartInstance.destroy();
+                        reportDonutChartInstance = new Chart(canvas, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['مكتملة / مجابة', 'لا يوجد رد', 'ملغاة'],
+                                datasets: [{
+                                    data: [answeredCalls || (totalCalls === 0 ? 1 : 0), unansweredCalls, canceledCalls],
+                                    backgroundColor: ['#2563eb', '#7c3aed', '#94a3b8'],
+                                    borderWidth: 2
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+                }, 50);
+
+                return;
+            }
+
+            // باقي التقارير الأخرى
+            if (reportType === 'CALLS_REPORT') {
+                const callTasks = filteredTasks.filter(t => t.category && t.category.includes('مكالمة'));
+                const ans = callTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
+                const unans = callTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+                const total = callTasks.length;
+                const ansRate = total > 0 ? Math.round((ans / total) * 100) : 0;
+
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('📞 تقرير المكالمات والاتصالات التفصيلي')}
+                        <div class="grid grid-cols-4 gap-2 text-center text-xs mb-3">
+                            <div class="bg-blue-50 border border-blue-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">إجمالي المكالمات</span><b class="text-lg text-blue-950 font-black">${total}</b></div>
+                            <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">تم الرد</span><b class="text-lg text-emerald-700 font-black">${ans}</b></div>
+                            <div class="bg-rose-50 border border-rose-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">لم يتم الرد</span><b class="text-lg text-rose-600 font-black">${unans}</b></div>
+                            <div class="bg-indigo-50 border border-indigo-200 p-2.5 rounded-2xl"><span class="text-[10px] text-slate-500 font-bold block">نسبة الرد</span><b class="text-lg text-indigo-900 font-black">${ansRate}%</b></div>
+                        </div>
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-blue-100 text-slate-900 font-black">
+                                <tr><th class="p-2 border">الوقت</th><th class="p-2 border">الموظف</th><th class="p-2 border">العميل</th><th class="p-2 border">الهاتف</th><th class="p-2 border">النوع</th><th class="p-2 border">الملاحظات</th></tr>
+                            </thead>
+                            <tbody>
+                                ${callTasks.length > 0 ? callTasks.map(t => `
+                                    <tr>
+                                        <td class="p-2 border dir-ltr text-right">${t.date} ${t.time || ''}</td>
+                                        <td class="p-2 border font-bold">${t.agent}</td>
+                                        <td class="p-2 border font-bold text-indigo-900">${t.customer}</td>
+                                        <td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td>
+                                        <td class="p-2 border font-bold ${t.category === 'مكالمة (تم الرد)' ? 'text-emerald-700' : 'text-rose-600'}">${t.category}</td>
+                                        <td class="p-2 border">${t.notes}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد مكالمات مسجلة في هذا النطاق.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else if (reportType === 'WHATSAPP_REPORT') {
+                const waTasks = filteredTasks.filter(t => t.category === 'إرسال واتساب');
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('💬 تقرير إرسال رسائل الواتساب')}
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-emerald-100 text-slate-900 font-black">
+                                <tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الموظف</th><th class="p-2 border">الجهة</th><th class="p-2 border">الهاتف</th><th class="p-2 border">الإجراء المتخذ</th></tr>
+                            </thead>
+                            <tbody>
+                                ${waTasks.length > 0 ? waTasks.map(t => `
+                                    <tr><td class="p-2 border dir-ltr text-right">${t.date}</td><td class="p-2 border font-bold">${t.agent}</td><td class="p-2 border font-bold text-slate-900">${t.customer}</td><td class="p-2 border font-mono dir-ltr">${t.phone || '-'}</td><td class="p-2 border">${t.notes}</td></tr>
+                                `).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">لم يتم تسجيل رسائل واتساب في هذه الفترة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                area.innerHTML = `
+                    <div class="report-sheet max-w-[760px] mx-auto bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+                        ${getReportHeader('📋 تقرير سجل كافة التفاصيل والأنشطة', `إجمالي العمليات: ${filteredTasks.length}`)}
+                        <table class="w-full text-right text-xs border border-slate-300">
+                            <thead class="bg-slate-100 text-slate-900 font-black">
+                                <tr><th class="p-2 border">الوقت والتاريخ</th><th class="p-2 border">الموظف والشفت</th><th class="p-2 border">العميل</th><th class="p-2 border">النشاط</th><th class="p-2 border">التفاصيل</th><th class="p-2 border">الحالة</th></tr>
+                            </thead>
+                            <tbody>
+                                ${filteredTasks.length > 0 ? filteredTasks.map(t => `
+                                    <tr><td class="p-2 border dir-ltr text-right">${t.date} ${t.time || ''}</td><td class="p-2 border font-bold">${t.agent} (${t.shift})</td><td class="p-2 border font-bold text-indigo-900">${t.customer}</td><td class="p-2 border font-bold text-brand-700">${t.category}</td><td class="p-2 border">${t.notes}</td><td class="p-2 border font-bold">${t.status}</td></tr>
+                                `).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400 font-bold">لا توجد سجلات في الفترة المحددة.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        // تشغيل التهيئة الفورية بمجرد تحميل المتصفح
+        window.addEventListener('DOMContentLoaded', initAppImmediately);
     </script>
 </body>
 </html>
