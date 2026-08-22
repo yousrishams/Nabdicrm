@@ -69,11 +69,296 @@
             background-color: #e2e8f0;
             z-index: 0;
         }
+        .report-sheet {
+            direction: rtl;
+            background: #ffffff;
+            color: #172033;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 28px;
+            border: 1px solid #e8e3f3;
+            border-radius: 24px;
+            box-shadow: 0 18px 45px rgba(76, 29, 149, 0.08);
+        }
+        .report-hero {
+            display: grid;
+            grid-template-columns: minmax(150px, 0.7fr) minmax(300px, 2fr) minmax(100px, 0.5fr);
+            align-items: center;
+            gap: 20px;
+            padding: 6px 4px 24px;
+            border-bottom: 2px solid #e7e2f2;
+            margin-bottom: 22px;
+        }
+        .report-brand {
+            color: #51139b;
+            font-size: 28px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .report-brand small {
+            display: block;
+            color: #075cb9;
+            font-size: 11px;
+            letter-spacing: 5px;
+            margin-top: 7px;
+        }
+        .report-title-block { text-align: center; }
+        .report-title {
+            color: #4c0d92;
+            font-size: 27px;
+            line-height: 1.4;
+            font-weight: 900;
+            margin: 0;
+        }
+        .report-subtitle {
+            color: #075cb9;
+            font-size: 17px;
+            font-weight: 900;
+            margin-top: 4px;
+        }
+        .report-period {
+            color: #475569;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+        .report-medical-icon {
+            width: 84px;
+            height: 84px;
+            justify-self: end;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            color: #ffffff;
+            font-size: 34px;
+            background: linear-gradient(135deg, #a78bfa, #2563eb);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);
+        }
+        .report-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .report-kpi {
+            --report-accent: #5b21b6;
+            position: relative;
+            min-height: 132px;
+            padding: 14px 10px 18px;
+            text-align: center;
+            border: 1px solid #ddd8e8;
+            border-radius: 16px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        .report-kpi::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            left: 0;
+            height: 6px;
+            background: var(--report-accent);
+        }
+        .report-kpi-icon {
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 8px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            color: #ffffff;
+            background: var(--report-accent);
+            font-size: 18px;
+        }
+        .report-kpi-label {
+            display: block;
+            color: #334155;
+            font-size: 10px;
+            font-weight: 800;
+            min-height: 30px;
+        }
+        .report-kpi-value {
+            display: block;
+            color: var(--report-accent);
+            font-size: 28px;
+            line-height: 1.15;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+        }
+        .report-section {
+            position: relative;
+            border: 1px solid #d9d3e6;
+            border-radius: 18px;
+            padding: 30px 16px 16px;
+            margin-top: 30px;
+            background: #ffffff;
+        }
+        .report-section-title {
+            position: absolute;
+            top: -20px;
+            right: 50%;
+            transform: translateX(50%);
+            min-width: 280px;
+            text-align: center;
+            color: #ffffff;
+            background: linear-gradient(90deg, #5b0ea5, #3b0764);
+            padding: 9px 24px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 900;
+            box-shadow: 0 8px 18px rgba(76, 29, 149, 0.2);
+        }
+        .report-split {
+            display: grid;
+            grid-template-columns: minmax(250px, 0.8fr) minmax(420px, 1.35fr);
+            gap: 22px;
+            align-items: center;
+        }
+        .report-donut-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        .report-donut {
+            --answered-angle: 0deg;
+            width: 190px;
+            height: 190px;
+            flex: 0 0 190px;
+            border-radius: 50%;
+            position: relative;
+            background: conic-gradient(#0b63ce 0 var(--answered-angle), #6d28d9 var(--answered-angle) 360deg);
+        }
+        .report-donut::after {
+            content: '';
+            position: absolute;
+            inset: 42px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: inset 0 0 0 1px #e2e8f0;
+        }
+        .report-donut-center {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: grid;
+            place-content: center;
+            text-align: center;
+            color: #4c1d95;
+            font-weight: 900;
+            font-size: 23px;
+        }
+        .report-donut-center small { color: #64748b; font-size: 9px; display: block; }
+        .report-legend { display: grid; gap: 9px; font-size: 11px; font-weight: 800; }
+        .report-legend-row { display: flex; align-items: center; gap: 7px; }
+        .report-legend-dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 11px; }
+        .report-table-wrap { overflow-x: auto; }
+        .report-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 10px;
+            text-align: center;
+        }
+        .report-table th {
+            color: #ffffff;
+            background: linear-gradient(180deg, #5b0ea5, #3b0764);
+            padding: 9px 6px;
+            font-weight: 900;
+            border-left: 1px solid rgba(255,255,255,0.22);
+        }
+        .report-table th:first-child { border-radius: 0 9px 0 0; }
+        .report-table th:last-child { border-radius: 9px 0 0 0; }
+        .report-table td {
+            padding: 8px 6px;
+            border-bottom: 1px solid #e2e8f0;
+            border-left: 1px solid #eef2f7;
+            font-weight: 700;
+            color: #25324a;
+            vertical-align: middle;
+        }
+        .report-table tbody tr:nth-child(even) td { background: #fbfaff; }
+        .report-table .report-strong { color: #4c0d92; font-weight: 900; }
+        .report-highlights {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .report-highlight {
+            min-height: 104px;
+            border: 1px solid #ded7eb;
+            border-radius: 15px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 48px 1fr;
+            align-items: center;
+            gap: 10px;
+        }
+        .report-highlight-icon {
+            width: 46px;
+            height: 46px;
+            display: grid;
+            place-items: center;
+            border: 2px solid #5b21b6;
+            border-radius: 50%;
+            color: #5b21b6;
+            font-size: 18px;
+        }
+        .report-highlight small { color: #075cb9; font-size: 9px; font-weight: 800; }
+        .report-highlight b { display: block; color: #172033; font-size: 13px; font-weight: 900; }
+        .report-highlight strong { display: block; color: #5b21b6; font-size: 22px; line-height: 1.2; font-weight: 900; }
+        .report-funnel-list { display: grid; gap: 8px; max-width: 820px; margin: 0 auto; }
+        .report-funnel-row { display: grid; grid-template-columns: 150px 1fr 48px; gap: 10px; align-items: center; font-size: 10px; font-weight: 800; }
+        .report-funnel-track { height: 22px; border-radius: 999px; background: #ede9f5; overflow: hidden; }
+        .report-funnel-fill { height: 100%; min-width: 4px; border-radius: inherit; background: linear-gradient(90deg, #5b21b6, #2563eb); }
+        .report-note {
+            margin-top: 18px;
+            padding: 9px 14px;
+            border: 1px solid #ded5ee;
+            border-radius: 12px;
+            color: #334155;
+            background: #f7f2ff;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .report-empty { padding: 30px; text-align: center; color: #64748b; font-size: 12px; font-weight: 800; }
+        .report-page-break { break-before: page; page-break-before: always; }
+        @media (max-width: 900px) {
+            .report-sheet { padding: 16px; border-radius: 16px; }
+            .report-hero { grid-template-columns: 1fr; text-align: center; }
+            .report-medical-icon { justify-self: center; }
+            .report-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .report-split { grid-template-columns: 1fr; }
+            .report-highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @page { size: A4 portrait; margin: 8mm; }
         @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body * { visibility: hidden !important; }
+            #summaryContentArea, #summaryContentArea * { visibility: visible !important; }
+            #summaryContentArea {
+                position: absolute !important;
+                inset: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                background: #ffffff !important;
+            }
+            .report-sheet {
+                max-width: none !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
+            .report-section, .report-kpi-grid, .report-highlights { break-inside: avoid; page-break-inside: avoid; }
+            .report-table tr { break-inside: avoid; page-break-inside: avoid; }
             .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background: white !important; color: black !important; padding: 0 !important; }
-            .print-container { width: 100% !important; max-width: 100% !important; border: none !important; shadow: none !important; }
         }
     </style>
 </head>
@@ -293,7 +578,7 @@
 
                 <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
                     <div class="flex items-center justify-between text-slate-500 mb-1">
-                        <span class="text-[11px] font-bold">عقود (طرف نبضي)</span>
+                        <span class="text-[11px] font-bold">العقود المرسلة</span>
                         <i class="fa-solid fa-file-pen text-amber-600 text-xs"></i>
                     </div>
                     <h3 id="agentNabdiContracts" class="text-xl font-black text-slate-800">0</h3>
@@ -301,7 +586,7 @@
 
                 <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
                     <div class="flex items-center justify-between text-slate-500 mb-1">
-                        <span class="text-[11px] font-bold">عقود (الطرفين)</span>
+                        <span class="text-[11px] font-bold">العقود الموقعة</span>
                         <i class="fa-solid fa-file-circle-check text-emerald-600 text-xs"></i>
                     </div>
                     <h3 id="agentBothContracts" class="text-xl font-black text-slate-800">0</h3>
@@ -475,11 +760,11 @@
                                 <span id="shiftMornMeet" class="font-black text-purple-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
-                                <span class="text-slate-500 font-bold block text-[10px]">عقود (نبضي)</span>
+                                <span class="text-slate-500 font-bold block text-[10px]">العقود المرسلة</span>
                                 <span id="shiftMornNabdi" class="font-black text-amber-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
-                                <span class="text-slate-500 font-bold block text-[10px]">عقود (الطرفين)</span>
+                                <span class="text-slate-500 font-bold block text-[10px]">العقود الموقعة</span>
                                 <span id="shiftMornBoth" class="font-black text-emerald-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
@@ -512,11 +797,11 @@
                                 <span id="shiftEveMeet" class="font-black text-purple-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
-                                <span class="text-slate-500 font-bold block text-[10px]">عقود (نبضي)</span>
+                                <span class="text-slate-500 font-bold block text-[10px]">العقود المرسلة</span>
                                 <span id="shiftEveNabdi" class="font-black text-amber-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
-                                <span class="text-slate-500 font-bold block text-[10px]">عقود (الطرفين)</span>
+                                <span class="text-slate-500 font-bold block text-[10px]">العقود الموقعة</span>
                                 <span id="shiftEveBoth" class="font-black text-emerald-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
@@ -557,7 +842,7 @@
                 </div>
 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-xs font-bold text-slate-500 block">عقود (طرف نبضي)</span>
+                    <span class="text-xs font-bold text-slate-500 block">العقود المرسلة</span>
                     <div class="mt-1 flex items-center justify-between">
                         <span id="mgrNabdiContracts" class="text-2xl font-black text-amber-600">0</span>
                         <i class="fa-solid fa-file-pen text-amber-500 text-xl"></i>
@@ -565,7 +850,7 @@
                 </div>
 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-xs font-bold text-slate-500 block">عقود (الطرفين)</span>
+                    <span class="text-xs font-bold text-slate-500 block">العقود الموقعة</span>
                     <div class="mt-1 flex items-center justify-between">
                         <span id="mgrBothContracts" class="text-2xl font-black text-emerald-600">0</span>
                         <i class="fa-solid fa-file-circle-check text-emerald-500 text-xl"></i>
@@ -618,8 +903,8 @@
                                 <th class="p-3">المكالمات</th>
                                 <th class="p-3">واتساب</th>
                                 <th class="p-3">الاجتماعات</th>
-                                <th class="p-3">عقود (نبضي)</th>
-                                <th class="p-3">عقود (الطرفين)</th>
+                                <th class="p-3">العقود المرسلة</th>
+                                <th class="p-3">العقود الموقعة</th>
                                 <th class="p-3">نسبة الإنجاز</th>
                                 <th class="p-3">الحالة اليومية</th>
                             </tr>
@@ -789,15 +1074,19 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block font-bold text-slate-700 mb-1">نوع الخدمة / النشاط (ضروري)</label>
+                        <label class="block font-bold text-slate-700 mb-1">مرحلة الإجراء / تحديث الفانل (ضروري)</label>
                         <select id="formCategory" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
-                            <option value="مكالمة (تم الرد)">مكالمة (تم الرد)</option>
-                            <option value="مكالمة (لم يرد)">مكالمة (لم يرد)</option>
+                            <option value="مكالمة هاتفية">مكالمة هاتفية</option>
                             <option value="إرسال واتساب">إرسال واتساب</option>
-                            <option value="اجتماع">اجتماع مع العميل</option>
-                            <option value="عقد (طرف نبضي)">عقد (موقع من طرف نبضي)</option>
-                            <option value="عقد (الطرفين)">عقد (موقع من الطرفين)</option>
-                            <option value="استفسار ودعم عام">استفسار ودعم عام</option>
+                            <option value="عميل مهتم">عميل مهتم</option>
+                            <option value="الاتفاق على الاجتماع">الاتفاق على الاجتماع</option>
+                            <option value="عقد اجتماع">عقد اجتماع</option>
+                            <option value="الاتفاق على التعاقد">الاتفاق على التعاقد</option>
+                            <option value="إرسال العقد">إرسال العقد</option>
+                            <option value="توقيع العقد">توقيع العقد</option>
+                            <option value="تفعيل الجهة">تفعيل الجهة</option>
+                            <option value="الحصول على البيانات">الحصول على البيانات</option>
+                            <option value="إرسال البيانات إلى الدعم الفني">إرسال البيانات إلى الدعم الفني</option>
                         </select>
                     </div>
 
@@ -1301,14 +1590,51 @@
         </div>
     </div>
 
-    <!-- MODAL 5: REPORTS -->
+    <!-- MODAL 5: DOCUMENT VIEWER -->
+    <div id="documentViewerModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[70] flex items-center justify-center p-3 sm:p-5 hidden">
+        <div class="bg-white rounded-3xl max-w-6xl w-full h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 text-white p-4 flex items-center justify-between gap-3 shrink-0">
+                <div class="min-w-0 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/10 border border-white/20 grid place-items-center shrink-0">
+                        <i class="fa-solid fa-file-circle-check text-amber-300"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 id="documentViewerTitle" class="font-black text-sm truncate">معاينة المستند</h3>
+                        <p id="documentViewerMeta" class="text-[10px] text-purple-200 mt-0.5">جاري تجهيز الملف...</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeDocumentViewer()" class="text-slate-300 hover:text-white text-xl cursor-pointer" aria-label="إغلاق معاينة المستند">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="documentViewerBody" class="flex-1 min-h-0 bg-slate-100 flex items-center justify-center overflow-auto p-3">
+                <div class="text-center text-slate-500 font-bold text-xs">
+                    <i class="fa-solid fa-spinner fa-spin text-indigo-600 text-2xl mb-2"></i>
+                    <div>جاري تحميل المستند...</div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-white border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 shrink-0">
+                <span id="documentViewerHint" class="text-[10px] text-slate-500 font-bold">يمكنك معاينة ملفات PDF والصور داخل النظام.</span>
+                <div class="flex items-center gap-2">
+                    <button id="documentViewerDownloadBtn" type="button" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-download"></i> تنزيل المستند
+                    </button>
+                    <button type="button" onclick="closeDocumentViewer()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer">إغلاق</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: REPORTS -->
     <div id="dailySummaryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col print-container">
+        <div class="bg-white rounded-3xl max-w-7xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col print-container">
             
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-4 flex justify-between items-center shrink-0 no-print">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-chart-pie text-amber-300 text-lg"></i>
-                    <h3 class="font-extrabold text-base">مركز التقارير المتنوعة والفلترة المتقدمة والمعاينة</h3>
+                    <h3 class="font-extrabold text-base">مركز تقارير نبضي — تقارير إنفوجرافيك مستقلة</h3>
                 </div>
                 <button type="button" onclick="closeDailySummaryModal()" class="text-slate-300 hover:text-white text-xl cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
@@ -1360,10 +1686,10 @@
 
             <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center shrink-0 text-xs gap-2 no-print">
                 <div class="flex items-center gap-2">
-                    <span class="text-slate-500 font-bold"><i class="fa-solid fa-eye text-indigo-600"></i> حالة المعاينة: جاهز للطباعة والمراجعة</span>
+                    <span class="text-slate-500 font-bold"><i class="fa-solid fa-file-lines text-indigo-600"></i> المعاينة الحالية هي صفحة التقرير نفسها وليست صورة من الشاشة</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="button" onclick="window.print()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-md cursor-pointer">
+                    <button type="button" onclick="printCurrentReport()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-md cursor-pointer">
                         <i class="fa-solid fa-print"></i>
                         <span>طباعة التقرير / تصدير PDF</span>
                     </button>
@@ -1376,8 +1702,9 @@
     <!-- FIREBASE CLOUD REALTIME SYNC ENGINE MODULE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, collection, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'cs-shifts-app';
         const firebaseConfig = {
@@ -1393,15 +1720,52 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         const employeesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
         const tasksColRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
         const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
 
         window.FUNNEL_STAGES = [
-            "تم اتصال مكتمل", "مهتم", "اجتماع محدد", "الاجتماع تم", "العرض أُرسل",
-            "العقد أُرسل", "تفاوض", "عقد موقع", "تفعيل الجهة", "مؤجل", "غير مهتم"
+            "مكالمة هاتفية",
+            "إرسال واتساب",
+            "عميل مهتم",
+            "الاتفاق على الاجتماع",
+            "عقد اجتماع",
+            "الاتفاق على التعاقد",
+            "إرسال العقد",
+            "توقيع العقد",
+            "تفعيل الجهة",
+            "الحصول على البيانات",
+            "إرسال البيانات إلى الدعم الفني"
         ];
+
+        // تحويل التسميات القديمة تلقائياً حتى تظل بيانات العملاء والإجراءات السابقة صالحة.
+        window.LEGACY_STAGE_MAP = {
+            "تم اتصال مكتمل": "مكالمة هاتفية",
+            "مكالمة (تم الرد)": "مكالمة هاتفية",
+            "مكالمة (لم يرد)": "مكالمة هاتفية",
+            "مهتم": "عميل مهتم",
+            "اجتماع محدد": "الاتفاق على الاجتماع",
+            "الاجتماع تم": "عقد اجتماع",
+            "اجتماع": "عقد اجتماع",
+            "العرض أُرسل": "الاتفاق على التعاقد",
+            "تفاوض": "الاتفاق على التعاقد",
+            "العقد أُرسل": "إرسال العقد",
+            "عقد (طرف نبضي)": "إرسال العقد",
+            "عقد موقع": "توقيع العقد",
+            "عقد (الطرفين)": "توقيع العقد"
+        };
+
+        window.normalizeFunnelStage = function(value) {
+            const normalized = window.LEGACY_STAGE_MAP[value] || value;
+            return window.FUNNEL_STAGES.includes(normalized) ? normalized : window.FUNNEL_STAGES[0];
+        };
+
+        window.getStageForTaskCategory = function(category, currentStage) {
+            if (!category || category === 'تسجيل جهة جديدة') return window.normalizeFunnelStage(currentStage);
+            return window.normalizeFunnelStage(category);
+        };
 
         window.currentUserRole = null; 
         window.currentLoggedInAgent = null; 
@@ -1410,6 +1774,92 @@
         window.dbUser = null;
         window.activeProfileClientId = null;
         window.currentTempDocs = {};
+
+        function waitForFirebaseUser() {
+            if (auth.currentUser) return Promise.resolve(auth.currentUser);
+
+            return new Promise((resolve, reject) => {
+                let unsubscribe = () => {};
+                const timeoutId = setTimeout(() => {
+                    unsubscribe();
+                    reject(new Error('تعذر تجهيز الاتصال بخدمة رفع الملفات. تحقق من الإنترنت ثم حاول مرة أخرى.'));
+                }, 12000);
+
+                unsubscribe = onAuthStateChanged(auth, user => {
+                    if (!user) return;
+                    clearTimeout(timeoutId);
+                    unsubscribe();
+                    window.dbUser = user;
+                    resolve(user);
+                }, error => {
+                    clearTimeout(timeoutId);
+                    unsubscribe();
+                    reject(error);
+                });
+            });
+        }
+
+        function safeStorageSegment(value) {
+            return String(value || 'unknown')
+                .normalize('NFKC')
+                .replace(/[^a-zA-Z0-9._\-\u0600-\u06FF]/g, '_')
+                .replace(/_+/g, '_')
+                .slice(0, 90) || 'file';
+        }
+
+        window.uploadDocumentToCloud = async function(file, clientId, fieldKey, onProgress) {
+            if (!(file instanceof File)) throw new Error('الملف المختار غير صالح. أعد اختياره وحاول مرة أخرى.');
+            const firebaseUser = await waitForFirebaseUser();
+            const safeClientId = safeStorageSegment(clientId);
+            const safeFieldKey = safeStorageSegment(fieldKey);
+            const safeFileName = safeStorageSegment(file.name);
+            const uniquePart = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            const storagePath = `artifacts/${safeStorageSegment(appId)}/clients/${safeClientId}/${safeFieldKey}/${uniquePart}_${safeFileName}`;
+            const fileRef = storageRef(storage, storagePath);
+            const metadata = {
+                contentType: file.type || 'application/octet-stream',
+                contentDisposition: `inline; filename="${safeFileName}"`,
+                customMetadata: {
+                    clientId: String(clientId),
+                    fieldKey: String(fieldKey),
+                    uploadedBy: firebaseUser.uid
+                }
+            };
+
+            const uploadTask = uploadBytesResumable(fileRef, file, metadata);
+            const snapshot = await new Promise((resolve, reject) => {
+                const uploadTimeout = setTimeout(() => {
+                    try { uploadTask.cancel(); } catch (error) {}
+                    const timeoutError = new Error('استغرق الرفع وقتاً أطول من المسموح. تم حفظ الملف محلياً ويمكنك فتحه من ملف العميل.');
+                    timeoutError.code = 'storage/retry-limit-exceeded';
+                    reject(timeoutError);
+                }, 20000);
+
+                uploadTask.on('state_changed', currentSnapshot => {
+                    const progress = currentSnapshot.totalBytes > 0
+                        ? Math.round((currentSnapshot.bytesTransferred / currentSnapshot.totalBytes) * 100)
+                        : 0;
+                    if (typeof onProgress === 'function') onProgress(progress);
+                }, error => {
+                    clearTimeout(uploadTimeout);
+                    reject(error);
+                }, () => {
+                    clearTimeout(uploadTimeout);
+                    resolve(uploadTask.snapshot);
+                });
+            });
+
+            const url = await getDownloadURL(snapshot.ref);
+            return {
+                name: file.name,
+                size: formatFileSize(file.size),
+                sizeBytes: file.size,
+                type: file.type || 'application/octet-stream',
+                url,
+                storagePath,
+                uploadedAt: Date.now()
+            };
+        };
 
         window.employees = [
             { id: 'emp_1', name: 'سارة خالد', shift: 'شفت صباحي', pin: '123456' },
@@ -1430,18 +1880,19 @@
         ];
 
         window.getStageColorClasses = function(stage) {
+            stage = window.normalizeFunnelStage(stage);
             switch(stage) {
-                case "تم اتصال مكتمل": return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" };
-                case "مهتم": return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" };
-                case "اجتماع محدد": return { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" };
-                case "الاجتماع تم": return { bg: "bg-indigo-100", text: "text-indigo-900", border: "border-indigo-300" };
-                case "العرض أُرسل": return { bg: "bg-sky-50", text: "text-sky-700", border: "border-sky-200" };
-                case "العقد أُرسل": return { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300" };
-                case "تفاوض": return { bg: "bg-amber-100", text: "text-amber-900", border: "border-amber-400" };
-                case "عقد موقع": return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-400" };
+                case "مكالمة هاتفية": return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" };
+                case "إرسال واتساب": return { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" };
+                case "عميل مهتم": return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-300" };
+                case "الاتفاق على الاجتماع": return { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" };
+                case "عقد اجتماع": return { bg: "bg-indigo-100", text: "text-indigo-900", border: "border-indigo-300" };
+                case "الاتفاق على التعاقد": return { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300" };
+                case "إرسال العقد": return { bg: "bg-amber-100", text: "text-amber-900", border: "border-amber-400" };
+                case "توقيع العقد": return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-400" };
                 case "تفعيل الجهة": return { bg: "bg-purple-100", text: "text-purple-900", border: "border-purple-400" };
-                case "مؤجل": return { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300" };
-                case "غير مهتم": return { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" };
+                case "الحصول على البيانات": return { bg: "bg-sky-50", text: "text-sky-800", border: "border-sky-300" };
+                case "إرسال البيانات إلى الدعم الفني": return { bg: "bg-violet-100", text: "text-violet-900", border: "border-violet-400" };
                 default: return { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
             }
         };
@@ -1455,7 +1906,12 @@
                 if (storedTasks) window.tasks = JSON.parse(storedTasks);
 
                 const storedClients = localStorage.getItem('cs_nabdi_clients');
-                if (storedClients) window.clients = JSON.parse(storedClients);
+                if (storedClients) {
+                    window.clients = JSON.parse(storedClients).map(client => ({
+                        ...client,
+                        stage: window.normalizeFunnelStage(client.stage)
+                    }));
+                }
             } catch(e) {}
         };
 
@@ -1483,6 +1939,9 @@
                     window.dbUser = userCredential.user;
                 }
                 startRealtimeListeners();
+                if (typeof window.resumePendingDocumentSync === 'function') {
+                    window.resumePendingDocumentSync();
+                }
             } catch (err) {
                 renderEmployeeSelects();
             }
@@ -1519,7 +1978,10 @@
 
             onSnapshot(clientsColRef, (snapshot) => {
                 let clientList = [];
-                snapshot.forEach(docSnap => clientList.push({ id: docSnap.id, ...docSnap.data() }));
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    clientList.push({ id: docSnap.id, ...data, stage: window.normalizeFunnelStage(data.stage) });
+                });
                 if (clientList.length > 0) {
                     window.clients = clientList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                     window.saveLocalBackup();
@@ -1547,10 +2009,7 @@
                 );
 
                 if (!client && t.customer) {
-                    let newStage = (window.FUNNEL_STAGES && window.FUNNEL_STAGES[0]) ? window.FUNNEL_STAGES[0] : 'تم اتصال مكتمل';
-                    if (t.category === 'اجتماع') newStage = 'اجتماع محدد';
-                    else if (t.category === 'عقد (طرف نبضي)') newStage = 'العقد أُرسل';
-                    else if (t.category === 'عقد (الطرفين)') newStage = 'عقد موقع';
+                    const newStage = window.getStageForTaskCategory(t.category, window.FUNNEL_STAGES[0]);
 
                     const newClient = {
                         id: t.clientId || ('lead_' + Date.now() + '_' + Math.floor(Math.random()*1000)),
@@ -1591,7 +2050,7 @@
         window.saveClientToCloud = async function(clientData) {
             if (!clientData.id) clientData.id = 'lead_' + Date.now();
             clientData.createdAt = clientData.createdAt || Date.now();
-            clientData.stage = clientData.stage || window.FUNNEL_STAGES[0];
+            clientData.stage = window.normalizeFunnelStage(clientData.stage);
             clientData.addedBy = window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام';
 
             const idx = window.clients.findIndex(c => c.id === clientData.id);
@@ -1674,10 +2133,10 @@
                     (c.name && c.name.trim().toLowerCase() === taskData.customer.trim().toLowerCase())
                 );
 
-                let stageForTask = matchedClient ? matchedClient.stage : (window.FUNNEL_STAGES ? window.FUNNEL_STAGES[0] : 'تم اتصال مكتمل');
-                if (taskData.category === 'اجتماع') stageForTask = 'اجتماع محدد';
-                else if (taskData.category === 'عقد (طرف نبضي)') stageForTask = 'العقد أُرسل';
-                else if (taskData.category === 'عقد (الطرفين)') stageForTask = 'عقد موقع';
+                const stageForTask = window.getStageForTaskCategory(
+                    taskData.category,
+                    matchedClient ? matchedClient.stage : window.FUNNEL_STAGES[0]
+                );
 
                 if (!matchedClient) {
                     matchedClient = {
@@ -1734,17 +2193,18 @@
             window.loadFromLocalStorage();
             const datePicker = document.getElementById('globalDatePicker');
             if (datePicker) datePicker.value = window.currentDateFilter;
+            document.querySelectorAll('#clientForm input[type="file"]').forEach(input => {
+                input.accept = '.pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.csv';
+            });
+            renderEmployeeSelects();
+
+            const restored = typeof restoreLoginSession === 'function' && restoreLoginSession();
+            if (!restored) {
+                const loginOverlay = document.getElementById('loginOverlay');
+                if (loginOverlay) loginOverlay.classList.remove('hidden');
+            }
 
             initCloudSync();
-
-            localStorage.removeItem('cs_logged_role');
-            localStorage.removeItem('cs_logged_agent');
-            window.currentUserRole = null;
-            window.currentLoggedInAgent = null;
-
-            const loginOverlay = document.getElementById('loginOverlay');
-            if (loginOverlay) loginOverlay.classList.remove('hidden');
-            renderEmployeeSelects();
         });
     </script>
 
@@ -1755,14 +2215,44 @@
         function populateFunnelDropdowns() {
             const list = window.FUNNEL_STAGES || [];
             const clientStage = document.getElementById('clientStage');
+            const formCategory = document.getElementById('formCategory');
             const filterStage = document.getElementById('filterFunnelStage');
             const profSelector = document.getElementById('profStageSelector');
 
             const options = list.map(s => `<option value="${s}">${s}</option>`).join('');
 
             if (clientStage) clientStage.innerHTML = options;
+            if (formCategory) formCategory.innerHTML = options;
             if (profSelector) profSelector.innerHTML = options;
             if (filterStage) filterStage.innerHTML = '<option value="ALL">جميع المراحل</option>' + options;
+        }
+
+        function isPhoneAction(task) {
+            return ['مكالمة هاتفية', 'مكالمة (تم الرد)', 'مكالمة (لم يرد)'].includes(task.category);
+        }
+
+        function isAnsweredPhoneAction(task) {
+            return task.category === 'مكالمة (تم الرد)' || (task.category === 'مكالمة هاتفية' && task.status === 'مكتمل');
+        }
+
+        function isUnansweredPhoneAction(task) {
+            return task.category === 'مكالمة (لم يرد)' || (task.category === 'مكالمة هاتفية' && task.status !== 'مكتمل');
+        }
+
+        function isMeetingAction(task) {
+            return ['الاتفاق على الاجتماع', 'عقد اجتماع', 'اجتماع'].includes(task.category);
+        }
+
+        function isContractAction(task) {
+            return ['الاتفاق على التعاقد', 'إرسال العقد', 'توقيع العقد', 'عقد (طرف نبضي)', 'عقد (الطرفين)'].includes(task.category);
+        }
+
+        function isSentContractAction(task) {
+            return ['إرسال العقد', 'عقد (طرف نبضي)'].includes(task.category);
+        }
+
+        function isSignedContractAction(task) {
+            return ['توقيع العقد', 'عقد (الطرفين)'].includes(task.category);
         }
 
         function populateSpecialtiesDropdowns() {
@@ -1775,30 +2265,329 @@
             if (clientSpec) clientSpec.innerHTML = optionsHtml;
         }
 
+        const MAX_DOCUMENT_SIZE = 25 * 1024 * 1024;
+        const ALLOWED_DOCUMENT_EXTENSIONS = /\.(pdf|png|jpe?g|webp|doc|docx|xls|xlsx|csv)$/i;
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatFileSize(bytes) {
+            const size = Number(bytes) || 0;
+            if (size < 1024) return `${size} B`;
+            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+            return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        function updateDocumentBadge(key, message, state = 'ready') {
+            const badge = document.getElementById(`badge_${key}`);
+            if (!badge) return;
+
+            const icon = state === 'uploading'
+                ? 'fa-spinner fa-spin text-indigo-600'
+                : state === 'error'
+                    ? 'fa-circle-xmark text-rose-600'
+                    : 'fa-file-circle-check text-emerald-600';
+            badge.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${escapeHtml(message)}</span>`;
+            badge.classList.remove('hidden');
+        }
+
+        function dataUrlToFile(dataUrl, fileName, fallbackType) {
+            const parts = String(dataUrl || '').split(',');
+            if (parts.length !== 2) throw new Error('تعذر قراءة صيغة المستند القديم. أعد إرفاقه من جهازك.');
+            const mimeMatch = parts[0].match(/data:([^;]+);base64/i);
+            const mimeType = mimeMatch ? mimeMatch[1] : (fallbackType || 'application/octet-stream');
+            const binary = atob(parts[1]);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+            return new File([bytes], fileName || 'document', { type: mimeType });
+        }
+
+        function getUploadErrorMessage(error) {
+            const code = error && error.code ? error.code : '';
+            if (code === 'storage/unauthorized') return 'صلاحيات Firebase Storage تمنع الرفع. راجع Storage Rules للمستخدمين المسجلين.';
+            if (code === 'storage/canceled') return 'تم إلغاء رفع المستند.';
+            if (code === 'storage/retry-limit-exceeded') return 'انتهت مهلة الرفع. تحقق من الإنترنت وحاول مرة أخرى.';
+            return error && error.message ? error.message : 'تعذر رفع المستند. حاول مرة أخرى.';
+        }
+
+        const ATTACHMENT_DB_NAME = 'nabdi-crm-attachments';
+        const ATTACHMENT_DB_VERSION = 1;
+        const ATTACHMENT_STORE_NAME = 'documents';
+        let attachmentDbPromise = null;
+        const syncingDocumentClients = new Set();
+
+        function openAttachmentDatabase() {
+            if (attachmentDbPromise) return attachmentDbPromise;
+            attachmentDbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('المتصفح لا يدعم التخزين المحلي للمرفقات. استخدم Chrome أو Edge محدث.'));
+                    return;
+                }
+
+                const request = indexedDB.open(ATTACHMENT_DB_NAME, ATTACHMENT_DB_VERSION);
+                request.onupgradeneeded = event => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(ATTACHMENT_STORE_NAME)) {
+                        const store = database.createObjectStore(ATTACHMENT_STORE_NAME, { keyPath: 'id' });
+                        store.createIndex('clientId', 'clientId', { unique: false });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('تعذر فتح مساحة حفظ المرفقات.'));
+            });
+            return attachmentDbPromise;
+        }
+
+        async function storeDocumentLocally(file, clientId, fieldKey, currentLocalId = null) {
+            const database = await openAttachmentDatabase();
+            const localId = currentLocalId || `local_${clientId}_${fieldKey}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const record = {
+                id: localId,
+                clientId,
+                fieldKey,
+                name: file.name,
+                type: file.type || 'application/octet-stream',
+                sizeBytes: file.size,
+                blob: file,
+                savedAt: Date.now()
+            };
+
+            await new Promise((resolve, reject) => {
+                const transaction = database.transaction(ATTACHMENT_STORE_NAME, 'readwrite');
+                transaction.objectStore(ATTACHMENT_STORE_NAME).put(record);
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error || new Error('تعذر حفظ المستند محلياً.'));
+                transaction.onabort = () => reject(transaction.error || new Error('تم إلغاء حفظ المستند محلياً.'));
+            });
+            return localId;
+        }
+
+        async function getLocalDocument(localId) {
+            if (!localId) return null;
+            const database = await openAttachmentDatabase();
+            return new Promise((resolve, reject) => {
+                const request = database.transaction(ATTACHMENT_STORE_NAME, 'readonly')
+                    .objectStore(ATTACHMENT_STORE_NAME)
+                    .get(localId);
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error || new Error('تعذر قراءة المستند المحفوظ.'));
+            });
+        }
+
+        function findClientDocument(clientId, fieldKey) {
+            const client = (window.clients || []).find(item => item.id === clientId);
+            return client && client.docs ? client.docs[fieldKey] : null;
+        }
+
+        let activeDocumentObjectUrl = null;
+        let activeDocumentViewerRef = null;
+
+        function closeDocumentViewer() {
+            document.getElementById('documentViewerModal').classList.add('hidden');
+            document.getElementById('documentViewerBody').innerHTML = '';
+            activeDocumentViewerRef = null;
+            if (activeDocumentObjectUrl) {
+                URL.revokeObjectURL(activeDocumentObjectUrl);
+                activeDocumentObjectUrl = null;
+            }
+        }
+
+        function renderDocumentViewer(sourceUrl, documentInfo) {
+            const viewerBody = document.getElementById('documentViewerBody');
+            const type = String(documentInfo.type || '').toLowerCase();
+            const name = String(documentInfo.name || 'document');
+            const extension = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+            const isImage = type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extension);
+            const isPdf = type === 'application/pdf' || extension === 'pdf';
+            const isText = type.startsWith('text/') || ['txt', 'csv'].includes(extension);
+            viewerBody.innerHTML = '';
+
+            if (isImage) {
+                const image = document.createElement('img');
+                image.src = sourceUrl;
+                image.alt = name;
+                image.className = 'max-w-full max-h-full object-contain rounded-xl shadow-lg bg-white';
+                viewerBody.appendChild(image);
+                return;
+            }
+
+            if (isPdf || isText) {
+                const frame = document.createElement('iframe');
+                frame.src = sourceUrl;
+                frame.title = `معاينة ${name}`;
+                frame.className = 'w-full h-full min-h-[70vh] bg-white rounded-xl border border-slate-200';
+                viewerBody.appendChild(frame);
+                return;
+            }
+
+            viewerBody.innerHTML = `
+                <div class="text-center max-w-md bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                    <i class="fa-solid fa-file-arrow-down text-indigo-600 text-5xl mb-4"></i>
+                    <h4 class="font-black text-slate-900 text-base">${escapeHtml(name)}</h4>
+                    <p class="text-xs text-slate-500 font-bold mt-2">هذا النوع لا يدعم المعاينة داخل المتصفح. استخدم زر تنزيل المستند لفتحه بالبرنامج المناسب.</p>
+                </div>`;
+        }
+
+        function downloadDocumentFromSource(sourceUrl, fileName, revokeAfterDownload = false) {
+            const link = document.createElement('a');
+            link.href = sourceUrl;
+            link.download = fileName || 'document';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            if (revokeAfterDownload) setTimeout(() => URL.revokeObjectURL(sourceUrl), 10000);
+        }
+
+        async function openClientDocument(clientId, fieldKey, downloadOnly = false) {
+            const documentInfo = findClientDocument(clientId, fieldKey);
+            if (!documentInfo) {
+                showToast('المستند غير موجود في ملف العميل.', 'error');
+                return;
+            }
+
+            const directUrl = typeof documentInfo.url === 'string' && documentInfo.url.startsWith('https://')
+                ? documentInfo.url
+                : (typeof documentInfo.data === 'string' && (documentInfo.data.startsWith('data:') || documentInfo.data.startsWith('https://')) ? documentInfo.data : '');
+
+            if (directUrl) {
+                if (downloadOnly) {
+                    downloadDocumentFromSource(directUrl, documentInfo.name);
+                    return;
+                }
+                activeDocumentViewerRef = { clientId, fieldKey };
+                document.getElementById('documentViewerTitle').innerText = documentInfo.name || 'معاينة المستند';
+                document.getElementById('documentViewerMeta').innerText = `${documentInfo.type || 'ملف'} • ${documentInfo.size || ''} • محفوظ سحابياً`;
+                document.getElementById('documentViewerHint').innerText = 'المستند مفتوح داخل النظام ويمكن تنزيله من الزر المجاور.';
+                document.getElementById('documentViewerDownloadBtn').onclick = () => openClientDocument(clientId, fieldKey, true);
+                document.getElementById('documentViewerModal').classList.remove('hidden');
+                renderDocumentViewer(directUrl, documentInfo);
+                return;
+            }
+
+            try {
+                const localRecord = await getLocalDocument(documentInfo.localId);
+                if (!localRecord || !localRecord.blob) throw new Error('النسخة المحلية للمستند غير موجودة على هذا الجهاز.');
+                const objectUrl = URL.createObjectURL(localRecord.blob);
+
+                if (downloadOnly) {
+                    downloadDocumentFromSource(objectUrl, documentInfo.name || localRecord.name, true);
+                    return;
+                }
+
+                if (activeDocumentObjectUrl) URL.revokeObjectURL(activeDocumentObjectUrl);
+                activeDocumentObjectUrl = objectUrl;
+                activeDocumentViewerRef = { clientId, fieldKey };
+                document.getElementById('documentViewerTitle').innerText = documentInfo.name || localRecord.name || 'معاينة المستند';
+                document.getElementById('documentViewerMeta').innerText = `${documentInfo.type || localRecord.type || 'ملف'} • ${documentInfo.size || formatFileSize(localRecord.sizeBytes)} • محفوظ على هذا الجهاز`;
+                document.getElementById('documentViewerHint').innerText = 'هذه نسخة محفوظة على الجهاز الحالي وتعمل حتى لو تعذرت المزامنة السحابية.';
+                document.getElementById('documentViewerDownloadBtn').onclick = () => openClientDocument(clientId, fieldKey, true);
+                document.getElementById('documentViewerModal').classList.remove('hidden');
+                renderDocumentViewer(objectUrl, documentInfo);
+            } catch (error) {
+                showToast(error.message || 'تعذر فتح المستند.', 'error');
+            }
+        }
+
+        window.openClientDocument = openClientDocument;
+        window.closeDocumentViewer = closeDocumentViewer;
+
+        async function syncDocumentsInBackground(clientId, fieldKeys) {
+            if (syncingDocumentClients.has(clientId)) return;
+            syncingDocumentClients.add(clientId);
+
+            let cloudCount = 0;
+            let localCount = 0;
+            try {
+                const client = (window.clients || []).find(item => item.id === clientId);
+                if (!client || !client.docs) return;
+                const docs = { ...client.docs };
+
+                for (const key of fieldKeys) {
+                    const documentInfo = docs[key];
+                    if (!documentInfo || !documentInfo.localId || documentInfo.url || documentInfo.syncStatus === 'cloud') continue;
+
+                    try {
+                        const localRecord = await getLocalDocument(documentInfo.localId);
+                        if (!localRecord || !localRecord.blob) throw new Error('النسخة المحلية غير موجودة.');
+                        const file = new File([localRecord.blob], documentInfo.name || localRecord.name, {
+                            type: documentInfo.type || localRecord.type || 'application/octet-stream'
+                        });
+                        const cloudDocument = await window.uploadDocumentToCloud(file, clientId, key);
+                        docs[key] = {
+                            ...documentInfo,
+                            ...cloudDocument,
+                            localId: documentInfo.localId,
+                            syncStatus: 'cloud'
+                        };
+                        delete docs[key].syncError;
+                        cloudCount += 1;
+                    } catch (error) {
+                        docs[key] = {
+                            ...documentInfo,
+                            syncStatus: 'local',
+                            syncError: getUploadErrorMessage(error)
+                        };
+                        localCount += 1;
+                    }
+                }
+
+                const latestClient = (window.clients || []).find(item => item.id === clientId);
+                if (latestClient) await window.saveClientToCloud({ ...latestClient, docs });
+                if (window.activeProfileClientId === clientId) openClientProfileModal(clientId);
+
+                if (cloudCount > 0) showToast(`تمت مزامنة ${cloudCount} مستند سحابياً بنجاح.`);
+                if (localCount > 0) showToast(`تم حفظ ${localCount} مستند على الجهاز ويمكن فتحه الآن؛ تعذرت المزامنة السحابية.`, 'info');
+            } finally {
+                syncingDocumentClients.delete(clientId);
+            }
+        }
+
+        window.resumePendingDocumentSync = function() {
+            (window.clients || []).forEach(client => {
+                const pendingKeys = Object.entries(client.docs || {})
+                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && documentInfo.syncStatus === 'pending')
+                    .map(([key]) => key);
+                if (pendingKeys.length > 0) syncDocumentsInBackground(client.id, pendingKeys);
+            });
+        };
+
         function handleFileSelected(event, key) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const badge = document.getElementById(`badge_${key}`);
-            const reader = new FileReader();
+            if (!ALLOWED_DOCUMENT_EXTENSIONS.test(file.name)) {
+                event.target.value = '';
+                updateDocumentBadge(key, 'نوع الملف غير مدعوم', 'error');
+                showToast('الأنواع المدعومة: PDF، صور، Word، Excel وCSV', 'error');
+                return;
+            }
 
-            reader.onload = function(e) {
-                window.currentTempDocs = window.currentTempDocs || {};
-                window.currentTempDocs[key] = {
-                    name: file.name,
-                    size: (file.size / 1024).toFixed(1) + ' KB',
-                    type: file.type,
-                    data: e.target.result
-                };
+            if (file.size > MAX_DOCUMENT_SIZE) {
+                event.target.value = '';
+                updateDocumentBadge(key, 'حجم الملف أكبر من 25 MB', 'error');
+                showToast('الحد الأقصى للمستند الواحد هو 25 MB', 'error');
+                return;
+            }
 
-                if (badge) {
-                    badge.innerHTML = `<i class="fa-solid fa-file-check"></i> <span>مرفق: ${file.name} (${window.currentTempDocs[key].size})</span>`;
-                    badge.classList.remove('hidden');
-                }
-                showToast(`تم رفع وتوثيق مستند: ${file.name}`);
+            window.currentTempDocs = window.currentTempDocs || {};
+            window.currentTempDocs[key] = {
+                name: file.name,
+                size: formatFileSize(file.size),
+                sizeBytes: file.size,
+                type: file.type || 'application/octet-stream',
+                file,
+                pending: true
             };
 
-            reader.readAsDataURL(file);
+            updateDocumentBadge(key, `جاهز للرفع: ${file.name} (${formatFileSize(file.size)})`);
+            showToast(`تم تجهيز المستند: ${file.name}. اضغط حفظ لإتمام الرفع.`, 'info');
         }
 
         function renderClientSelectInTaskForm() {
@@ -1865,7 +2654,7 @@
                 document.getElementById('clientName').value = prefillData.name || '';
                 document.getElementById('clientContactPerson').value = prefillData.contactPerson || '';
                 document.getElementById('clientPhone').value = prefillData.phone || '';
-                document.getElementById('clientStage').value = prefillData.stage || window.FUNNEL_STAGES[0];
+                document.getElementById('clientStage').value = window.normalizeFunnelStage(prefillData.stage);
                 document.getElementById('clientCity').value = prefillData.city || 'الرياض';
                 document.getElementById('clientEntityType').value = prefillData.entityType || 'عيادة';
                 document.getElementById('clientSpecialty').value = prefillData.specialty || window.specialtiesList[0];
@@ -1884,11 +2673,8 @@
                 if (prefillData.docs) {
                     window.currentTempDocs = { ...prefillData.docs };
                     Object.keys(prefillData.docs).forEach(key => {
-                        const badge = document.getElementById(`badge_${key}`);
-                        if (badge && prefillData.docs[key]) {
-                            badge.innerHTML = `<i class="fa-solid fa-file-check"></i> <span>مرفق: ${prefillData.docs[key].name}</span>`;
-                            badge.classList.remove('hidden');
-                        }
+                        const storedDoc = prefillData.docs[key];
+                        if (storedDoc) updateDocumentBadge(key, `مرفق ومحفوظ: ${storedDoc.name}${storedDoc.size ? ` (${storedDoc.size})` : ''}`);
                     });
                 }
             } else {
@@ -1907,7 +2693,7 @@
             document.getElementById('addClientModal').classList.add('hidden');
         }
 
-        function handleSaveClient(e) {
+        async function handleSaveClient(e) {
             e.preventDefault();
             const id = document.getElementById('clientId').value;
             const name = document.getElementById('clientName').value.trim();
@@ -1935,48 +2721,108 @@
             }
 
             const isNewClient = !id;
-            const clientData = {
-                id: id || null,
-                name, contactPerson, phone, stage, city, entityType, specialty, address, notes,
-                accountNumber, iban, commission,
-                contractTradeName, contractCrNumber, contractVatNumber, contractSignerName,
-                docs: window.currentTempDocs || {}
-            };
+            const clientId = id || `lead_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const submitButton = e.submitter || e.target.querySelector('button[type="submit"]');
+            const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
 
-            window.saveClientToCloud(clientData);
-
-            // عند تسجيل عميل جديد لأول مرة، يتم تلقائياً إضافة إجراء حركي أول بسجله
-            if (isNewClient) {
-                const currentAgentName = window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام';
-                const currentEmpObj = (window.employees || []).find(e => e.name === currentAgentName);
-                const empShift = currentEmpObj ? currentEmpObj.shift : 'شفت صباحي';
-                const todayStr = new Date().toISOString().split('T')[0];
-                const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-
-                const initialTask = {
-                    id: 'task_' + Date.now(),
-                    clientId: clientData.id,
-                    time: currentTimeStr,
-                    date: window.currentDateFilter || todayStr,
-                    shift: empShift,
-                    agent: currentAgentName,
-                    customer: name,
-                    phone: phone,
-                    entityType: entityType,
-                    specialty: specialty,
-                    city: city,
-                    category: 'تسجيل جهة جديدة',
-                    channel: 'نظام نبضي',
-                    priority: 'عادية',
-                    status: 'مكتمل',
-                    notes: `تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.${notes ? ' ملاحظات: ' + notes : ''}`
-                };
-
-                window.saveTaskToCloud(initialTask);
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-60', 'cursor-wait');
+                submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>جاري حفظ البيانات والمرفقات...</span>';
             }
 
-            showToast(`تم حفظ الجهة (${name}) والعمولات والمستندات بالسحابة!`);
-            closeAddClientModal();
+            try {
+                const docsToSave = {};
+                const tempDocs = window.currentTempDocs || {};
+                const pendingSyncKeys = [];
+
+                for (const [key, documentInfo] of Object.entries(tempDocs)) {
+                    if (!documentInfo) continue;
+
+                    let fileToSave = documentInfo.file instanceof File ? documentInfo.file : null;
+                    if (!fileToSave && !documentInfo.url && typeof documentInfo.data === 'string' && documentInfo.data.startsWith('data:')) {
+                        fileToSave = dataUrlToFile(documentInfo.data, documentInfo.name, documentInfo.type);
+                    }
+
+                    if (fileToSave) {
+                        updateDocumentBadge(key, `جاري حفظ ${fileToSave.name} على الجهاز...`, 'uploading');
+                        const localId = await storeDocumentLocally(fileToSave, clientId, key, documentInfo.localId || null);
+                        docsToSave[key] = {
+                            name: fileToSave.name,
+                            size: formatFileSize(fileToSave.size),
+                            sizeBytes: fileToSave.size,
+                            type: fileToSave.type || 'application/octet-stream',
+                            localId,
+                            savedAt: Date.now(),
+                            syncStatus: 'pending'
+                        };
+                        pendingSyncKeys.push(key);
+                        updateDocumentBadge(key, `تم الحفظ: ${fileToSave.name} (${formatFileSize(fileToSave.size)})`);
+                    } else {
+                        const { file, pending, ...storedDocumentInfo } = documentInfo;
+                        docsToSave[key] = storedDocumentInfo;
+                        if (storedDocumentInfo.localId && !storedDocumentInfo.url && storedDocumentInfo.syncStatus === 'pending') {
+                            pendingSyncKeys.push(key);
+                        }
+                    }
+                }
+
+                const clientData = {
+                    id: clientId,
+                    name, contactPerson, phone, stage, city, entityType, specialty, address, notes,
+                    accountNumber, iban, commission,
+                    contractTradeName, contractCrNumber, contractVatNumber, contractSignerName,
+                    docs: docsToSave
+                };
+
+                await window.saveClientToCloud(clientData);
+
+                // عند تسجيل عميل جديد لأول مرة، يتم تلقائياً إضافة إجراء حركي أول بسجله
+                if (isNewClient) {
+                    const currentAgentName = window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام';
+                    const currentEmpObj = (window.employees || []).find(e => e.name === currentAgentName);
+                    const empShift = currentEmpObj ? currentEmpObj.shift : 'شفت صباحي';
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+                    const initialTask = {
+                        id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                        clientId: clientData.id,
+                        time: currentTimeStr,
+                        date: window.currentDateFilter || todayStr,
+                        shift: empShift,
+                        agent: currentAgentName,
+                        customer: name,
+                        phone,
+                        entityType,
+                        specialty,
+                        city,
+                        category: stage,
+                        channel: 'نظام نبضي',
+                        priority: 'عادية',
+                        status: 'مكتمل',
+                        notes: `تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.${notes ? ' ملاحظات: ' + notes : ''}`
+                    };
+
+                    await window.saveTaskToCloud(initialTask);
+                }
+
+                window.currentTempDocs = { ...docsToSave };
+                closeAddClientModal();
+                const documentCount = Object.keys(docsToSave).length;
+                showToast(`تم حفظ الجهة (${name})${documentCount ? ` و${documentCount} مستند` : ''} بنجاح.`);
+                if (pendingSyncKeys.length > 0) {
+                    syncDocumentsInBackground(clientId, pendingSyncKeys);
+                }
+            } catch (error) {
+                showToast(error.message || getUploadErrorMessage(error), 'error');
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('opacity-60', 'cursor-wait');
+                    submitButton.innerHTML = originalButtonHtml;
+                }
+            }
         }
 
         function renderLeadsTable() {
@@ -2117,7 +2963,7 @@
             document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone} | المسؤول: ${client.contactPerson || 'غير محدد'} | الموظف المضيف: ${client.addedBy || 'المدير العام'}`;
             
             const stageSelector = document.getElementById('profStageSelector');
-            if (stageSelector) stageSelector.value = client.stage || window.FUNNEL_STAGES[0];
+            if (stageSelector) stageSelector.value = window.normalizeFunnelStage(client.stage);
 
             const bankBox = document.getElementById('profBankSummaryBox');
             if (bankBox) {
@@ -2138,12 +2984,33 @@
                 if (client.docs && Object.keys(client.docs).length > 0) {
                     docsHtml += `<div class="mt-2 pt-2 border-t border-amber-200">
                         <b class="text-amber-900 block mb-1">المستندات المرفقة بالحقول:</b>
-                        <div class="flex flex-wrap gap-1">`;
+                        <div class="space-y-1.5">`;
                     Object.keys(client.docs).forEach(k => {
                         const d = client.docs[k];
-                        docsHtml += `<a href="${d.data}" download="${d.name}" class="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-bold inline-flex items-center gap-1" title="تنزيل المستند">
-                            <i class="fa-solid fa-download text-amber-700"></i> ${d.name}
-                        </a>`;
+                        const statusText = d.url || (typeof d.data === 'string' && d.data.startsWith('https://'))
+                            ? 'محفوظ سحابياً'
+                            : (d.syncStatus === 'pending' ? 'محفوظ وجاري المزامنة' : 'محفوظ على هذا الجهاز');
+                        const statusClass = d.url
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : (d.syncStatus === 'pending' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700');
+                        docsHtml += `
+                            <div class="bg-white border border-amber-200 rounded-xl p-2 flex flex-wrap items-center justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-black text-slate-900 truncate"><i class="fa-solid fa-file-lines text-amber-600 ml-1"></i>${escapeHtml(d.name)}</div>
+                                    <div class="flex items-center gap-1 mt-0.5">
+                                        <span class="${statusClass} px-1.5 py-0.5 rounded-md text-[9px] font-bold">${statusText}</span>
+                                        <span class="text-slate-400 text-[9px]">${escapeHtml(d.size || '')}</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button type="button" onclick="openClientDocument('${client.id}', '${k}', false)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
+                                        <i class="fa-solid fa-eye"></i> عرض
+                                    </button>
+                                    <button type="button" onclick="openClientDocument('${client.id}', '${k}', true)" class="bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer">
+                                        <i class="fa-solid fa-download"></i> تنزيل
+                                    </button>
+                                </div>
+                            </div>`;
                     });
                     docsHtml += `</div></div>`;
                 } else {
@@ -2217,8 +3084,12 @@
                 let iconClass = "fa-phone bg-blue-500 text-white";
                 if (t.category === 'تسجيل جهة جديدة') iconClass = "fa-user-plus bg-emerald-600 text-white";
                 else if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
-                else if (t.category === 'اجتماع') iconClass = "fa-handshake bg-purple-600 text-white";
-                else if (t.category && t.category.includes('عقد')) iconClass = "fa-file-signature bg-amber-500 text-white";
+                else if (t.category === 'عميل مهتم') iconClass = "fa-user-check bg-emerald-600 text-white";
+                else if (isMeetingAction(t)) iconClass = "fa-handshake bg-purple-600 text-white";
+                else if (isContractAction(t)) iconClass = "fa-file-signature bg-amber-500 text-white";
+                else if (t.category === 'تفعيل الجهة') iconClass = "fa-circle-check bg-purple-600 text-white";
+                else if (t.category === 'الحصول على البيانات') iconClass = "fa-database bg-sky-600 text-white";
+                else if (t.category === 'إرسال البيانات إلى الدعم الفني') iconClass = "fa-headset bg-violet-600 text-white";
 
                 return `
                     <div class="relative flex items-start gap-3 z-10">
@@ -2274,16 +3145,16 @@
                 return matchShift && matchAgent && matchEntityType && matchStatus && matchSearch;
             });
 
-            const answeredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (تم الرد)').length;
-            const unansweredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (لم يرد)').length;
+            const answeredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isAnsweredPhoneAction(t)).length;
+            const unansweredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isUnansweredPhoneAction(t)).length;
             
             if (document.getElementById('agentTotalCalls')) document.getElementById('agentTotalCalls').innerText = answeredCalls + unansweredCalls;
             if (document.getElementById('agentAnsweredCalls')) document.getElementById('agentAnsweredCalls').innerText = answeredCalls;
             if (document.getElementById('agentUnansweredCalls')) document.getElementById('agentUnansweredCalls').innerText = unansweredCalls;
             if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'إرسال واتساب').length;
-            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'اجتماع').length;
-            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (طرف نبضي)').length;
-            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (الطرفين)').length;
+            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isMeetingAction(t)).length;
+            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isSentContractAction(t)).length;
+            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isSignedContractAction(t)).length;
             if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
 
             if (document.getElementById('agentTasksCountBadge')) document.getElementById('agentTasksCountBadge').innerText = filtered.length;
@@ -2378,6 +3249,7 @@
                     document.getElementById('formEntityType').value = client.entityType || 'عيادة';
                     document.getElementById('formSpecialty').value = client.specialty || window.specialtiesList[0];
                     document.getElementById('formCity').value = client.city || 'الرياض';
+                    document.getElementById('formCategory').value = window.normalizeFunnelStage(client.stage);
                 }
             }
 
@@ -2437,7 +3309,7 @@
                 document.getElementById('formEntityType').value = t.entityType || 'عيادة';
                 document.getElementById('formSpecialty').value = t.specialty || window.specialtiesList[0];
                 document.getElementById('formCity').value = t.city || 'الرياض';
-                document.getElementById('formCategory').value = t.category || 'مكالمة (تم الرد)';
+                document.getElementById('formCategory').value = window.normalizeFunnelStage(t.category || window.FUNNEL_STAGES[0]);
                 document.getElementById('formChannel').value = t.channel || 'مكالمة هاتفية';
                 document.getElementById('formPriority').value = t.priority || 'عادية';
                 document.getElementById('formStatus').value = t.status || 'مكتمل';
@@ -2503,9 +3375,30 @@
             showToast("تم تسجيل الدخول بنجاح");
         }
 
+        function restoreLoginSession() {
+            try {
+                const savedRole = sessionStorage.getItem('cs_logged_role');
+                const savedAgent = sessionStorage.getItem('cs_logged_agent');
+                const validManagerSession = savedRole === 'manager';
+                const validAgentSession = savedRole === 'agent' && Boolean(savedAgent);
+
+                if (!validManagerSession && !validAgentSession) return false;
+                applyLoginSession(savedRole, validAgentSession ? savedAgent : null);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
         function applyLoginSession(role, agentName) {
             window.currentUserRole = role;
             window.currentLoggedInAgent = agentName;
+
+            try {
+                sessionStorage.setItem('cs_logged_role', role);
+                if (agentName) sessionStorage.setItem('cs_logged_agent', agentName);
+                else sessionStorage.removeItem('cs_logged_agent');
+            } catch (error) {}
 
             document.getElementById('loginOverlay').classList.add('hidden');
 
@@ -2539,6 +3432,12 @@
         function logout() {
             window.currentUserRole = null;
             window.currentLoggedInAgent = null;
+            try {
+                sessionStorage.removeItem('cs_logged_role');
+                sessionStorage.removeItem('cs_logged_agent');
+                localStorage.removeItem('cs_logged_role');
+                localStorage.removeItem('cs_logged_agent');
+            } catch (error) {}
             document.getElementById('loginOverlay').classList.remove('hidden');
             showToast("تم تسجيل الخروج", "info");
         }
@@ -2737,13 +3636,13 @@
         function renderManagerDashboard() {
             const dayTasks = getFilteredDateTasks();
 
-            const answeredCalls = dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-            const unansweredCalls = dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+            const answeredCalls = dayTasks.filter(isAnsweredPhoneAction).length;
+            const unansweredCalls = dayTasks.filter(isUnansweredPhoneAction).length;
             const totalCalls = answeredCalls + unansweredCalls;
             const whatsappCount = dayTasks.filter(t => t.category === 'إرسال واتساب').length;
-            const meetingsCount = dayTasks.filter(t => t.category === 'اجتماع').length;
-            const nabdiContracts = dayTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-            const bothContracts = dayTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            const meetingsCount = dayTasks.filter(isMeetingAction).length;
+            const nabdiContracts = dayTasks.filter(isSentContractAction).length;
+            const bothContracts = dayTasks.filter(isSignedContractAction).length;
 
             if (document.getElementById('mgrTotalCalls')) document.getElementById('mgrTotalCalls').innerText = totalCalls;
             if (document.getElementById('mgrAnsweredCalls')) document.getElementById('mgrAnsweredCalls').innerText = answeredCalls;
@@ -2757,20 +3656,20 @@
             const mornTasks = dayTasks.filter(t => t.shift === 'شفت صباحي');
             const eveTasks = dayTasks.filter(t => t.shift === 'شفت مسائي');
 
-            const mornAns = mornTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-            const mornUnans = mornTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+            const mornAns = mornTasks.filter(isAnsweredPhoneAction).length;
+            const mornUnans = mornTasks.filter(isUnansweredPhoneAction).length;
             const mornWa = mornTasks.filter(t => t.category === 'إرسال واتساب').length;
-            const mornMeet = mornTasks.filter(t => t.category === 'اجتماع').length;
-            const mornNabdi = mornTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-            const mornBoth = mornTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            const mornMeet = mornTasks.filter(isMeetingAction).length;
+            const mornNabdi = mornTasks.filter(isSentContractAction).length;
+            const mornBoth = mornTasks.filter(isSignedContractAction).length;
             const mornCallsTotal = mornAns + mornUnans;
 
-            const eveAns = eveTasks.filter(t => t.category === 'مكالمة (تم الرد)').length;
-            const eveUnans = eveTasks.filter(t => t.category === 'مكالمة (لم يرد)').length;
+            const eveAns = eveTasks.filter(isAnsweredPhoneAction).length;
+            const eveUnans = eveTasks.filter(isUnansweredPhoneAction).length;
             const eveWa = eveTasks.filter(t => t.category === 'إرسال واتساب').length;
-            const eveMeet = eveTasks.filter(t => t.category === 'اجتماع').length;
-            const eveNabdi = eveTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-            const eveBoth = eveTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+            const eveMeet = eveTasks.filter(isMeetingAction).length;
+            const eveNabdi = eveTasks.filter(isSentContractAction).length;
+            const eveBoth = eveTasks.filter(isSignedContractAction).length;
             const eveCallsTotal = eveAns + eveUnans;
 
             const mornEmps = (window.employees || []).filter(e => e.shift === 'شفت صباحي').length;
@@ -2812,11 +3711,11 @@
 
             tbody.innerHTML = emps.map(emp => {
                 const empTasks = dayTasks.filter(t => t.agent === emp.name);
-                const calls = empTasks.filter(t => t.category.includes('مكالمة')).length;
+                const calls = empTasks.filter(isPhoneAction).length;
                 const wa = empTasks.filter(t => t.category === 'إرسال واتساب').length;
-                const meet = empTasks.filter(t => t.category === 'اجتماع').length;
-                const nabdi = empTasks.filter(t => t.category === 'عقد (طرف نبضي)').length;
-                const both = empTasks.filter(t => t.category === 'عقد (الطرفين)').length;
+                const meet = empTasks.filter(isMeetingAction).length;
+                const nabdi = empTasks.filter(isSentContractAction).length;
+                const both = empTasks.filter(isSignedContractAction).length;
                 const totalOps = empTasks.length;
                 const rate = Math.min(100, totalOps * 10);
 
@@ -2869,13 +3768,13 @@
 
             const ctx2 = document.getElementById('taskCategoryChart');
             if (ctx2) {
-                const categories = ['مكالمة (تم الرد)', 'مكالمة (لم يرد)', 'إرسال واتساب', 'اجتماع', 'عقود'];
+                const categories = ['مكالمة مكتملة', 'مكالمة متابعة', 'إرسال واتساب', 'اجتماعات', 'عقود'];
                 const counts = [
-                    dayTasks.filter(t => t.category === 'مكالمة (تم الرد)').length,
-                    dayTasks.filter(t => t.category === 'مكالمة (لم يرد)').length,
+                    dayTasks.filter(isAnsweredPhoneAction).length,
+                    dayTasks.filter(isUnansweredPhoneAction).length,
                     dayTasks.filter(t => t.category === 'إرسال واتساب').length,
-                    dayTasks.filter(t => t.category === 'اجتماع').length,
-                    dayTasks.filter(t => t.category && t.category.includes('عقد')).length
+                    dayTasks.filter(isMeetingAction).length,
+                    dayTasks.filter(isContractAction).length
                 ];
 
                 if (categoryChartInstance) categoryChartInstance.destroy();
@@ -2900,7 +3799,8 @@
         function openDailySummaryModal() {
             renderEmployeeSelects();
             const today = window.currentDateFilter || new Date().toISOString().split('T')[0];
-            document.getElementById('summaryStartDate').value = today;
+            const monthStart = `${today.slice(0, 8)}01`;
+            document.getElementById('summaryStartDate').value = monthStart;
             document.getElementById('summaryEndDate').value = today;
             generateReportContent();
             document.getElementById('dailySummaryModal').classList.remove('hidden');
@@ -2910,7 +3810,351 @@
             document.getElementById('dailySummaryModal').classList.add('hidden');
         }
 
+        const REPORT_TITLES = {
+            SHIFT_AGENT: 'تقرير أداء فريق خدمة العملاء',
+            FUNNEL_STAGES: 'تقرير رحلة العملاء وتحول المبيعات',
+            BANK_COMMISSIONS: 'تقرير الحسابات والعمولات والمستندات',
+            ENTITIES_GEO: 'تقرير توزيع المنشآت والمدن',
+            DETAILED_LOG: 'تقرير سجل الأنشطة والمتابعات'
+        };
+
+        function reportPercent(value, total) {
+            return total > 0 ? Math.round((value / total) * 100) : 0;
+        }
+
+        function reportDateText(value) {
+            if (!value) return 'غير محدد';
+            const date = new Date(value + 'T00:00:00');
+            return Number.isNaN(date.getTime())
+                ? value
+                : date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function reportKpi(icon, label, value, accent) {
+            return '<div class="report-kpi" style="--report-accent:' + accent + '">' +
+                '<div class="report-kpi-icon"><i class="fa-solid ' + icon + '"></i></div>' +
+                '<span class="report-kpi-label">' + escapeHtml(label) + '</span>' +
+                '<strong class="report-kpi-value">' + escapeHtml(value) + '</strong>' +
+            '</div>';
+        }
+
+        function reportHeader(title, start, end, shift, agent) {
+            const filterText = (shift === 'ALL' ? 'كل الشفتات' : shift) + ' — ' + (agent === 'ALL' ? 'كل الموظفين' : agent);
+            return '<header class="report-hero">' +
+                '<div class="report-brand"><i class="fa-solid fa-wave-square"></i> نبضي<small>NABDI</small></div>' +
+                '<div class="report-title-block">' +
+                    '<h1 class="report-title">' + escapeHtml(title) + '</h1>' +
+                    '<div class="report-subtitle">' + escapeHtml(reportDateText(start)) + ' — ' + escapeHtml(reportDateText(end)) + '</div>' +
+                    '<div class="report-period">الفترة التشغيلية: من ' + escapeHtml(reportDateText(start)) + ' إلى ' + escapeHtml(reportDateText(end)) + ' | ' + escapeHtml(filterText) + '</div>' +
+                '</div>' +
+                '<div class="report-medical-icon"><i class="fa-solid fa-heart-pulse"></i></div>' +
+            '</header>';
+        }
+
+        function reportSection(title, content, extraClass) {
+            return '<section class="report-section ' + (extraClass || '') + '">' +
+                '<h2 class="report-section-title">' + escapeHtml(title) + '</h2>' +
+                content +
+            '</section>';
+        }
+
+        function reportTable(headers, rows) {
+            const headerHtml = headers.map(function(header) {
+                return '<th>' + escapeHtml(header) + '</th>';
+            }).join('');
+            const bodyHtml = rows.length > 0
+                ? rows.map(function(row) {
+                    return '<tr>' + row.map(function(cell, index) {
+                        return '<td class="' + (index === 0 ? 'report-strong' : '') + '">' + escapeHtml(cell) + '</td>';
+                    }).join('') + '</tr>';
+                }).join('')
+                : '<tr><td colspan="' + headers.length + '"><div class="report-empty">لا توجد بيانات مطابقة للفترة والفلاتر المحددة.</div></td></tr>';
+            return '<div class="report-table-wrap"><table class="report-table"><thead><tr>' + headerHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
+        }
+
+        function reportHighlights(items) {
+            return '<div class="report-highlights">' + items.map(function(item) {
+                return '<div class="report-highlight">' +
+                    '<div class="report-highlight-icon"><i class="fa-solid ' + item.icon + '"></i></div>' +
+                    '<div><small>' + escapeHtml(item.label) + '</small><b>' + escapeHtml(item.name) + '</b><strong>' + escapeHtml(item.value) + '</strong></div>' +
+                '</div>';
+            }).join('') + '</div>';
+        }
+
+        function reportBars(items) {
+            const maxValue = Math.max.apply(null, items.map(function(item) { return item.count; }).concat([1]));
+            return '<div class="report-funnel-list">' + items.map(function(item) {
+                const width = Math.max(2, Math.round((item.count / maxValue) * 100));
+                return '<div class="report-funnel-row">' +
+                    '<span>' + escapeHtml(item.label) + '</span>' +
+                    '<div class="report-funnel-track"><div class="report-funnel-fill" style="width:' + width + '%"></div></div>' +
+                    '<strong>' + item.count + '</strong>' +
+                '</div>';
+            }).join('') + '</div>';
+        }
+
+        function countReportItems(items, getter) {
+            const totals = {};
+            items.forEach(function(item) {
+                const key = getter(item) || 'غير محدد';
+                totals[key] = (totals[key] || 0) + 1;
+            });
+            return Object.entries(totals)
+                .map(function(entry) { return { label: entry[0], count: entry[1] }; })
+                .sort(function(a, b) { return b.count - a.count; });
+        }
+
+        function buildShiftInfographic(tasks, clients, shift, agent) {
+            const answered = tasks.filter(isAnsweredPhoneAction).length;
+            const unanswered = tasks.filter(isUnansweredPhoneAction).length;
+            const totalCalls = answered + unanswered;
+            const whatsapp = tasks.filter(function(task) { return task.category === 'إرسال واتساب'; }).length;
+            const meetings = tasks.filter(isMeetingAction).length;
+            const signedContracts = tasks.filter(isSignedContractAction).length;
+            const employeeMap = new Map();
+
+            (window.employees || []).forEach(function(employee) {
+                if ((shift === 'ALL' || employee.shift === shift) && (agent === 'ALL' || employee.name === agent)) {
+                    employeeMap.set(employee.name, employee.shift);
+                }
+            });
+            tasks.forEach(function(task) {
+                if (task.agent && !employeeMap.has(task.agent)) employeeMap.set(task.agent, task.shift || '-');
+            });
+
+            const performance = Array.from(employeeMap.entries()).map(function(entry) {
+                const name = entry[0];
+                const employeeTasks = tasks.filter(function(task) { return task.agent === name; });
+                const employeeAnswered = employeeTasks.filter(isAnsweredPhoneAction).length;
+                const employeeUnanswered = employeeTasks.filter(isUnansweredPhoneAction).length;
+                const employeeCalls = employeeAnswered + employeeUnanswered;
+                const employeeMeetings = employeeTasks.filter(isMeetingAction).length;
+                const employeeContracts = employeeTasks.filter(isSignedContractAction).length;
+                const employeeLeads = clients.filter(function(client) { return client.addedBy === name; }).length;
+                const responseRate = reportPercent(employeeAnswered, employeeCalls);
+                const score = Math.round(
+                    (responseRate * 0.5) +
+                    (Math.min(employeeContracts / 5, 1) * 25) +
+                    (Math.min(employeeMeetings / 10, 1) * 15) +
+                    (Math.min(employeeLeads / 10, 1) * 10)
+                );
+                return {
+                    name: name,
+                    shift: entry[1],
+                    calls: employeeCalls,
+                    answered: employeeAnswered,
+                    responseRate: responseRate,
+                    leads: employeeLeads,
+                    meetings: employeeMeetings,
+                    contracts: employeeContracts,
+                    score: score
+                };
+            }).sort(function(a, b) { return b.score - a.score; });
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-phone', 'إجمالي المكالمات', totalCalls, '#5b21b6') +
+                reportKpi('fa-headset', 'المكالمات المجابة', answered, '#0b63ce') +
+                reportKpi('fa-user-group', 'العملاء المهتمون Leads', clients.length, '#6d28d9') +
+                reportKpi('fa-file-signature', 'العقود الموقعة', signedContracts, '#075cb9') +
+                reportKpi('fa-comment-dots', 'رسائل واتساب', whatsapp, '#059669') +
+                reportKpi('fa-calendar-check', 'عدد الاجتماعات', meetings, '#2563eb') +
+            '</div>';
+
+            const answeredAngle = totalCalls > 0 ? Math.round((answered / totalCalls) * 360) : 0;
+            const callsVisual = '<div class="report-split">' +
+                '<div class="report-donut-wrap">' +
+                    '<div class="report-donut" style="--answered-angle:' + answeredAngle + 'deg">' +
+                        '<div class="report-donut-center">' + reportPercent(answered, totalCalls) + '%<small>نسبة الرد</small></div>' +
+                    '</div>' +
+                    '<div class="report-legend">' +
+                        '<div class="report-legend-row"><span class="report-legend-dot" style="background:#0b63ce"></span>مجاب: ' + answered + '</div>' +
+                        '<div class="report-legend-row"><span class="report-legend-dot" style="background:#6d28d9"></span>لم يرد: ' + unanswered + '</div>' +
+                    '</div>' +
+                '</div>' +
+                reportTable(['النتيجة', 'العدد', 'النسبة'], [
+                    ['مكتملة / مجابة', answered, reportPercent(answered, totalCalls) + '%'],
+                    ['لا يوجد رد', unanswered, reportPercent(unanswered, totalCalls) + '%'],
+                    ['إجمالي المكالمات', totalCalls, totalCalls > 0 ? '100%' : '0%']
+                ]) +
+            '</div>';
+            html += reportSection('نتائج المكالمات', callsVisual);
+
+            html += reportSection('أداء فريق خدمة العملاء', reportTable(
+                ['الترتيب', 'الموظف', 'المكالمات', 'المجابة', 'نسبة الرد', 'Leads', 'اجتماعات', 'عقود', 'الأداء'],
+                performance.map(function(row, index) {
+                    return [index + 1, row.name, row.calls, row.answered, row.responseRate + '%', row.leads, row.meetings, row.contracts, row.score + '%'];
+                })
+            ));
+
+            const best = performance[0] || { name: '-', score: 0 };
+            const mostCalls = performance.slice().sort(function(a, b) { return b.calls - a.calls; })[0] || { name: '-', calls: 0 };
+            const mostLeads = performance.slice().sort(function(a, b) { return b.leads - a.leads; })[0] || { name: '-', leads: 0 };
+            const mostContracts = performance.slice().sort(function(a, b) { return b.contracts - a.contracts; })[0] || { name: '-', contracts: 0 };
+            html += reportSection('أبرز المؤشرات', reportHighlights([
+                { icon: 'fa-trophy', label: 'أفضل مؤشر أداء', name: best.name, value: best.score + '%' },
+                { icon: 'fa-headset', label: 'أعلى عدد مكالمات', name: mostCalls.name, value: mostCalls.calls },
+                { icon: 'fa-users', label: 'أعلى Leads', name: mostLeads.name, value: mostLeads.leads },
+                { icon: 'fa-file-circle-check', label: 'أعلى عقود موقعة', name: mostContracts.name, value: mostContracts.contracts }
+            ]));
+            html += '<div class="report-note">مؤشر الأداء = 50% من نسبة الرد + 25% من العقود + 15% من الاجتماعات + 10% من العملاء المحتملين.</div>';
+            return html;
+        }
+
+        function buildStandardInfographic(reportType, tasks, clients) {
+            let html = '';
+            if (reportType === 'FUNNEL_STAGES') {
+                const stages = (window.FUNNEL_STAGES || []).map(function(stage) {
+                    return { label: stage, count: clients.filter(function(client) { return client.stage === stage; }).length };
+                });
+                const interested = clients.filter(function(client) { return client.stage === 'عميل مهتم'; }).length;
+                const meetings = clients.filter(function(client) { return ['الاتفاق على الاجتماع', 'عقد اجتماع'].includes(client.stage); }).length;
+                const offers = clients.filter(function(client) { return ['الاتفاق على التعاقد', 'إرسال العقد'].includes(client.stage); }).length;
+                const signed = clients.filter(function(client) { return client.stage === 'توقيع العقد'; }).length;
+                const activated = clients.filter(function(client) { return client.stage === 'تفعيل الجهة'; }).length;
+                html += '<div class="report-kpi-grid">' +
+                    reportKpi('fa-users', 'إجمالي العملاء', clients.length, '#5b21b6') +
+                    reportKpi('fa-user-check', 'العملاء المهتمون', interested, '#0b63ce') +
+                    reportKpi('fa-calendar-check', 'مرحلة الاجتماعات', meetings, '#2563eb') +
+                    reportKpi('fa-paper-plane', 'التعاقد وإرسال العقد', offers, '#6d28d9') +
+                    reportKpi('fa-file-signature', 'توقيع العقد', signed, '#059669') +
+                    reportKpi('fa-circle-check', 'جهات مفعلة', activated, '#047857') +
+                '</div>';
+                html += reportSection('توزيع العملاء على مراحل الرحلة', reportBars(stages));
+                html += reportSection('تفاصيل العملاء ومراحلهم الحالية', reportTable(
+                    ['المنشأة', 'المسؤول', 'الموظف', 'الهاتف', 'المدينة', 'المرحلة'],
+                    clients.map(function(client) {
+                        return [client.name, client.contactPerson || '-', client.addedBy || 'المدير العام', client.phone || '-', client.city || '-', client.stage || '-'];
+                    })
+                ));
+                html += '<div class="report-note">نسبة توقيع العقد: ' + reportPercent(signed, clients.length) + '% — نسبة التفعيل: ' + reportPercent(activated, clients.length) + '%.</div>';
+            } else if (reportType === 'BANK_COMMISSIONS') {
+                const withAccount = clients.filter(function(client) { return client.accountNumber; }).length;
+                const withIban = clients.filter(function(client) { return client.iban; }).length;
+                const withCommission = clients.filter(function(client) { return client.commission; }).length;
+                const withDocs = clients.filter(function(client) { return client.docs && Object.keys(client.docs).length > 0; }).length;
+                const totalDocs = clients.reduce(function(total, client) {
+                    return total + (client.docs ? Object.keys(client.docs).length : 0);
+                }, 0);
+                html += '<div class="report-kpi-grid">' +
+                    reportKpi('fa-building', 'إجمالي الجهات', clients.length, '#5b21b6') +
+                    reportKpi('fa-building-columns', 'حساب بنكي مسجل', withAccount, '#0b63ce') +
+                    reportKpi('fa-money-check-dollar', 'آيبان مسجل', withIban, '#2563eb') +
+                    reportKpi('fa-percent', 'عمولة محددة', withCommission, '#059669') +
+                    reportKpi('fa-paperclip', 'جهات بها مستندات', withDocs, '#6d28d9') +
+                    reportKpi('fa-file-lines', 'إجمالي المرفقات', totalDocs, '#075cb9') +
+                '</div>';
+                html += reportSection('الحسابات والعمولات والمستندات', reportTable(
+                    ['الجهة', 'الموظف', 'رقم الحساب', 'IBAN', 'العمولة', 'المرفقات'],
+                    clients.map(function(client) {
+                        const count = client.docs ? Object.keys(client.docs).length : 0;
+                        return [client.name, client.addedBy || 'المدير العام', client.accountNumber || 'غير مدخل', client.iban || 'غير مدخل', client.commission || 'غير مدخلة', count ? count + ' ملف' : 'لا يوجد'];
+                    })
+                ));
+                html += reportSection('نسب اكتمال البيانات', reportHighlights([
+                    { icon: 'fa-building-columns', label: 'اكتمال الحسابات', name: withAccount + ' جهة', value: reportPercent(withAccount, clients.length) + '%' },
+                    { icon: 'fa-money-check-dollar', label: 'اكتمال الآيبان', name: withIban + ' جهة', value: reportPercent(withIban, clients.length) + '%' },
+                    { icon: 'fa-percent', label: 'اكتمال العمولات', name: withCommission + ' جهة', value: reportPercent(withCommission, clients.length) + '%' },
+                    { icon: 'fa-paperclip', label: 'تغطية المستندات', name: withDocs + ' جهة', value: reportPercent(withDocs, clients.length) + '%' }
+                ]));
+            } else if (reportType === 'ENTITIES_GEO') {
+                const cities = countReportItems(clients, function(client) { return client.city || 'غير محدد'; });
+                const entities = countReportItems(clients, function(client) { return client.entityType || 'غير محدد'; });
+                const specialties = countReportItems(clients, function(client) { return client.specialty || 'غير محدد'; });
+                const topCity = cities[0] || { label: '-', count: 0 };
+                const topType = entities[0] || { label: '-', count: 0 };
+                html += '<div class="report-kpi-grid">' +
+                    reportKpi('fa-building', 'إجمالي المنشآت', clients.length, '#5b21b6') +
+                    reportKpi('fa-city', 'عدد المدن', cities.length, '#0b63ce') +
+                    reportKpi('fa-hospital', 'أنواع المنشآت', entities.length, '#2563eb') +
+                    reportKpi('fa-stethoscope', 'عدد التخصصات', specialties.length, '#6d28d9') +
+                    reportKpi('fa-location-dot', 'المدينة الأعلى', topCity.label, '#059669') +
+                    reportKpi('fa-ranking-star', 'النوع الأعلى', topType.label, '#075cb9') +
+                '</div>';
+                html += reportSection('التوزيع حسب المدن', reportBars(cities));
+                html += reportSection('التوزيع حسب نوع المنشأة', reportBars(entities));
+                html += reportSection('تفاصيل المنشآت', reportTable(
+                    ['المنشأة', 'الموظف', 'النوع', 'التخصص', 'المدينة', 'العنوان'],
+                    clients.map(function(client) {
+                        return [client.name, client.addedBy || 'المدير العام', client.entityType || '-', client.specialty || '-', client.city || '-', client.address || '-'];
+                    })
+                ), 'report-page-break');
+            } else {
+                const calls = tasks.filter(isPhoneAction).length;
+                const whatsapp = tasks.filter(function(task) { return task.category === 'إرسال واتساب'; }).length;
+                const meetings = tasks.filter(isMeetingAction).length;
+                const contracts = tasks.filter(isContractAction).length;
+                const completed = tasks.filter(function(task) { return task.status === 'مكتمل'; }).length;
+                const statuses = countReportItems(tasks, function(task) { return task.status || 'غير محدد'; });
+                html += '<div class="report-kpi-grid">' +
+                    reportKpi('fa-list-check', 'إجمالي الأنشطة', tasks.length, '#5b21b6') +
+                    reportKpi('fa-phone', 'المكالمات', calls, '#0b63ce') +
+                    reportKpi('fa-comment-dots', 'واتساب', whatsapp, '#059669') +
+                    reportKpi('fa-calendar-check', 'الاجتماعات', meetings, '#2563eb') +
+                    reportKpi('fa-file-signature', 'العقود', contracts, '#6d28d9') +
+                    reportKpi('fa-circle-check', 'الأنشطة المكتملة', completed, '#047857') +
+                '</div>';
+                html += reportSection('توزيع الأنشطة حسب الحالة', reportBars(statuses));
+                html += reportSection('سجل الأنشطة والمتابعات', reportTable(
+                    ['التاريخ والوقت', 'الموظف والشفت', 'العميل', 'الإجراء', 'التفاصيل', 'الحالة'],
+                    tasks.map(function(task) {
+                        return [
+                            (task.date || '-') + ' ' + (task.time || ''),
+                            (task.agent || '-') + ' — ' + (task.shift || '-'),
+                            task.customer || '-',
+                            task.category || '-',
+                            task.notes || '-',
+                            task.status || '-'
+                        ];
+                    })
+                ));
+            }
+            return html;
+        }
+
+        function generateInfographicReport() {
+            const reportType = document.getElementById('reportTypeSelect').value;
+            const start = document.getElementById('summaryStartDate').value;
+            const end = document.getElementById('summaryEndDate').value;
+            const shift = document.getElementById('summaryShiftFilter').value;
+            const agent = document.getElementById('summaryAgentFilter').value;
+            const area = document.getElementById('summaryContentArea');
+            if (!area) return;
+
+            const tasks = (window.tasks || []).filter(function(task) {
+                return (!start || task.date >= start) &&
+                    (!end || task.date <= end) &&
+                    (shift === 'ALL' || task.shift === shift) &&
+                    (agent === 'ALL' || task.agent === agent);
+            });
+            const startTime = start ? new Date(start + 'T00:00:00').getTime() : 0;
+            const endTime = end ? new Date(end + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER;
+            const clients = (window.clients || []).filter(function(client) {
+                const createdAt = Number(client.createdAt) || 0;
+                return (!createdAt || (createdAt >= startTime && createdAt <= endTime)) &&
+                    (agent === 'ALL' || client.addedBy === agent);
+            });
+
+            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent);
+            content += reportType === 'SHIFT_AGENT'
+                ? buildShiftInfographic(tasks, clients, shift, agent)
+                : buildStandardInfographic(reportType, tasks, clients);
+            content += '<div class="report-note">تم إنشاء هذا التقرير من بيانات منصة نبضي بتاريخ ' + escapeHtml(new Date().toLocaleString('ar-EG')) + '.</div>';
+            area.innerHTML = '<article class="report-sheet">' + content + '</article>';
+        }
+
+        function printCurrentReport() {
+            const reportType = document.getElementById('reportTypeSelect').value;
+            const start = document.getElementById('summaryStartDate').value;
+            const end = document.getElementById('summaryEndDate').value;
+            const oldTitle = document.title;
+            document.title = (REPORT_TITLES[reportType] || 'تقرير نبضي') + ' - ' + start + ' - ' + end;
+            window.print();
+            setTimeout(function() { document.title = oldTitle; }, 300);
+        }
+
         function generateReportContent() {
+            generateInfographicReport();
+            return;
             const reportType = document.getElementById('reportTypeSelect').value;
             const start = document.getElementById('summaryStartDate').value;
             const end = document.getElementById('summaryEndDate').value;
@@ -2944,10 +4188,10 @@
 
             if (reportType === 'SHIFT_AGENT') {
                 const totalOps = filteredTasks.length;
-                const calls = filteredTasks.filter(t => t.category.includes('مكالمة')).length;
+                const calls = filteredTasks.filter(isPhoneAction).length;
                 const wa = filteredTasks.filter(t => t.category === 'إرسال واتساب').length;
-                const meet = filteredTasks.filter(t => t.category === 'اجتماع').length;
-                const contracts = filteredTasks.filter(t => t.category && t.category.includes('عقد')).length;
+                const meet = filteredTasks.filter(isMeetingAction).length;
+                const contracts = filteredTasks.filter(isContractAction).length;
 
                 html += `
                     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
@@ -2978,10 +4222,10 @@
                                     <tr class="border-b border-slate-200">
                                         <td class="p-2 border border-slate-300 font-bold">${emp.name}</td>
                                         <td class="p-2 border border-slate-300">${emp.shift}</td>
-                                        <td class="p-2 border border-slate-300 font-bold text-blue-700">${empTasks.filter(t=>t.category.includes('مكالمة')).length}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-blue-700">${empTasks.filter(isPhoneAction).length}</td>
                                         <td class="p-2 border border-slate-300 font-bold text-emerald-700">${empTasks.filter(t=>t.category==='إرسال واتساب').length}</td>
-                                        <td class="p-2 border border-slate-300 font-bold text-purple-700">${empTasks.filter(t=>t.category==='اجتماع').length}</td>
-                                        <td class="p-2 border border-slate-300 font-bold text-amber-700">${empTasks.filter(t=>t.category&&t.category.includes('عقد')).length}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-purple-700">${empTasks.filter(isMeetingAction).length}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-amber-700">${empTasks.filter(isContractAction).length}</td>
                                         <td class="p-2 border border-slate-300 font-black text-brand-700">${empTasks.length}</td>
                                     </tr>
                                 `;
@@ -3025,7 +4269,7 @@
                                     <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.addedBy || 'المدير العام'}</td>
                                     <td class="p-2 border border-slate-300 font-mono dir-ltr">${c.phone}</td>
                                     <td class="p-2 border border-slate-300">${c.city || 'الرياض'}</td>
-                                    <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.stage || 'تم اتصال مكتمل'}</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-purple-900">${window.normalizeFunnelStage(c.stage)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
