@@ -187,6 +187,7 @@
                     <div id="userBadge" class="flex items-center gap-2 bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
                         <i class="fa-solid fa-user-check text-emerald-600"></i>
                         <span id="currentUserName">زائر</span>
+                        <button id="btnAgentChangePin" onclick="openSelfChangePasswordModal()" class="text-purple-700 hover:text-purple-900 text-[11px] font-extrabold mr-1 border-r border-slate-300 pr-2 cursor-pointer hidden" title="تغيير كلمة المرور الخاصة بي">تغيير الباسورد</button>
                         <button onclick="logout()" class="text-rose-600 hover:text-rose-800 text-[11px] font-bold mr-1 border-r border-slate-300 pr-2 cursor-pointer" title="تسجيل الخروج">خروج</button>
                     </div>
 
@@ -237,7 +238,6 @@
         <!-- ========================================== -->
         <div id="agentView" class="space-y-6">
             
-            <!-- Quick Client Action Banner -->
             <div class="bg-gradient-to-r from-indigo-900 via-purple-900 to-brand-800 text-white p-4 rounded-2xl shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 border border-purple-500/30">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-indigo-300 text-xl border border-white/20">
@@ -260,7 +260,6 @@
                 </div>
             </div>
 
-            <!-- Dynamic KPI Cards Bar -->
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
                     <div class="flex items-center justify-between text-slate-500 mb-1">
@@ -317,7 +316,6 @@
                 </div>
             </div>
 
-            <!-- Agent Task Filters & Table (سجل الأعمال والعمليات اليومية) -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between bg-slate-50/50">
                     <div class="flex items-center gap-2">
@@ -325,7 +323,6 @@
                         <span id="agentTasksCountBadge" class="bg-brand-100 text-brand-700 text-xs px-2.5 py-0.5 rounded-full font-bold">0</span>
                     </div>
 
-                    <!-- Filters Toolbar -->
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-xl text-xs">
                             <span class="font-bold text-slate-600">الشفت:</span>
@@ -372,7 +369,6 @@
                     </div>
                 </div>
 
-                <!-- Table -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-right text-xs">
                         <thead class="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
@@ -446,7 +442,6 @@
                 </div>
             </div>
 
-            <!-- Shift Comparison Card -->
             <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
                 <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                     <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
@@ -533,7 +528,6 @@
                 </div>
             </div>
 
-            <!-- Operations Summary -->
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <span class="text-xs font-bold text-slate-500 block">إجمالي المكالمات</span>
@@ -587,7 +581,6 @@
                 </div>
             </div>
 
-            <!-- Charts -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
                     <h3 class="font-extrabold text-sm text-slate-800 mb-4 flex items-center gap-2">
@@ -610,7 +603,6 @@
                 </div>
             </div>
 
-            <!-- Team Summary Table -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
@@ -642,9 +634,47 @@
 
     </main>
 
-    <!-- ============================================================== -->
-    <!-- MODAL 1: ADD / EDIT TASK WITH CLIENT LOOKUP & SELECTION -->
-    <!-- ============================================================== -->
+    <!-- MODAL: SELF CHANGE PASSWORD FOR AGENT -->
+    <div id="selfChangePasswordModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl border border-slate-100 overflow-hidden my-auto p-6 space-y-4 text-xs">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-key text-brand-600"></i>
+                    <span>تغيير كلمة المرور الشخصية</span>
+                </h3>
+                <button type="button" onclick="closeSelfChangePasswordModal()" class="text-slate-400 hover:text-slate-700 text-base cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleSelfPasswordChange(event)" class="space-y-3">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">الرمز السرّي (PIN) الحالي</label>
+                    <input type="password" id="currentPinInput" required placeholder="••••••••" 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">الرمز السرّي الجديد</label>
+                    <input type="password" id="newPinInput" required placeholder="••••••••" 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">تأكيد الرمز الجديد</label>
+                    <input type="password" id="confirmPinInput" required placeholder="••••••••" 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                    <button type="button" onclick="closeSelfChangePasswordModal()" class="px-3.5 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer">إلغاء</button>
+                    <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ الباسورد الجديد</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 1: ADD / EDIT TASK -->
     <div id="addTaskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             <div class="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
@@ -816,9 +846,7 @@
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- MODAL 2: ADD / EDIT CLIENT FORM WITH BANK DETAILS & ATTACHMENTS -->
-    <!-- ============================================================== -->
+    <!-- MODAL 2: ADD / EDIT CLIENT -->
     <div id="addClientModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             <div class="bg-indigo-900 text-white p-4 flex justify-between items-center shrink-0">
@@ -834,7 +862,6 @@
             <form id="clientForm" onsubmit="handleSaveClient(event)" class="p-5 space-y-4 text-xs overflow-y-auto custom-scrollbar">
                 <input type="hidden" id="clientId" value="">
 
-                <!-- 1. الأساسيات -->
                 <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
                     <h4 class="font-black text-slate-800 text-xs flex items-center justify-between">
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-building text-indigo-600"></i> بيانات المنشأة الأساسية</span>
@@ -939,7 +966,6 @@
                     </div>
                 </div>
 
-                <!-- 2. البيانات المالية والحسابات والعمولات (طلب خاص) -->
                 <div class="bg-emerald-50/80 border border-emerald-200 p-3.5 rounded-2xl space-y-3">
                     <div class="flex items-center justify-between text-emerald-950 font-extrabold text-xs">
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-money-check-dollar text-emerald-600"></i> البيانات المالية والحسابات والعمولات المتفق عليها</span>
@@ -985,7 +1011,6 @@
                     </div>
                 </div>
 
-                <!-- 3. Attached Contract Preparation Fields -->
                 <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl space-y-3">
                     <div class="flex items-center justify-between gap-1.5 text-amber-950 font-extrabold text-xs">
                         <span class="flex items-center gap-1.5"><i class="fa-solid fa-file-contract text-amber-600"></i> بيانات عمل العقد والتجهيز</span>
@@ -1063,9 +1088,7 @@
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- MODAL 3.5: LEADS & CLIENTS DIRECTORY MODAL -->
-    <!-- ============================================================== -->
+    <!-- MODAL 3.5: CLIENT DIRECTORY -->
     <div id="clientDirectoryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-7xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[92vh] flex flex-col">
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-4 flex justify-between items-center shrink-0">
@@ -1078,7 +1101,6 @@
                 </button>
             </div>
 
-            <!-- Directory Toolbar -->
             <div class="p-4 bg-slate-100 border-b border-slate-200 flex flex-wrap gap-3 items-center justify-between text-xs shrink-0">
                 <div class="flex items-center gap-2">
                     <button onclick="openAddClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer">
@@ -1101,7 +1123,6 @@
                 </div>
             </div>
 
-            <!-- Directory Content Table -->
             <div class="p-4 overflow-y-auto custom-scrollbar flex-1">
                 <div class="overflow-x-auto">
                     <table class="w-full text-right text-xs">
@@ -1110,6 +1131,7 @@
                                 <th class="p-3">اسم الجهة والمسؤول</th>
                                 <th class="p-3">نوع المنشأة والتخصص</th>
                                 <th class="p-3">رقم الهاتف والمدينة</th>
+                                <th class="p-3">الموظف المسجل (المسؤول)</th>
                                 <th class="p-3">الحساب والآيبان والعمولة</th>
                                 <th class="p-3">المستندات المرفقة</th>
                                 <th class="p-3">المرحلة الحالية</th>
@@ -1134,9 +1156,7 @@
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- MODAL 3: FULL CLIENT TIMELINE & ATTACHED DOCUMENTS PROFILE -->
-    <!-- ============================================================== -->
+    <!-- MODAL 3: CLIENT PROFILE -->
     <div id="clientProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             
@@ -1179,9 +1199,7 @@
                     </div>
                 </div>
 
-                <!-- Financial & Attached Documents Section -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Bank & Financial Box -->
                     <div class="bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl space-y-2">
                         <h4 class="font-extrabold text-xs text-emerald-950 flex items-center gap-2">
                             <i class="fa-solid fa-money-check-dollar text-emerald-600"></i>
@@ -1191,7 +1209,6 @@
                         </div>
                     </div>
 
-                    <!-- Contract & Documents Box -->
                     <div class="bg-amber-50/80 border border-amber-200 p-4 rounded-2xl space-y-2">
                         <h4 class="font-extrabold text-xs text-amber-950 flex items-center gap-2">
                             <i class="fa-solid fa-folder-open text-amber-600"></i>
@@ -1228,9 +1245,7 @@
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- MODAL 4: MANAGE EMPLOYEES MODAL (إدارة الموظفين) -->
-    <!-- ============================================================== -->
+    <!-- MODAL 4: MANAGE EMPLOYEES -->
     <div id="manageEmployeesModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[90vh] flex flex-col">
             <div class="bg-amber-600 text-white p-4 flex justify-between items-center shrink-0">
@@ -1244,7 +1259,6 @@
             </div>
 
             <div class="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
-                <!-- Add Employee Form -->
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                     <h4 class="font-black text-slate-800 text-xs flex items-center gap-1.5">
                         <i class="fa-solid fa-user-plus text-amber-600"></i>
@@ -1274,7 +1288,6 @@
                     </button>
                 </div>
 
-                <!-- Existing Employees List -->
                 <div>
                     <h4 class="font-black text-slate-800 text-xs mb-2">قائمة الموظفين الحاليين المسجلين:</h4>
                     <div id="employeesListContainer" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
@@ -1288,9 +1301,7 @@
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- MODAL 5: DIVERSE REPORTS & FILTERING ENGINE & PREVIEW (طلب خاص) -->
-    <!-- ============================================================== -->
+    <!-- MODAL 5: REPORTS -->
     <div id="dailySummaryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col print-container">
             
@@ -1304,7 +1315,6 @@
                 </button>
             </div>
 
-            <!-- Filters Bar -->
             <div class="p-4 bg-slate-100 border-b border-slate-200 space-y-3 no-print shrink-0 text-xs">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
                     <div>
@@ -1345,12 +1355,9 @@
                 </div>
             </div>
 
-            <!-- Report Live Preview Area (قابل للمراجعة والمعاينة) -->
             <div id="summaryContentArea" class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white space-y-4 font-semibold text-slate-800">
-                <!-- Dynamic Content Formated Here -->
             </div>
 
-            <!-- Modal Footer Actions -->
             <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center shrink-0 text-xs gap-2 no-print">
                 <div class="flex items-center gap-2">
                     <span class="text-slate-500 font-bold"><i class="fa-solid fa-eye text-indigo-600"></i> حالة المعاينة: جاهز للطباعة والمراجعة</span>
@@ -1372,7 +1379,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, collection, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup & Initialization
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'cs-shifts-app';
         const firebaseConfig = {
             apiKey: "AIzaSyDI1SJ696IKaAk8567rXWeyDRz6Yjv94Nc",
@@ -1388,27 +1394,15 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Firestore Paths
         const employeesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
         const tasksColRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
         const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
 
-        // Global Unified Funnel Stages
         window.FUNNEL_STAGES = [
-            "تم اتصال مكتمل",
-            "مهتم",
-            "اجتماع محدد",
-            "الاجتماع تم",
-            "العرض أُرسل",
-            "العقد أُرسل",
-            "تفاوض",
-            "عقد موقع",
-            "تفعيل الجهة",
-            "مؤجل",
-            "غير مهتم"
+            "تم اتصال مكتمل", "مهتم", "اجتماع محدد", "الاجتماع تم", "العرض أُرسل",
+            "العقد أُرسل", "تفاوض", "عقد موقع", "تفعيل الجهة", "مؤجل", "غير مهتم"
         ];
 
-        // Global State Variables
         window.currentUserRole = null; 
         window.currentLoggedInAgent = null; 
         window.currentAgent = 'ALL';
@@ -1427,29 +1421,12 @@
         window.clients = [];
 
         window.specialtiesList = [
-            "طب وجراحة العيون",
-            "طب وجراحة الأسنان",
-            "الجلدية والتجميل",
-            "الباطنة والقلب",
-            "طب الأطفال وحديثي الولادة",
-            "العظام والمفاصل",
-            "الجراحة العامة",
-            "النساء والتوليد والعقم",
-            "المخ والأعصاب",
-            "الأنف والأذن والحنجرة",
-            "المسالك البولية والتناسلية",
-            "العلاج الطبيعي والتأهيل",
-            "الأورام وجراحتها",
-            "الأمراض الصدرية والتنفسية",
-            "الغدد الصماء والسكري",
-            "الكلى والجهاز الهضمي",
-            "النفسية والعصبية",
-            "طب الأسرة والصحة العامة",
-            "صيدلة عامة ودواء",
-            "مختبرات وتحاليل طبية",
-            "أشعة وتشخيص طبي",
-            "تجارة وتوزيع مستلزمات طبية",
-            "خدمات طبية عامة وأخرى"
+            "طب وجراحة العيون", "طب وجراحة الأسنان", "الجلدية والتجميل", "الباطنة والقلب",
+            "طب الأطفال وحديثي الولادة", "العظام والمفاصل", "الجراحة العامة", "النساء والتوليد والعقم",
+            "المخ والأعصاب", "الأنف والأذن والحنجرة", "المسالك البولية والتناسلية", "العلاج الطبيعي والتأهيل",
+            "الأورام وجراحتها", "الأمراض الصدرية والتنفسية", "الغدد الصماء والسكري", "الكلى والجهاز الهضمي",
+            "النفسية والعصبية", "طب الأسرة والصحة العامة", "صيدلة عامة ودواء", "مختبرات وتحاليل طبية",
+            "أشعة وتشخيص طبي", "تجارة وتوزيع مستلزمات طبية", "خدمات طبية عامة وأخرى"
         ];
 
         window.getStageColorClasses = function(stage) {
@@ -1557,6 +1534,7 @@
             if (!clientData.id) clientData.id = 'lead_' + Date.now();
             clientData.createdAt = clientData.createdAt || Date.now();
             clientData.stage = clientData.stage || window.FUNNEL_STAGES[0];
+            clientData.addedBy = window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام';
 
             const idx = window.clients.findIndex(c => c.id === clientData.id);
             if (idx !== -1) window.clients[idx] = clientData;
@@ -1901,6 +1879,7 @@
                     (c.name && c.name.toLowerCase().includes(searchVal)) ||
                     (c.contactPerson && c.contactPerson.toLowerCase().includes(searchVal)) ||
                     (c.phone && c.phone.includes(searchVal)) ||
+                    (c.addedBy && c.addedBy.toLowerCase().includes(searchVal)) ||
                     (c.accountNumber && c.accountNumber.includes(searchVal)) ||
                     (c.iban && c.iban.toLowerCase().includes(searchVal)) ||
                     (c.commission && c.commission.toLowerCase().includes(searchVal)) ||
@@ -1945,6 +1924,12 @@
                         <td class="p-2.5 font-bold text-slate-700">
                             <div class="dir-ltr text-right">${c.phone}</div>
                             <span class="text-[10px] text-slate-500 font-semibold">${c.city || 'الرياض'}</span>
+                        </td>
+                        <td class="p-2.5 font-bold text-purple-900">
+                            <span class="bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-xl text-xs inline-flex items-center gap-1">
+                                <i class="fa-solid fa-user-check text-purple-600 text-[10px]"></i>
+                                ${c.addedBy || 'المدير العام'}
+                            </span>
                         </td>
                         <td class="p-2.5 font-bold">
                             ${hasFinancials ? `
@@ -2019,7 +2004,7 @@
             populateFunnelDropdowns();
 
             document.getElementById('profClientName').innerText = client.name;
-            document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone} | المسؤول: ${client.contactPerson || 'غير محدد'}`;
+            document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone} | المسؤول: ${client.contactPerson || 'غير محدد'} | الموظف المضيف: ${client.addedBy || 'المدير العام'}`;
             
             const stageSelector = document.getElementById('profStageSelector');
             if (stageSelector) stageSelector.value = client.stage || window.FUNNEL_STAGES[0];
@@ -2152,16 +2137,17 @@
             }).join('');
         }
 
+        // تم تحديث دالة العرض لتشمل ظهور المهام للموظف مباشرة
         function renderAgentTasks() {
             const shiftVal = document.getElementById('agentFilterShift') ? document.getElementById('agentFilterShift').value : 'ALL';
             const entityTypeVal = document.getElementById('agentFilterEntityType') ? document.getElementById('agentFilterEntityType').value : 'ALL';
             const statusVal = document.getElementById('agentFilterStatus') ? document.getElementById('agentFilterStatus').value : 'ALL';
             const searchVal = document.getElementById('agentSearchInput') ? document.getElementById('agentSearchInput').value.trim().toLowerCase() : '';
 
-            let dayTasks = getFilteredDateTasks();
+            let allTasks = window.tasks || [];
             let activeAgent = (window.currentUserRole === 'agent') ? window.currentLoggedInAgent : window.currentAgent;
 
-            let filtered = dayTasks.filter(t => {
+            let filtered = allTasks.filter(t => {
                 const matchShift = (shiftVal === 'ALL') || (t.shift === shiftVal);
                 const matchAgent = (activeAgent === 'ALL') || (t.agent === activeAgent);
                 const matchEntityType = (entityTypeVal === 'ALL') || (t.entityType === entityTypeVal);
@@ -2177,18 +2163,17 @@
                 return matchShift && matchAgent && matchEntityType && matchStatus && matchSearch;
             });
 
-            // Update KPI Cards
-            const answeredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (تم الرد)').length;
-            const unansweredCalls = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (لم يرد)').length;
+            const answeredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (تم الرد)').length;
+            const unansweredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'مكالمة (لم يرد)').length;
             
             if (document.getElementById('agentTotalCalls')) document.getElementById('agentTotalCalls').innerText = answeredCalls + unansweredCalls;
             if (document.getElementById('agentAnsweredCalls')) document.getElementById('agentAnsweredCalls').innerText = answeredCalls;
             if (document.getElementById('agentUnansweredCalls')) document.getElementById('agentUnansweredCalls').innerText = unansweredCalls;
-            if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'إرسال واتساب').length;
-            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'اجتماع').length;
-            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (طرف نبضي)').length;
-            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (الطرفين)').length;
-            if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = dayTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
+            if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'إرسال واتساب').length;
+            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'اجتماع').length;
+            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (طرف نبضي)').length;
+            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'عقد (الطرفين)').length;
+            if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
 
             if (document.getElementById('agentTasksCountBadge')) document.getElementById('agentTasksCountBadge').innerText = filtered.length;
 
@@ -2417,12 +2402,14 @@
             const roleSwitcher = document.getElementById('roleSwitcherContainer');
             const btnManageEmp = document.getElementById('btnManageEmp');
             const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
+            const btnAgentChangePin = document.getElementById('btnAgentChangePin');
 
             if (role === 'manager') {
                 nameSpan.innerText = 'المدير العام';
                 roleSwitcher.classList.remove('hidden');
                 btnManageEmp.classList.remove('hidden');
                 agentSelectorWrapper.classList.remove('hidden');
+                if (btnAgentChangePin) btnAgentChangePin.classList.add('hidden');
                 window.currentAgent = 'ALL';
                 switchRole('manager');
             } else {
@@ -2430,6 +2417,7 @@
                 roleSwitcher.classList.add('hidden');
                 btnManageEmp.classList.add('hidden');
                 agentSelectorWrapper.classList.add('hidden');
+                if (btnAgentChangePin) btnAgentChangePin.classList.remove('hidden');
                 window.currentAgent = agentName;
                 switchRole('agent');
             }
@@ -2534,6 +2522,48 @@
             document.getElementById('manageEmployeesModal').classList.add('hidden');
         }
 
+        function openSelfChangePasswordModal() {
+            if (!window.currentLoggedInAgent) return;
+            document.getElementById('currentPinInput').value = '';
+            document.getElementById('newPinInput').value = '';
+            document.getElementById('confirmPinInput').value = '';
+            document.getElementById('selfChangePasswordModal').classList.remove('hidden');
+        }
+
+        function closeSelfChangePasswordModal() {
+            document.getElementById('selfChangePasswordModal').classList.add('hidden');
+        }
+
+        function handleSelfPasswordChange(e) {
+            e.preventDefault();
+            const currentPin = document.getElementById('currentPinInput').value.trim();
+            const newPin = document.getElementById('newPinInput').value.trim();
+            const confirmPin = document.getElementById('confirmPinInput').value.trim();
+
+            if (!window.currentLoggedInAgent) return;
+            const emp = window.employees.find(e => e.name === window.currentLoggedInAgent);
+            if (!emp) {
+                showToast("عذراً، لم يتم العثور على حساب الموظف", "error");
+                return;
+            }
+
+            const validPin = emp.pin || '123456';
+            if (currentPin !== validPin) {
+                showToast("الرمز السرّي الحالي غير صحيح!", "error");
+                return;
+            }
+
+            if (newPin !== confirmPin) {
+                showToast("الرمز الجديد غير مطابق لتأكيد الرمز!", "error");
+                return;
+            }
+
+            emp.pin = newPin;
+            window.saveEmployeeToCloud(emp);
+            showToast("تم تحديث كلمة المرور الشخصية بنجاح!");
+            closeSelfChangePasswordModal();
+        }
+
         function renderEmployeeListUI() {
             const container = document.getElementById('employeesListContainer');
             if (!container) return;
@@ -2613,7 +2643,6 @@
             if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = bothContracts;
             if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = window.clients.length;
 
-            // Shift Comparison
             const mornTasks = dayTasks.filter(t => t.shift === 'شفت صباحي');
             const eveTasks = dayTasks.filter(t => t.shift === 'شفت مسائي');
 
@@ -2656,10 +2685,7 @@
             if (document.getElementById('shiftEveBoth')) document.getElementById('shiftEveBoth').innerText = eveBoth;
             if (document.getElementById('shiftEveRate')) document.getElementById('shiftEveRate').innerText = (eveTasks.length > 0) ? Math.min(100, Math.round((eveTasks.length / 20) * 100)) + '%' : '0%';
 
-            // Render Team Table Summary
             renderManagerTeamSummaryTable(dayTasks);
-
-            // Render Chart.js
             renderCharts(dayTasks);
         }
 
@@ -2707,7 +2733,6 @@
             const emps = (window.employees || []).map(e => e.name);
             const empTaskCounts = emps.map(name => dayTasks.filter(t => t.agent === name).length);
 
-            // Team Performance Bar Chart
             const ctx1 = document.getElementById('teamPerformanceChart');
             if (ctx1) {
                 if (teamChartInstance) teamChartInstance.destroy();
@@ -2731,7 +2756,6 @@
                 });
             }
 
-            // Task Category Pie Chart
             const ctx2 = document.getElementById('taskCategoryChart');
             if (ctx2) {
                 const categories = ['مكالمة (تم الرد)', 'مكالمة (لم يرد)', 'إرسال واتساب', 'اجتماع', 'عقود'];
@@ -2762,9 +2786,6 @@
             }
         }
 
-        // ==========================================
-        // DIVERSE REPORTS GENERATOR & LIVE PREVIEW (طلب خاص)
-        // ==========================================
         function openDailySummaryModal() {
             renderEmployeeSelects();
             const today = window.currentDateFilter || new Date().toISOString().split('T')[0];
@@ -2785,7 +2806,6 @@
             const shift = document.getElementById('summaryShiftFilter').value;
             const agent = document.getElementById('summaryAgentFilter').value;
 
-            // Filter tasks
             const filteredTasks = (window.tasks || []).filter(t => {
                 const matchDate = (!start || t.date >= start) && (!end || t.date <= end);
                 const matchShift = (shift === 'ALL') || (t.shift === shift);
@@ -2793,7 +2813,6 @@
                 return matchDate && matchShift && matchAgent;
             });
 
-            // Filter clients
             const allClients = window.clients || [];
 
             const area = document.getElementById('summaryContentArea');
@@ -2881,6 +2900,7 @@
                             <tr>
                                 <th class="p-2 border border-slate-300">اسم المنشأة</th>
                                 <th class="p-2 border border-slate-300">المسؤول</th>
+                                <th class="p-2 border border-slate-300">الموظف المضيف</th>
                                 <th class="p-2 border border-slate-300">الهاتف</th>
                                 <th class="p-2 border border-slate-300">المدينة</th>
                                 <th class="p-2 border border-slate-300">المرحلة الحالية</th>
@@ -2891,6 +2911,7 @@
                                 <tr>
                                     <td class="p-2 border border-slate-300 font-bold text-indigo-900">${c.name}</td>
                                     <td class="p-2 border border-slate-300">${c.contactPerson || '-'}</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.addedBy || 'المدير العام'}</td>
                                     <td class="p-2 border border-slate-300 font-mono dir-ltr">${c.phone}</td>
                                     <td class="p-2 border border-slate-300">${c.city || 'الرياض'}</td>
                                     <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.stage || 'تم اتصال مكتمل'}</td>
@@ -2913,6 +2934,7 @@
                         <thead class="bg-emerald-100 text-slate-900 font-black">
                             <tr>
                                 <th class="p-2 border border-slate-300">الجهة / العميل</th>
+                                <th class="p-2 border border-slate-300">الموظف المسؤول</th>
                                 <th class="p-2 border border-slate-300">رقم الحساب البنكي</th>
                                 <th class="p-2 border border-slate-300">رقم الآيبان IBAN</th>
                                 <th class="p-2 border border-slate-300">العمولة المتفق عليها</th>
@@ -2925,6 +2947,7 @@
                                 return `
                                     <tr>
                                         <td class="p-2 border border-slate-300 font-bold text-slate-900">${c.name}</td>
+                                        <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.addedBy || 'المدير العام'}</td>
                                         <td class="p-2 border border-slate-300 font-bold">${c.accountNumber || 'غير مدخل'}</td>
                                         <td class="p-2 border border-slate-300 font-mono dir-ltr text-right">${c.iban || 'غير مدخل'}</td>
                                         <td class="p-2 border border-slate-300 font-black text-emerald-700">${c.commission || 'غير مدخلة'}</td>
@@ -2942,6 +2965,7 @@
                         <thead class="bg-indigo-100 text-slate-900 font-black">
                             <tr>
                                 <th class="p-2 border border-slate-300">اسم المنشأة</th>
+                                <th class="p-2 border border-slate-300">الموظف المضيف</th>
                                 <th class="p-2 border border-slate-300">نوع المنشأة</th>
                                 <th class="p-2 border border-slate-300">التخصص</th>
                                 <th class="p-2 border border-slate-300">المدينة</th>
@@ -2952,6 +2976,7 @@
                             ${allClients.map(c => `
                                 <tr>
                                     <td class="p-2 border border-slate-300 font-bold text-slate-900">${c.name}</td>
+                                    <td class="p-2 border border-slate-300 font-bold text-purple-900">${c.addedBy || 'المدير العام'}</td>
                                     <td class="p-2 border border-slate-300 font-bold text-indigo-800">${c.entityType || 'عيادة'}</td>
                                     <td class="p-2 border border-slate-300">${c.specialty || '-'}</td>
                                     <td class="p-2 border border-slate-300 font-bold">${c.city || 'الرياض'}</td>
