@@ -502,6 +502,12 @@
                         <span id="clientsHeaderCountBadge" class="bg-white/20 text-white px-1.5 py-0.5 rounded-md text-[10px]">0</span>
                     </button>
 
+                    <button id="btnTechnicalSupport" onclick="openTechnicalSupportWorkspace()" class="hidden bg-violet-700 hover:bg-violet-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md transition-all items-center gap-1.5 border border-violet-600 cursor-pointer">
+                        <i class="fa-solid fa-headset text-sm"></i>
+                        <span>الدعم الفني والمهام</span>
+                        <span id="supportOpenTasksBadge" class="bg-white/20 px-1.5 py-0.5 rounded-md text-[10px]">0</span>
+                    </button>
+
                     <button id="btnManageEmp" onclick="openEmployeeModal()" class="bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 border border-amber-400 cursor-pointer">
                         <i class="fa-solid fa-users-gear text-sm"></i>
                         <span>إدارة الموظفين</span>
@@ -920,7 +926,7 @@
     </main>
 
     <!-- MODAL: SELF CHANGE PASSWORD FOR AGENT -->
-    <div id="selfChangePasswordModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div id="selfChangePasswordModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl border border-slate-100 overflow-hidden my-auto p-6 space-y-4 text-xs">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <h3 class="font-black text-sm text-slate-900 flex items-center gap-2">
@@ -1087,6 +1093,7 @@
                             <option value="تفعيل الجهة">تفعيل الجهة</option>
                             <option value="الحصول على البيانات">الحصول على البيانات</option>
                             <option value="إرسال البيانات إلى الدعم الفني">إرسال البيانات إلى الدعم الفني</option>
+                            <option value="إرفاق رابط Google Drive بالبيانات">إرفاق رابط Google Drive بالبيانات</option>
                         </select>
                     </div>
 
@@ -1446,7 +1453,7 @@
     </div>
 
     <!-- MODAL 3: CLIENT PROFILE -->
-    <div id="clientProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div id="clientProfileModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             
             <div class="bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-5 flex justify-between items-center shrink-0">
@@ -1526,9 +1533,12 @@
 
             </div>
 
-            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs">
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs">
                 <span id="profInteractionCountText" class="font-bold text-slate-600">إجمالي المتابعات المسجلة: 0</span>
-                <button type="button" onclick="closeClientProfileModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
+                <div class="flex gap-2">
+                    <button id="profSendSupportBtn" type="button" onclick="openSupportHandoffForm(window.activeProfileClientId)" class="hidden px-4 py-2 bg-violet-700 text-white rounded-xl font-black cursor-pointer"><i class="fa-solid fa-paper-plane ml-1"></i>تجهيز وإرسال للدعم الفني</button>
+                    <button type="button" onclick="closeClientProfileModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
+                </div>
             </div>
 
         </div>
@@ -1558,7 +1568,15 @@
                         <input type="text" id="newEmployeeName" placeholder="مثال: أحمد محمود العلي" 
                                class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500">
                     </div>
-                    <div class="grid grid-cols-2 gap-2.5">
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">القسم</label>
+                            <select id="newEmployeeDepartment" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none">
+                                <option value="خدمات العملاء">خدمات العملاء</option>
+                                <option value="الدعم الفني">الدعم الفني</option>
+                                <option value="الإدارة">الإدارة</option>
+                            </select>
+                        </div>
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">الشفت المخصص</label>
                             <select id="newEmployeeShift" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none">
@@ -1591,7 +1609,7 @@
     </div>
 
     <!-- MODAL 5: DOCUMENT VIEWER -->
-    <div id="documentViewerModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[70] flex items-center justify-center p-3 sm:p-5 hidden">
+    <div id="documentViewerModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-5 hidden">
         <div class="bg-white rounded-3xl max-w-6xl w-full h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
             <div class="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 text-white p-4 flex items-center justify-between gap-3 shrink-0">
                 <div class="min-w-0 flex items-center gap-3">
@@ -1737,7 +1755,8 @@
             "توقيع العقد",
             "تفعيل الجهة",
             "الحصول على البيانات",
-            "إرسال البيانات إلى الدعم الفني"
+            "إرسال البيانات إلى الدعم الفني",
+            "إرفاق رابط Google Drive بالبيانات"
         ];
 
         // تحويل التسميات القديمة تلقائياً حتى تظل بيانات العملاء والإجراءات السابقة صالحة.
@@ -1867,6 +1886,14 @@
             { id: 'emp_3', name: 'عبدالله الشمري', shift: 'شفت مسائي', pin: '123456' },
             { id: 'emp_4', name: 'ريم الدوسري', shift: 'شفت مسائي', pin: '123456' }
         ];
+        window.getEmployeeDepartment = function(emp) {
+            if (!emp) return '';
+            const saved = String(emp.department || emp.roleDepartment || '').trim();
+            if (saved.includes('الدعم')) return 'الدعم الفني';
+            if (saved.includes('إدارة') || saved.includes('الادارة')) return 'الإدارة';
+            if (String(emp.name || '').includes('الدعم الفني') || String(emp.name || '').includes('دعم فني')) return 'الدعم الفني';
+            return saved || 'خدمات العملاء';
+        };
         window.tasks = [];
         window.clients = [];
 
@@ -1893,6 +1920,7 @@
                 case "تفعيل الجهة": return { bg: "bg-purple-100", text: "text-purple-900", border: "border-purple-400" };
                 case "الحصول على البيانات": return { bg: "bg-sky-50", text: "text-sky-800", border: "border-sky-300" };
                 case "إرسال البيانات إلى الدعم الفني": return { bg: "bg-violet-100", text: "text-violet-900", border: "border-violet-400" };
+                case "إرفاق رابط Google Drive بالبيانات": return { bg: "bg-emerald-100", text: "text-emerald-900", border: "border-emerald-400" };
                 default: return { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" };
             }
         };
@@ -1900,7 +1928,7 @@
         window.loadFromLocalStorage = function() {
             try {
                 const storedEmp = localStorage.getItem('cs_nabdi_employees');
-                if (storedEmp) window.employees = JSON.parse(storedEmp);
+                if (storedEmp) window.employees = JSON.parse(storedEmp).map(emp => ({...emp, department: window.getEmployeeDepartment(emp)}));
 
                 const storedTasks = localStorage.getItem('cs_nabdi_tasks');
                 if (storedTasks) window.tasks = JSON.parse(storedTasks);
@@ -1952,7 +1980,7 @@
 
             onSnapshot(employeesColRef, (snapshot) => {
                 let list = [];
-                snapshot.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+                snapshot.forEach(docSnap => { const emp = { id: docSnap.id, ...docSnap.data() }; list.push({...emp, department: window.getEmployeeDepartment(emp)}); });
                 if (list.length > 0) {
                     window.employees = list;
                     window.saveLocalBackup();
@@ -2811,6 +2839,12 @@
                 closeAddClientModal();
                 const documentCount = Object.keys(docsToSave).length;
                 showToast(`تم حفظ الجهة (${name})${documentCount ? ` و${documentCount} مستند` : ''} بنجاح.`);
+                if (window.normalizeFunnelStage(stage) === 'إرسال البيانات إلى الدعم الفني') {
+                    window.syncSupportProjectsFromFunnel(false);
+                    showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
+                } else if (window.normalizeFunnelStage(stage) === 'إرفاق رابط Google Drive بالبيانات') {
+                    setTimeout(() => window.openSupportHandoffForm(clientId), 150);
+                }
                 if (pendingSyncKeys.length > 0) {
                     syncDocumentsInBackground(clientId, pendingSyncKeys);
                 }
@@ -2964,6 +2998,13 @@
             
             const stageSelector = document.getElementById('profStageSelector');
             if (stageSelector) stageSelector.value = window.normalizeFunnelStage(client.stage);
+            const sendSupportBtn = document.getElementById('profSendSupportBtn');
+            if (sendSupportBtn) {
+                const emp = (window.employees || []).find(e => e.name === window.currentLoggedInAgent);
+                const allowedSender = window.currentUserRole === 'manager' || (window.getEmployeeDepartment && window.getEmployeeDepartment(emp) === 'خدمات العملاء');
+                const finalStage = window.normalizeFunnelStage(client.stage) === 'إرفاق رابط Google Drive بالبيانات';
+                sendSupportBtn.classList.toggle('hidden', !(allowedSender && finalStage));
+            }
 
             const bankBox = document.getElementById('profBankSummaryBox');
             if (bankBox) {
@@ -2980,6 +3021,17 @@
                     <div class="text-[11px]"><b>اسم العقد الرسمي:</b> ${client.contractTradeName || 'غير مسجل'}</div>
                     <div class="text-[11px]"><b>السجل CR:</b> ${client.contractCrNumber || '-'} | <b>الرقم الضريبي VAT:</b> ${client.contractVatNumber || '-'}</div>
                 `;
+                if (client.supportPackage) {
+                    docsHtml += `<div class="mt-2 p-3 bg-violet-50 border border-violet-200 rounded-xl space-y-2">
+                        <b class="text-violet-950 block">حزمة البيانات المرسلة للدعم الفني</b>
+                        ${client.supportPackage.driveLink ? `<a href="${escapeHtml(client.supportPackage.driveLink)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 bg-violet-700 text-white px-3 py-2 rounded-xl font-black"><i class="fa-brands fa-google-drive"></i>فتح ملف العميل الكامل</a>` : ''}
+                        <div><b>المنتجات والخدمات:</b><div class="whitespace-pre-wrap font-semibold">${escapeHtml(client.supportPackage.products || 'غير مسجل')}</div></div>
+                        <div><b>الدكاترة والصور:</b><div class="whitespace-pre-wrap font-semibold">${escapeHtml(client.supportPackage.doctors || 'غير مسجل')}</div></div>
+                        <div><b>المواعيد:</b><div class="whitespace-pre-wrap font-semibold">${escapeHtml(client.supportPackage.schedules || 'غير مسجل')}</div></div>
+                        <div><b>ملاحظات التسليم:</b><div class="whitespace-pre-wrap font-semibold">${escapeHtml(client.supportPackage.notes || 'لا توجد')}</div></div>
+                        <div class="text-[9px] text-violet-700">أرسلها: ${escapeHtml(client.supportPackage.sentBy || '-')}</div>
+                    </div>`;
+                }
 
                 if (client.docs && Object.keys(client.docs).length > 0) {
                     docsHtml += `<div class="mt-2 pt-2 border-t border-amber-200">
@@ -3260,7 +3312,7 @@
             document.getElementById('addTaskModal').classList.add('hidden');
         }
 
-        function handleSaveTask(e) {
+        async function handleSaveTask(e) {
             e.preventDefault();
             const taskId = document.getElementById('taskId').value;
             const taskDate = document.getElementById('formDate').value || window.currentDateFilter;
@@ -3288,9 +3340,16 @@
                 shift, agent, customer, phone, entityType, specialty, city, category, channel, priority, status, notes
             };
 
-            window.saveTaskToCloud(taskData);
+            await window.saveTaskToCloud(taskData);
             showToast("تم حفظ الإجراء والمتابعة بالسحابة بنجاح!");
             closeAddTaskModal();
+            if (category === 'إرسال البيانات إلى الدعم الفني') {
+                window.syncSupportProjectsFromFunnel(false);
+                showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
+            } else if (category === 'إرفاق رابط Google Drive بالبيانات') {
+                const matchedClient = (window.clients || []).find(c => c.id === selectedClientId || (phone && c.phone === phone) || c.name === customer);
+                if (matchedClient) setTimeout(() => window.openSupportHandoffForm(matchedClient.id), 150);
+            }
         }
 
         function editTask(id) {
@@ -3407,6 +3466,7 @@
             const btnManageEmp = document.getElementById('btnManageEmp');
             const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
             const btnAgentChangePin = document.getElementById('btnAgentChangePin');
+            const btnTechnicalSupport = document.getElementById('btnTechnicalSupport');
 
             if (role === 'manager') {
                 nameSpan.innerText = 'المدير العام';
@@ -3414,6 +3474,7 @@
                 btnManageEmp.classList.remove('hidden');
                 agentSelectorWrapper.classList.remove('hidden');
                 if (btnAgentChangePin) btnAgentChangePin.classList.add('hidden');
+                if (btnTechnicalSupport) { btnTechnicalSupport.classList.remove('hidden'); btnTechnicalSupport.classList.add('flex'); }
                 window.currentAgent = 'ALL';
                 switchRole('manager');
             } else {
@@ -3422,8 +3483,15 @@
                 btnManageEmp.classList.add('hidden');
                 agentSelectorWrapper.classList.add('hidden');
                 if (btnAgentChangePin) btnAgentChangePin.classList.remove('hidden');
+                const loggedEmployee = (window.employees || []).find(e => e.name === agentName);
+                const isTechnicalSupport = window.getEmployeeDepartment && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
+                if (btnTechnicalSupport) {
+                    btnTechnicalSupport.classList.toggle('hidden', !isTechnicalSupport);
+                    btnTechnicalSupport.classList.toggle('flex', isTechnicalSupport);
+                }
                 window.currentAgent = agentName;
                 switchRole('agent');
+                if (isTechnicalSupport) setTimeout(() => window.openTechnicalSupportWorkspace && window.openTechnicalSupportWorkspace(), 100);
             }
 
             renderApp();
@@ -3439,6 +3507,8 @@
                 localStorage.removeItem('cs_logged_agent');
             } catch (error) {}
             document.getElementById('loginOverlay').classList.remove('hidden');
+            const btnTechnicalSupport = document.getElementById('btnTechnicalSupport');
+            if (btnTechnicalSupport) { btnTechnicalSupport.classList.add('hidden'); btnTechnicalSupport.classList.remove('flex'); }
             showToast("تم تسجيل الخروج", "info");
         }
 
@@ -3591,8 +3661,11 @@
                             <i class="fa-solid fa-user-check text-brand-600"></i>
                             ${emp.name}
                         </span>
-                        <span class="text-[10px] text-slate-500 font-semibold block">${emp.shift} | PIN: ${emp.pin || '123456'}</span>
+                        <span class="text-[10px] text-slate-500 font-semibold block">${window.getEmployeeDepartment(emp)} | ${emp.shift} | PIN: ${emp.pin || '123456'}</span>
                     </div>
+                    <select onchange="updateEmployeeDepartment('${emp.id}',this.value)" class="border border-slate-200 rounded-lg p-1.5 text-[10px] font-bold bg-slate-50">
+                        ${['خدمات العملاء','الدعم الفني','الإدارة'].map(d => `<option value="${d}" ${window.getEmployeeDepartment(emp)===d?'selected':''}>${d}</option>`).join('')}
+                    </select>
                     <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
@@ -3603,6 +3676,7 @@
         function addNewEmployee() {
             const nameInput = document.getElementById('newEmployeeName');
             const shiftSelect = document.getElementById('newEmployeeShift');
+            const departmentSelect = document.getElementById('newEmployeeDepartment');
             const pinInput = document.getElementById('newEmployeePin');
             const name = nameInput.value.trim();
             const shift = shiftSelect.value;
@@ -3613,12 +3687,20 @@
                 return;
             }
 
-            const newEmp = { id: 'emp_' + Date.now(), name, shift, pin };
+            const newEmp = { id: 'emp_' + Date.now(), name, shift, department: departmentSelect.value, pin };
             window.saveEmployeeToCloud(newEmp);
 
             nameInput.value = '';
             pinInput.value = '';
             showToast(`تمت إضافة الموظف (${name})`);
+        }
+
+        function updateEmployeeDepartment(empId, department) {
+            const emp = (window.employees || []).find(e => e.id === empId);
+            if (!emp) return;
+            emp.department = department;
+            window.saveEmployeeToCloud(emp);
+            showToast(`تم تحويل ${emp.name} إلى قسم ${department}`);
         }
 
         function onAgentChanged() {
@@ -4373,6 +4455,158 @@
 
             area.innerHTML = html;
         }
+    </script>
+    <div id="supportHandoffModal" class="fixed inset-0 z-[85] hidden bg-slate-950/70 p-4 flex items-center justify-center" dir="rtl">
+        <form onsubmit="submitSupportHandoff(event)" class="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div class="sticky top-0 bg-violet-950 text-white p-4 flex justify-between items-center"><div><h3 class="font-black">تجهيز وتسليم ملف العميل للدعم الفني</h3><p id="handoffClientName" class="text-[11px] text-violet-200"></p></div><button type="button" onclick="closeSupportHandoffForm()"><i class="fa-solid fa-xmark"></i></button></div>
+            <input id="handoffClientId" type="hidden">
+            <div class="p-5 space-y-4 text-xs">
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3"><b>قبل الإرسال:</b> راجع المنتجات، بيانات الدكاترة، المواعيد والصور. ستنتقل المرفقات الموجودة في ملف العميل تلقائيًا مع الحزمة.</div>
+                <div><label class="font-black">رابط ملف العميل الكامل *</label><input id="handoffDriveLink" type="url" required dir="ltr" class="w-full border rounded-xl p-3 mt-1 text-left" placeholder="https://drive.google.com/..."><p class="text-[10px] text-slate-500 mt-1">ضع رابط مجلد Google Drive أو OneDrive أو Dropbox الذي يحتوي الصور والمنتجات وكل ملفات العميل.</p></div>
+                <div><label class="font-black">المنتجات والخدمات *</label><textarea id="handoffProducts" required class="w-full border rounded-xl p-3 mt-1 min-h-24" placeholder="اكتب كل منتج أو خدمة في سطر، مع السعر والتفاصيل"></textarea></div>
+                <div><label class="font-black">بيانات الدكاترة والصور</label><textarea id="handoffDoctors" class="w-full border rounded-xl p-3 mt-1 min-h-20" placeholder="الاسم، التخصص، بيانات التواصل، وهل الصورة مرفقة"></textarea></div>
+                <div><label class="font-black">المواعيد وساعات العمل</label><textarea id="handoffSchedules" class="w-full border rounded-xl p-3 mt-1 min-h-20" placeholder="مواعيد كل دكتور أو فرع"></textarea></div>
+                <div><label class="font-black">تعليمات وملاحظات للدعم</label><textarea id="handoffNotes" class="w-full border rounded-xl p-3 mt-1 min-h-20"></textarea></div>
+                <div id="handoffDocsSummary" class="bg-slate-50 border rounded-2xl p-3 font-bold"></div>
+                <label class="flex items-start gap-2 font-bold"><input id="handoffConfirmed" type="checkbox" required class="mt-0.5">راجعت البيانات والمرفقات وأؤكد إرسال الحزمة إلى صندوق الدعم الفني.</label>
+                <button class="w-full bg-violet-700 text-white p-3 rounded-xl font-black"><i class="fa-solid fa-paper-plane ml-1"></i>تأكيد الإرسال للدعم الفني</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- الدعم الفني مدمج داخل نبضي CRM -->
+    <div id="technicalSupportWorkspace" class="fixed inset-0 z-[70] hidden bg-slate-100 overflow-y-auto" dir="rtl">
+        <div class="sticky top-0 z-10 bg-slate-950 text-white shadow-xl no-print">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <button onclick="supportDashboardHome()" class="px-3 h-9 rounded-xl bg-white/10 hover:bg-white/20 cursor-pointer text-xs font-black"><i class="fa-solid fa-house ml-1"></i>الرئيسية</button>
+                    <div><h2 class="font-black text-base">نبضي CRM | الدعم الفني وتنفيذ العملاء</h2><p class="text-[11px] text-violet-200">امتداد رحلة العميل بعد انتهاء فانل المبيعات</p></div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-user-gear text-emerald-300 ml-1"></i><span id="supportLoggedUserName">موظف الدعم</span></span>
+                    <select id="supportScopeFilter" onchange="renderTechnicalSupport()" class="bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-black"><option value="ALL">كل شغل الدعم</option><option value="MINE">مهامي فقط</option><option value="UNASSIGNED">غير موزع</option></select>
+                    <button onclick="openSupportTaskEditor()" class="bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-plus ml-1"></i>مهمة لأي موظف</button>
+                    <button onclick="openSelfChangePasswordModal()" class="bg-violet-700 hover:bg-violet-800 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-key ml-1"></i>تغيير الباسورد</button>
+                    <button onclick="supportLogout()" class="bg-rose-600 hover:bg-rose-700 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-right-from-bracket ml-1"></i>خروج</button>
+                </div>
+            </div>
+        </div>
+        <main class="max-w-7xl mx-auto p-4 sm:p-6 space-y-5">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">بانتظار استلام الدعم</span><b id="supportProjectsCount" class="block text-2xl text-violet-700 mt-1">0</b></div>
+                <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">ملفات تم استلامها</span><b id="supportOpenCount" class="block text-2xl text-amber-600 mt-1">0</b></div>
+                <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">المهام المكتملة</span><b id="supportDoneCount" class="block text-2xl text-emerald-600 mt-1">0</b></div>
+                <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">المهام المتأخرة</span><b id="supportLateCount" class="block text-2xl text-rose-600 mt-1">0</b></div>
+            </div>
+            <div class="grid lg:grid-cols-3 gap-5">
+                <section class="lg:col-span-2 bg-white rounded-3xl border shadow-sm overflow-hidden">
+                    <div class="p-4 border-b flex flex-wrap justify-between gap-2"><div><h3 class="font-black text-sm">صندوق تسليم ملفات العملاء للدعم الفني</h3><p class="text-[10px] text-slate-500">يظهر العميل هنا بعد إنهاء خدمات العملاء لمرحلة إرسال البيانات</p></div><input id="supportSearch" oninput="renderTechnicalSupport()" placeholder="بحث باسم العميل أو المهمة..." class="border rounded-xl px-3 py-2 text-xs w-64"></div>
+                    <div id="supportProjectsList" class="p-4 space-y-4"></div>
+                </section>
+                <section class="bg-white rounded-3xl border shadow-sm overflow-hidden">
+                    <div class="p-4 border-b"><h3 class="font-black text-sm">متابعة إنجاز موظفي الدعم</h3><p class="text-[10px] text-slate-500 mt-1">المهام المكتملة والمتأخرة ونسبة الإنجاز</p></div>
+                    <div id="supportLeaderboard" class="p-4 space-y-3"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div id="supportTaskModal" class="fixed inset-0 z-[80] hidden bg-slate-950/70 p-4 flex items-center justify-center" dir="rtl">
+        <form onsubmit="saveSupportTask(event)" class="bg-white rounded-3xl p-5 w-full max-w-lg space-y-3 shadow-2xl">
+            <div class="flex justify-between"><h3 class="font-black">إضافة / توزيع مهمة</h3><button type="button" onclick="closeSupportTaskEditor()"><i class="fa-solid fa-xmark"></i></button></div>
+            <input type="hidden" id="supportTaskId"><input type="hidden" id="supportTaskProjectId">
+            <div><label class="text-xs font-bold">العميل / المشروع *</label><select id="supportTaskClient" required class="w-full border rounded-xl p-2.5 text-xs mt-1"></select></div>
+            <div><label class="text-xs font-bold">عنوان المهمة *</label><input id="supportTaskTitle" required class="w-full border rounded-xl p-2.5 text-xs mt-1" placeholder="مثال: رفع بيانات الدكاترة والصور"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold">الموظف المسؤول *</label><select id="supportTaskAgent" required class="w-full border rounded-xl p-2.5 text-xs mt-1"></select></div>
+                <div><label class="text-xs font-bold">تاريخ التسليم *</label><input id="supportTaskDue" type="date" required class="w-full border rounded-xl p-2.5 text-xs mt-1"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <select id="supportTaskStatus" class="border rounded-xl p-2.5 text-xs"><option>جديدة</option><option>جاري التنفيذ</option><option>انتظار العميل</option><option>مكتملة</option><option>متأخرة</option></select>
+                <select id="supportTaskPriority" class="border rounded-xl p-2.5 text-xs"><option>عادية</option><option>عالية</option><option>عاجلة</option></select>
+            </div>
+            <textarea id="supportTaskNotes" class="w-full border rounded-xl p-2.5 text-xs" placeholder="ملاحظات ومتطلبات المهمة"></textarea>
+            <button class="w-full bg-violet-700 text-white rounded-xl p-3 text-xs font-black">حفظ المهمة داخل نبضي CRM</button>
+        </form>
+    </div>
+
+    <script>
+    (function(){
+        const SUPPORT_STEPS = ['انتظار استلام بيانات العميل','مراجعة البيانات','طلب واستكمال البيانات الناقصة','تجهيز ورفع المنتجات والخدمات','رفع بيانات الدكاترة والصور','إدخال مواعيد الدكاترة','مراجعة الجودة','إرسال النسخة للعميل للمراجعة','تنفيذ تعديلات العميل','النشر والتسليم النهائي'];
+        function loadSupport(){ try{return JSON.parse(localStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
+        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); }
+        window.openTechnicalSupportWorkspace=function(){
+            const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
+            if(window.currentUserRole==='agent' && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
+            document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام'; syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
+        };
+        window.closeTechnicalSupportWorkspace=function(){ const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.currentUserRole==='agent'&&window.getEmployeeDepartment(emp)==='الدعم الفني')return;document.getElementById('technicalSupportWorkspace').classList.add('hidden'); };
+        window.supportDashboardHome=function(){document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
+        window.supportLogout=function(){document.getElementById('technicalSupportWorkspace').classList.add('hidden');logout();};
+        window.syncSupportProjectsFromFunnel=function(notify=true){
+            let projects=loadSupport(),changed=0;
+            (window.clients||[]).filter(c=>['إرسال البيانات إلى الدعم الفني','إرفاق رابط Google Drive بالبيانات'].includes(window.normalizeFunnelStage(c.stage))).forEach(c=>{
+                if(projects.some(p=>p.clientId===c.id))return;
+                projects.unshift({id:'sp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),clientId:c.id,clientName:c.name,phone:c.phone||'',sender:c.addedBy||window.currentLoggedInAgent||'خدمات العملاء',sentAt:new Date().toISOString(),handoffStatus:'بانتظار رابط البيانات',receivedBy:'',receivedAt:'',tasks:[]});changed++;
+            });
+            saveSupport(projects);renderTechnicalSupport();if(notify&&window.showToast)showToast(changed?'تم إشعار الدعم بعميل جديد':'لا توجد إشعارات جديدة','info');
+        };
+        window.openSupportHandoffForm=function(clientId){
+            const c=(window.clients||[]).find(x=>x.id===clientId); if(!c)return;
+            document.getElementById('handoffClientId').value=c.id; document.getElementById('handoffClientName').textContent=c.name+' — '+(c.phone||'');
+            document.getElementById('handoffDriveLink').value=c.supportPackage?.driveLink||''; document.getElementById('handoffProducts').value=c.supportPackage?.products||''; document.getElementById('handoffDoctors').value=c.supportPackage?.doctors||''; document.getElementById('handoffSchedules').value=c.supportPackage?.schedules||''; document.getElementById('handoffNotes').value=c.supportPackage?.notes||''; document.getElementById('handoffConfirmed').checked=false;
+            const docs=Object.values(c.docs||{}); document.getElementById('handoffDocsSummary').innerHTML=`<i class="fa-solid fa-paperclip text-violet-600 ml-1"></i>المرفقات المنتقلة مع الملف: ${docs.length}${docs.length?' — '+docs.map(d=>d.name).join('، '):' (لا توجد مرفقات؛ أرفقها من تعديل ملف العميل قبل الإرسال)'}`;
+            document.getElementById('supportHandoffModal').classList.remove('hidden');
+        };
+        window.closeSupportHandoffForm=function(){document.getElementById('supportHandoffModal').classList.add('hidden')};
+        window.submitSupportHandoff=function(e){e.preventDefault(); const cid=document.getElementById('handoffClientId').value,c=(window.clients||[]).find(x=>x.id===cid);if(!c)return; let projects=loadSupport(),p=projects.find(x=>x.clientId===cid);
+            const driveLink=document.getElementById('handoffDriveLink').value.trim(); try{const u=new URL(driveLink);if(!['http:','https:'].includes(u.protocol))throw new Error();}catch(err){if(window.showToast)showToast('اكتب رابط ملفات صحيح يبدأ بـ https://','error');return;}
+            const pack={driveLink,products:document.getElementById('handoffProducts').value.trim(),doctors:document.getElementById('handoffDoctors').value.trim(),schedules:document.getElementById('handoffSchedules').value.trim(),notes:document.getElementById('handoffNotes').value.trim(),sentBy:window.currentLoggedInAgent||'المدير العام',sentAt:new Date().toISOString()}; c.supportPackage=pack; window.saveClientToCloud(c);
+            if(!p){p={id:'sp_'+Date.now(),clientId:c.id,clientName:c.name,phone:c.phone||'',tasks:[]};projects.unshift(p);} Object.assign(p,{sender:pack.sentBy,sentAt:pack.sentAt,handoffStatus:'تم إرسال رابط البيانات',receivedBy:'',receivedAt:'',returnedReason:'',supportPackage:pack,tasks:[]}); saveSupport(projects); closeSupportHandoffForm(); closeClientProfileModal(); if(window.showToast)showToast('تم إرسال رابط البيانات وظهر لدى كل فريق الدعم الفني'); renderTechnicalSupport();
+        };
+        window.acceptSupportHandoff=function(pid){
+            let projects=loadSupport(), p=projects.find(x=>x.id===pid); if(!p)return;
+            if(p.handoffStatus!=='تم إرسال رابط البيانات'){if(window.showToast)showToast('لا يمكن استلام العميل قبل إرسال رابط البيانات','error');return;}
+            const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
+            if(window.currentUserRole==='agent' && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('استلام الملف متاح لموظفي الدعم الفني فقط','error'); return; }
+            p.handoffStatus='تم الاستلام'; p.receivedBy=window.currentLoggedInAgent||'المدير العام'; p.receivedAt=new Date().toISOString();
+            if(!p.tasks.length) p.tasks=SUPPORT_STEPS.slice(1).map((title,i)=>({id:'st_'+Date.now()+'_'+i,title,agent:p.receivedBy,due:'',status:'جديدة',priority:'عادية',notes:''}));
+            saveSupport(projects); renderTechnicalSupport(); if(window.showToast)showToast('تم استلام ملف العميل وفتح مرحلة التنفيذ');
+        };
+        window.returnSupportHandoff=function(pid){
+            const reason=prompt('اكتب البيانات الناقصة المطلوب استكمالها من خدمات العملاء:'); if(!reason||!reason.trim())return;
+            let projects=loadSupport(),p=projects.find(x=>x.id===pid);if(!p)return;p.handoffStatus='مرتجع لخدمات العملاء';p.returnedReason=reason.trim();p.returnedBy=window.currentLoggedInAgent||'المدير العام';p.returnedAt=new Date().toISOString();saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم إرجاع الملف لخدمات العملاء لاستكمال البيانات','info');
+        };
+        window.openSupportTaskEditor=function(projectId='',taskId=''){
+            const projects=loadSupport(), project=projects.find(p=>p.id===projectId), task=project&&project.tasks.find(t=>t.id===taskId);
+            const clients=(window.clients||[]); document.getElementById('supportTaskClient').innerHTML=clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('supportTaskAgent').innerHTML=['غير موزعة',...(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)==='الدعم الفني').map(e=>e.name)].map(n=>`<option>${n}</option>`).join('');
+            document.getElementById('supportTaskId').value=taskId; document.getElementById('supportTaskProjectId').value=projectId;
+            document.getElementById('supportTaskClient').value=project?.clientId||clients[0]?.id||''; document.getElementById('supportTaskTitle').value=task?.title||''; document.getElementById('supportTaskAgent').value=task?.agent||'غير موزعة';
+            document.getElementById('supportTaskDue').value=task?.due||new Date().toISOString().slice(0,10); document.getElementById('supportTaskStatus').value=task?.status||'جديدة'; document.getElementById('supportTaskPriority').value=task?.priority||'عادية'; document.getElementById('supportTaskNotes').value=task?.notes||'';
+            document.getElementById('supportTaskModal').classList.remove('hidden');
+        };
+        window.closeSupportTaskEditor=function(){document.getElementById('supportTaskModal').classList.add('hidden')};
+        window.saveSupportTask=function(e){ e.preventDefault(); let projects=loadSupport(); const cid=document.getElementById('supportTaskClient').value, client=(window.clients||[]).find(c=>c.id===cid); if(!client)return;
+            let pid=document.getElementById('supportTaskProjectId').value, project=projects.find(p=>p.id===pid); if(!project){project=projects.find(p=>p.clientId===cid)||{id:'sp_'+Date.now(),clientId:cid,clientName:client.name,phone:client.phone||'',createdAt:new Date().toISOString(),tasks:[]}; if(!projects.includes(project))projects.push(project);}
+            const id=document.getElementById('supportTaskId').value||'st_'+Date.now(), data={id,title:document.getElementById('supportTaskTitle').value,agent:document.getElementById('supportTaskAgent').value,due:document.getElementById('supportTaskDue').value,status:document.getElementById('supportTaskStatus').value,priority:document.getElementById('supportTaskPriority').value,notes:document.getElementById('supportTaskNotes').value};
+            const ix=project.tasks.findIndex(t=>t.id===id); ix>=0?project.tasks[ix]=data:project.tasks.push(data); saveSupport(projects); closeSupportTaskEditor(); renderTechnicalSupport(); if(window.showToast)showToast('تم حفظ مهمة الدعم الفني بنجاح');
+        };
+        window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(t){t.status=status;saveSupport(p);renderTechnicalSupport();}};
+        window.renderTechnicalSupport=function(){
+            const projects=loadSupport(), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=new Date().toISOString().slice(0,10);
+            const open=all.filter(t=>t.status!=='مكتملة'), late=open.filter(t=>t.status==='متأخرة'||(t.due&&t.due<today));
+            const pending=projects.filter(p=>p.handoffStatus!=='تم الاستلام'); ['supportOpenTasksBadge'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pending.length}); document.getElementById('supportProjectsCount').textContent=pending.length; document.getElementById('supportOpenCount').textContent=projects.length-pending.length; document.getElementById('supportDoneCount').textContent=all.filter(t=>t.status==='مكتملة').length; document.getElementById('supportLateCount').textContent=late.length;
+            const scope=document.getElementById('supportScopeFilter')?.value||'ALL';
+            const visibleProjects=scope==='MINE'?projects.filter(p=>p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent)):scope==='UNASSIGNED'?projects.filter(p=>p.handoffStatus!=='تم الاستلام'):projects;
+            const filtered=visibleProjects.filter(p=>!q||p.clientName.toLowerCase().includes(q)||(p.tasks||[]).some(t=>t.title.toLowerCase().includes(q)));
+            document.getElementById('supportProjectsList').innerHTML=filtered.length?filtered.map(p=>{const received=p.handoffStatus==='تم الاستلام',linkReady=p.handoffStatus==='تم إرسال رابط البيانات',c=(window.clients||[]).find(x=>x.id===p.clientId)||{},drive=p.supportPackage?.driveLink||c.supportPackage?.driveLink||'',label=received?'تم الاستلام بواسطة '+p.receivedBy:(linkReady?'تم إرسال رابط البيانات':'عميل جديد — بانتظار رابط البيانات');return `<article class="border ${received?'border-emerald-200':linkReady?'border-sky-300':'border-amber-300'} rounded-2xl overflow-hidden"><div class="${received?'bg-emerald-50':linkReady?'bg-sky-50':'bg-amber-50'} p-4 flex flex-wrap justify-between items-center gap-3"><div><div class="flex items-center gap-2"><b class="text-sm text-slate-950">${p.clientName}</b><span class="px-2 py-1 rounded-full text-[10px] font-black ${received?'bg-emerald-200 text-emerald-900':linkReady?'bg-sky-200 text-sky-900':'bg-amber-200 text-amber-900'}">${label}</span></div><p class="text-[10px] text-slate-600 mt-1">أرسله: ${p.sender||'خدمات العملاء'} · ${p.phone||''}</p></div><div class="flex flex-wrap gap-2">${drive?`<a href="${drive}" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-brands fa-google-drive ml-1"></i>فتح ملفات العميل</a>`:''}<button onclick="closeTechnicalSupportWorkspace();openClientProfileModal('${p.clientId}')" class="bg-white border px-3 py-2 rounded-xl text-xs font-black text-indigo-700">فتح بيانات العميل</button>${linkReady?`<button onclick="acceptSupportHandoff('${p.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black">استلام وبدء التنفيذ</button>`:received?`<button onclick="openSupportTaskEditor('${p.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-black">+ مهمة</button>`:`<span class="bg-amber-100 text-amber-900 px-3 py-2 rounded-xl text-xs font-black">بانتظار خدمات العملاء</span>`}</div></div>${received?`<div class="divide-y">${(p.tasks||[]).map(t=>`<div class="p-3 grid sm:grid-cols-[1fr_140px_150px] gap-2 items-center"><button onclick="openSupportTaskEditor('${p.id}','${t.id}')" class="text-right"><b class="block text-xs">${t.title}</b><span class="text-[10px] text-slate-500">${t.notes||'بدون ملاحظات'}</span></button><span class="text-[10px] font-bold">${t.agent}</span><select onchange="setSupportTaskStatus('${p.id}','${t.id}',this.value)" class="border rounded-lg p-1.5 text-[10px]">${['جديدة','جاري التنفيذ','انتظار العميل','مكتملة','متأخرة'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join('')}</div>`:`<div class="p-4 bg-white text-xs text-slate-600">${linkReady?'وصل رابط الملفات ويمكن لموظف الدعم استلام العميل وبدء التنفيذ.':'تم إشعار الدعم بالعميل، وسيظهر رابط الملفات فور إرساله من خدمات العملاء.'}</div>`}</article>`}).join(''):'<div class="text-center text-xs text-slate-400 py-12">لا توجد ملفات مرسلة إلى الدعم الفني حتى الآن.</div>';
+            const agents={}; all.forEach(t=>{if(t.agent==='غير موزعة')return; agents[t.agent]??={done:0,total:0,late:0};agents[t.agent].total++;if(t.status==='مكتملة')agents[t.agent].done++;if(t.status==='متأخرة'||(t.status!=='مكتملة'&&t.due&&t.due<today))agents[t.agent].late++;}); document.getElementById('supportLeaderboard').innerHTML=Object.entries(agents).sort((a,b)=>(b[1].total?b[1].done/b[1].total:0)-(a[1].total?a[1].done/a[1].total:0)).map(([n,v],i)=>`<div class="border rounded-2xl p-3"><div class="flex justify-between"><b class="text-xs">${i+1}. ${n}</b><b class="text-xs text-emerald-700">${v.total?Math.round(v.done/v.total*100):0}% إنجاز</b></div><div class="h-2 bg-slate-100 rounded mt-2 overflow-hidden"><div class="h-full bg-emerald-500" style="width:${v.total?Math.round(v.done/v.total*100):0}%"></div></div><span class="text-[10px] text-slate-500">${v.done} مكتملة من ${v.total} · ${v.late} متأخرة</span></div>`).join('')||'<p class="text-xs text-slate-400 text-center py-8">وزّع المهام لعرض المتابعة</p>';
+        };
+        const originalSaveTask=window.saveTaskToCloud;
+        if(typeof originalSaveTask==='function') window.saveTaskToCloud=async function(taskData){ const result=await originalSaveTask(taskData); if(taskData&&taskData.category==='إرسال البيانات إلى الدعم الفني') syncSupportProjectsFromFunnel(false); return result; };
+        setTimeout(()=>{try{syncSupportProjectsFromFunnel(false)}catch(e){}},1200);
+    })();
     </script>
 </body>
 </html>
