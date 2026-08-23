@@ -517,6 +517,9 @@
                         <i class="fa-solid fa-plus"></i>
                         <span>تسجيل عمل / متابعة</span>
                     </button>
+                    <button id="btnCustomerAssignTask" onclick="openDepartmentTaskModal('خدمات العملاء')" class="hidden bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-user-check"></i><span>إسناد مهمة لفريق خدمات العملاء</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -924,6 +927,28 @@
         </div>
 
     </main>
+
+    <div id="departmentTaskModal" class="fixed inset-0 bg-slate-950/70 z-[120] hidden p-4 flex items-center justify-center" dir="rtl">
+        <form onsubmit="saveDepartmentTask(event)" class="bg-white rounded-3xl w-full max-w-lg p-5 space-y-3 shadow-2xl text-xs">
+            <div class="flex justify-between items-center"><div><h3 class="font-black text-base">إسناد مهمة داخلية لموظف</h3><p id="departmentTaskSubtitle" class="text-slate-500 mt-1"></p></div><button type="button" onclick="closeDepartmentTaskModal()"><i class="fa-solid fa-xmark"></i></button></div>
+            <input id="departmentTaskDepartment" type="hidden">
+            <div><label class="font-black">عنوان المهمة *</label><input id="departmentTaskTitle" required class="w-full border rounded-xl p-3 mt-1" placeholder="مثال: مراجعة بيانات العملاء المتأخرة"></div>
+            <div><label class="font-black">إسناد إلى الموظف *</label><select id="departmentTaskAssignee" required class="w-full border rounded-xl p-3 mt-1"></select></div>
+            <div class="grid grid-cols-2 gap-3"><div><label class="font-black">تاريخ التسليم *</label><input id="departmentTaskDue" type="date" required class="w-full border rounded-xl p-3 mt-1"></div><div><label class="font-black">الأولوية</label><select id="departmentTaskPriority" class="w-full border rounded-xl p-3 mt-1"><option>عادية</option><option>عالية</option><option>عاجلة</option></select></div></div>
+            <div><label class="font-black">التفاصيل والنتيجة المطلوبة</label><textarea id="departmentTaskNotes" class="w-full border rounded-xl p-3 mt-1 min-h-24"></textarea></div>
+            <button class="w-full bg-sky-700 text-white rounded-xl p-3 font-black"><i class="fa-solid fa-user-check ml-1"></i>إسناد المهمة وإرسالها للموظف</button>
+        </form>
+    </div>
+
+    <div id="internalTaskActionModal" class="fixed inset-0 bg-slate-950/70 z-[125] hidden p-4 flex items-center justify-center" dir="rtl">
+        <form onsubmit="saveInternalTaskAction(event)" class="bg-white rounded-3xl w-full max-w-md p-5 space-y-3 shadow-2xl text-xs">
+            <div class="flex justify-between"><div><h3 class="font-black text-base">إضافة إجراء وتعليق على المهمة</h3><p id="internalTaskActionTitle" class="text-slate-500 mt-1"></p></div><button type="button" onclick="closeInternalTaskActionModal()"><i class="fa-solid fa-xmark"></i></button></div>
+            <input id="internalTaskActionId" type="hidden">
+            <div><label class="font-black">نوع الإجراء</label><select id="internalTaskActionType" class="w-full border rounded-xl p-3 mt-1"><option>بدء التنفيذ</option><option>تحديث العمل</option><option>طلب توضيح</option><option>مراجعة</option><option>تعليق</option></select></div>
+            <div><label class="font-black">التعليق وما تم تنفيذه *</label><textarea id="internalTaskActionComment" required class="w-full border rounded-xl p-3 mt-1 min-h-28" placeholder="اكتب الإجراء الذي قمت به والنتيجة الحالية"></textarea></div>
+            <button class="w-full bg-sky-700 text-white rounded-xl p-3 font-black"><i class="fa-solid fa-comment-dots ml-1"></i>حفظ الإجراء والتعليق</button>
+        </form>
+    </div>
 
     <!-- MODAL: SELF CHANGE PASSWORD FOR AGENT -->
     <div id="selfChangePasswordModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 hidden">
@@ -1568,13 +1593,20 @@
                         <input type="text" id="newEmployeeName" placeholder="مثال: أحمد محمود العلي" 
                                class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500">
                     </div>
-                    <div class="grid grid-cols-3 gap-2.5">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">القسم</label>
                             <select id="newEmployeeDepartment" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none">
                                 <option value="خدمات العملاء">خدمات العملاء</option>
                                 <option value="الدعم الفني">الدعم الفني</option>
                                 <option value="الإدارة">الإدارة</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">الصلاحية الوظيفية</label>
+                            <select id="newEmployeeAccessLevel" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none">
+                                <option value="employee">موظف</option>
+                                <option value="supervisor">مدير / مشرف القسم</option>
                             </select>
                         </div>
                         <div>
@@ -1668,6 +1700,7 @@
                             <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء وتحول الفانل</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
                             <option value="ENTITIES_GEO">🗺️ تقرير نوع المنشآت والتوزيع الجغرافي</option>
+                            <option value="SUPPORT_PERFORMANCE">🛠️ تقرير أداء الدعم الفني</option>
                             <option value="DETAILED_LOG">📋 تقرير سجل التفاصيل والأنشطة</option>
                         </select>
                     </div>
@@ -1743,6 +1776,7 @@
         const employeesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
         const tasksColRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
         const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
+        const supportProjectsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'supportProjects');
 
         window.FUNNEL_STAGES = [
             "مكالمة هاتفية",
@@ -1894,6 +1928,13 @@
             if (String(emp.name || '').includes('الدعم الفني') || String(emp.name || '').includes('دعم فني')) return 'الدعم الفني';
             return saved || 'خدمات العملاء';
         };
+        window.getEmployeeAccessLevel = function(emp) { return emp && (emp.accessLevel === 'supervisor' || emp.isSupervisor === true) ? 'supervisor' : 'employee'; };
+        window.getEmployeeJobTitle = function(emp) {
+            const department = window.getEmployeeDepartment(emp), supervisor = window.getEmployeeAccessLevel(emp) === 'supervisor';
+            if (department === 'الدعم الفني') return supervisor ? 'مدير الدعم الفني' : 'موظف دعم فني';
+            if (department === 'خدمات العملاء') return supervisor ? 'مدير إشراف خدمات العملاء' : 'موظف خدمات عملاء';
+            return supervisor ? 'مدير إداري' : 'موظف إدارة';
+        };
         window.tasks = [];
         window.clients = [];
 
@@ -1967,6 +2008,7 @@
                     window.dbUser = userCredential.user;
                 }
                 startRealtimeListeners();
+                try { const localSupport = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); if (localSupport.length && window.syncSupportProjectsCloud) window.syncSupportProjectsCloud(localSupport); } catch(e) {}
                 if (typeof window.resumePendingDocumentSync === 'function') {
                     window.resumePendingDocumentSync();
                 }
@@ -1998,6 +2040,7 @@
                     window.saveLocalBackup();
                     window.syncTasksToClients();
                     renderApp();
+                    if (window.renderTechnicalSupport) window.renderTechnicalSupport();
                     if (window.activeProfileClientId) {
                         renderClientTimelineUI(window.activeProfileClientId);
                     }
@@ -2020,7 +2063,20 @@
                     renderApp();
                 }
             });
+
+            onSnapshot(supportProjectsColRef, (snapshot) => {
+                const list = []; snapshot.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
+                if (list.length > 0) { localStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport(); }
+            });
         }
+
+        window.syncSupportProjectsCloud = async function(projects) {
+            if (!window.dbUser) return;
+            for (const project of (projects || [])) {
+                if (!project.id) continue;
+                try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'supportProjects', project.id), project); } catch(e) {}
+            }
+        };
 
         window.syncTasksToClients = function() {
             if (!window.tasks || window.tasks.length === 0) return;
@@ -2154,7 +2210,7 @@
             if (!taskData.id) taskData.id = 'task_' + Date.now();
             taskData.createdAt = taskData.createdAt || Date.now();
 
-            if (taskData.customer) {
+            if (taskData.customer && taskData.taskType !== 'internal') {
                 let matchedClient = (window.clients || []).find(c => 
                     (taskData.clientId && c.id === taskData.clientId) ||
                     (taskData.phone && c.phone && c.phone.trim() === taskData.phone.trim()) ||
@@ -3230,7 +3286,7 @@
 
                 let shiftBadge = (t.shift === 'شفت مسائي') ? 'مسائي' : 'صباحي';
 
-                let matchedClient = (window.clients || []).find(c => (c.phone && c.phone === t.phone) || (c.name === t.customer) || (t.clientId && c.id === t.clientId));
+                let matchedClient = t.taskType === 'internal' ? null : (window.clients || []).find(c => (c.phone && c.phone === t.phone) || (c.name === t.customer) || (t.clientId && c.id === t.clientId));
                 let clientIdForProfile = matchedClient ? matchedClient.id : null;
 
                 return `
@@ -3248,7 +3304,7 @@
                         </td>
                         <td class="p-3 font-bold text-slate-700 whitespace-nowrap"><span class="bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">${t.city || 'الرياض'}</span></td>
                         <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${t.category}</td>
-                        <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}</td>
+                        <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}${t.taskType==='internal'&&t.activityLog?.length?`<div class="mt-1 text-[10px] text-sky-700 font-bold">آخر إجراء: ${escapeHtml(t.activityLog[t.activityLog.length-1].comment)} (${t.activityLog.length} إجراءات)</div>`:''}</td>
                         <td class="p-3 whitespace-nowrap">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusClass}">${t.status}</span>
                         </td>
@@ -3264,12 +3320,8 @@
                                         <span>إجراء</span>
                                     </button>
                                 ` : ''}
-                                <button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
+                                ${t.taskType === 'internal' ? `${t.status!=='مكتمل'?`<button type="button" onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-comment-dots ml-1"></i>إجراء / تعليق</button>`:''}<button type="button" onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black" ${t.status==='مكتمل'?'disabled':''}><i class="fa-solid fa-check ml-1"></i>${t.status==='مكتمل'?'مكتملة':'إنهاء المهمة'}</button>` : `<button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل"><i class="fa-solid fa-pen"></i></button>`}
+                                ${t.taskType === 'internal' ? '' : `<button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف"><i class="fa-solid fa-trash-can"></i></button>`}
                             </div>
                         </td>
                     </tr>
@@ -3277,10 +3329,27 @@
             }).join('');
         }
 
+        function openDepartmentTaskModal(department) {
+            const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
+            if(window.currentUserRole!=='manager'&&window.getEmployeeAccessLevel(logged)!=='supervisor'){showToast('إسناد المهام متاح لمدير/مشرف القسم فقط','error');return;}
+            const allowedDepartment=window.currentUserRole==='manager'?department:window.getEmployeeDepartment(logged);if(allowedDepartment!==department){showToast('لا يمكنك إسناد مهام لقسم آخر','error');return;}
+            const staff=(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)===department&&window.getEmployeeAccessLevel(e)==='employee');
+            if(!staff.length){showToast('لا يوجد موظفون عاديون مسجلون في هذا القسم','error');return;}
+            document.getElementById('departmentTaskDepartment').value=department;document.getElementById('departmentTaskSubtitle').textContent='القسم: '+department;document.getElementById('departmentTaskTitle').value='';document.getElementById('departmentTaskNotes').value='';document.getElementById('departmentTaskDue').value=new Date().toISOString().slice(0,10);document.getElementById('departmentTaskAssignee').innerHTML=staff.map(e=>`<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');document.getElementById('departmentTaskModal').classList.remove('hidden');
+        }
+        function closeDepartmentTaskModal(){document.getElementById('departmentTaskModal').classList.add('hidden');}
+        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',agent:assignee,date:due,time:new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'قيد المعالجة',title,notes:(title+(notes?' — '+notes:''))});closeDepartmentTaskModal();showToast('تم إسناد المهمة إلى '+assignee+' وستظهر في حسابه');}
+
         function openAddTaskModal(clientIdToPreselect = null) {
             const modal = document.getElementById('addTaskModal');
             const form = document.getElementById('taskForm');
             renderClientSelectInTaskForm();
+
+            const loggedEmp = (window.employees || []).find(e => e.name === window.currentLoggedInAgent);
+            let assignable = (window.employees || []).filter(e => window.getEmployeeDepartment(e) === 'خدمات العملاء');
+            if (window.currentUserRole === 'agent' && window.getEmployeeAccessLevel(loggedEmp) !== 'supervisor') assignable = loggedEmp ? [loggedEmp] : [];
+            const agentSelect = document.getElementById('formAgent');
+            if (agentSelect) agentSelect.innerHTML = assignable.map(e => `<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');
 
             form.reset();
             document.getElementById('taskId').value = '';
@@ -3352,6 +3421,16 @@
             }
         }
 
+        function openInternalTaskAction(id){const task=(window.tasks||[]).find(t=>t.id===id);if(!task||task.taskType!=='internal')return;if(window.currentUserRole==='agent'&&task.agent!==window.currentLoggedInAgent){showToast('هذه المهمة مسندة لموظف آخر','error');return;}document.getElementById('internalTaskActionId').value=id;document.getElementById('internalTaskActionTitle').textContent=task.title||task.notes||'مهمة داخلية';document.getElementById('internalTaskActionComment').value='';document.getElementById('internalTaskActionModal').classList.remove('hidden');}
+        function closeInternalTaskActionModal(){document.getElementById('internalTaskActionModal').classList.add('hidden');}
+        async function saveInternalTaskAction(e){e.preventDefault();const id=document.getElementById('internalTaskActionId').value,task=(window.tasks||[]).find(t=>t.id===id);if(!task)return;task.activityLog=task.activityLog||[];task.activityLog.push({type:document.getElementById('internalTaskActionType').value,comment:document.getElementById('internalTaskActionComment').value.trim(),by:window.currentLoggedInAgent||'المدير العام',at:new Date().toISOString()});task.status='قيد المعالجة';await window.saveTaskToCloud(task);closeInternalTaskActionModal();showToast('تم حفظ الإجراء والتعليق وإرساله للمشرف');}
+
+        async function completeInternalTask(id) {
+            const task=(window.tasks||[]).find(t=>t.id===id);if(!task||task.taskType!=='internal')return;
+            if(window.currentUserRole==='agent'&&task.agent!==window.currentLoggedInAgent){showToast('هذه المهمة مسندة لموظف آخر','error');return;}
+            if(!task.activityLog||!task.activityLog.length){showToast('أضف إجراءً وتعليقًا على المهمة قبل إنهائها','error');return;}const result=prompt('اكتب النتيجة النهائية للمهمة:');if(!result||!result.trim())return;task.activityLog.push({type:'إنهاء المهمة',comment:result.trim(),by:window.currentLoggedInAgent||'المدير العام',at:new Date().toISOString()});task.finalResult=result.trim();task.status='مكتمل';task.completedBy=window.currentLoggedInAgent||'المدير العام';task.completedAt=new Date().toISOString();await window.saveTaskToCloud(task);showToast('تم إنهاء المهمة وإرسال النتيجة للمشرف');
+        }
+
         function editTask(id) {
             const t = window.tasks.find(item => item.id === id);
             if (!t) return;
@@ -3400,7 +3479,7 @@
                 sel.innerHTML = '<option value="">لا يوجد موظفين مسجلين حالياً - أضف كمدير أولاً</option>';
                 return;
             }
-            sel.innerHTML = window.employees.map(e => `<option value="${e.name}">${e.name} (${e.shift})</option>`).join('');
+            sel.innerHTML = window.employees.map(e => `<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)} (${e.shift})</option>`).join('');
         }
 
         function handleLogin(e) {
@@ -3467,6 +3546,7 @@
             const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
             const btnAgentChangePin = document.getElementById('btnAgentChangePin');
             const btnTechnicalSupport = document.getElementById('btnTechnicalSupport');
+            const btnCustomerAssignTask = document.getElementById('btnCustomerAssignTask');
 
             if (role === 'manager') {
                 nameSpan.innerText = 'المدير العام';
@@ -3475,6 +3555,7 @@
                 agentSelectorWrapper.classList.remove('hidden');
                 if (btnAgentChangePin) btnAgentChangePin.classList.add('hidden');
                 if (btnTechnicalSupport) { btnTechnicalSupport.classList.remove('hidden'); btnTechnicalSupport.classList.add('flex'); }
+                if (btnCustomerAssignTask) { btnCustomerAssignTask.classList.remove('hidden'); btnCustomerAssignTask.classList.add('flex'); }
                 window.currentAgent = 'ALL';
                 switchRole('manager');
             } else {
@@ -3485,9 +3566,15 @@
                 if (btnAgentChangePin) btnAgentChangePin.classList.remove('hidden');
                 const loggedEmployee = (window.employees || []).find(e => e.name === agentName);
                 const isTechnicalSupport = window.getEmployeeDepartment && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
+                const isSupervisor = window.getEmployeeAccessLevel && window.getEmployeeAccessLevel(loggedEmployee) === 'supervisor';
                 if (btnTechnicalSupport) {
                     btnTechnicalSupport.classList.toggle('hidden', !isTechnicalSupport);
                     btnTechnicalSupport.classList.toggle('flex', isTechnicalSupport);
+                }
+                if (btnCustomerAssignTask) {
+                    const canAssignCustomer = !isTechnicalSupport && isSupervisor;
+                    btnCustomerAssignTask.classList.toggle('hidden', !canAssignCustomer);
+                    btnCustomerAssignTask.classList.toggle('flex', canAssignCustomer);
                 }
                 window.currentAgent = agentName;
                 switchRole('agent');
@@ -3509,6 +3596,8 @@
             document.getElementById('loginOverlay').classList.remove('hidden');
             const btnTechnicalSupport = document.getElementById('btnTechnicalSupport');
             if (btnTechnicalSupport) { btnTechnicalSupport.classList.add('hidden'); btnTechnicalSupport.classList.remove('flex'); }
+            const btnCustomerAssignTask = document.getElementById('btnCustomerAssignTask');
+            if (btnCustomerAssignTask) { btnCustomerAssignTask.classList.add('hidden'); btnCustomerAssignTask.classList.remove('flex'); }
             showToast("تم تسجيل الخروج", "info");
         }
 
@@ -3661,10 +3750,14 @@
                             <i class="fa-solid fa-user-check text-brand-600"></i>
                             ${emp.name}
                         </span>
-                        <span class="text-[10px] text-slate-500 font-semibold block">${window.getEmployeeDepartment(emp)} | ${emp.shift} | PIN: ${emp.pin || '123456'}</span>
+                        <span class="text-[10px] text-slate-500 font-semibold block">${window.getEmployeeJobTitle(emp)} | ${emp.shift} | PIN: ${emp.pin || '123456'}</span>
                     </div>
                     <select onchange="updateEmployeeDepartment('${emp.id}',this.value)" class="border border-slate-200 rounded-lg p-1.5 text-[10px] font-bold bg-slate-50">
                         ${['خدمات العملاء','الدعم الفني','الإدارة'].map(d => `<option value="${d}" ${window.getEmployeeDepartment(emp)===d?'selected':''}>${d}</option>`).join('')}
+                    </select>
+                    <select onchange="updateEmployeeAccessLevel('${emp.id}',this.value)" class="border border-slate-200 rounded-lg p-1.5 text-[10px] font-bold bg-slate-50">
+                        <option value="employee" ${window.getEmployeeAccessLevel(emp)==='employee'?'selected':''}>موظف</option>
+                        <option value="supervisor" ${window.getEmployeeAccessLevel(emp)==='supervisor'?'selected':''}>مدير/مشرف</option>
                     </select>
                     <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
                         <i class="fa-solid fa-trash-can"></i>
@@ -3677,6 +3770,7 @@
             const nameInput = document.getElementById('newEmployeeName');
             const shiftSelect = document.getElementById('newEmployeeShift');
             const departmentSelect = document.getElementById('newEmployeeDepartment');
+            const accessLevelSelect = document.getElementById('newEmployeeAccessLevel');
             const pinInput = document.getElementById('newEmployeePin');
             const name = nameInput.value.trim();
             const shift = shiftSelect.value;
@@ -3687,7 +3781,7 @@
                 return;
             }
 
-            const newEmp = { id: 'emp_' + Date.now(), name, shift, department: departmentSelect.value, pin };
+            const newEmp = { id: 'emp_' + Date.now(), name, shift, department: departmentSelect.value, accessLevel: accessLevelSelect.value, pin };
             window.saveEmployeeToCloud(newEmp);
 
             nameInput.value = '';
@@ -3701,6 +3795,10 @@
             emp.department = department;
             window.saveEmployeeToCloud(emp);
             showToast(`تم تحويل ${emp.name} إلى قسم ${department}`);
+        }
+        function updateEmployeeAccessLevel(empId, accessLevel) {
+            const emp = (window.employees || []).find(e => e.id === empId); if (!emp) return;
+            emp.accessLevel = accessLevel; window.saveEmployeeToCloud(emp); showToast(`تم تحديث صلاحية ${emp.name} إلى ${window.getEmployeeJobTitle(emp)}`);
         }
 
         function onAgentChanged() {
@@ -3897,6 +3995,7 @@
             FUNNEL_STAGES: 'تقرير رحلة العملاء وتحول المبيعات',
             BANK_COMMISSIONS: 'تقرير الحسابات والعمولات والمستندات',
             ENTITIES_GEO: 'تقرير توزيع المنشآت والمدن',
+            SUPPORT_PERFORMANCE: 'تقرير أداء الدعم الفني وتنفيذ العملاء',
             DETAILED_LOG: 'تقرير سجل الأنشطة والمتابعات'
         };
 
@@ -4082,6 +4181,53 @@
             return html;
         }
 
+        function buildSupportInfographic(start, end, agent) {
+            let projects = [];
+            try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
+            const startTime = start ? new Date(start + 'T00:00:00').getTime() : 0;
+            const endTime = end ? new Date(end + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER;
+            projects = projects.filter(function(p) {
+                const stamp = new Date(p.sentAt || p.createdAt || 0).getTime();
+                const dateMatch = !stamp || (stamp >= startTime && stamp <= endTime);
+                const agentMatch = agent === 'ALL' || p.receivedBy === agent || p.completedBy === agent || (p.tasks || []).some(function(t) { return t.agent === agent; });
+                return dateMatch && agentMatch;
+            });
+            const waitingLink = projects.filter(function(p) { return ['بانتظار رابط البيانات','بانتظار الاستلام'].includes(p.handoffStatus); }).length;
+            const linkSent = projects.filter(function(p) { return p.handoffStatus === 'تم إرسال رابط البيانات'; }).length;
+            const received = projects.filter(function(p) { return p.handoffStatus === 'تم الاستلام'; }).length;
+            const completed = projects.filter(function(p) { return p.handoffStatus === 'تم الرفع بنجاح'; }).length;
+            const durationHours = function(a, b) { if (!a || !b) return null; return Math.max(0, (new Date(b).getTime() - new Date(a).getTime()) / 3600000); };
+            const avg = function(values) { const valid = values.filter(function(v) { return v !== null && Number.isFinite(v); }); return valid.length ? Math.round(valid.reduce(function(a,b){return a+b;},0) / valid.length * 10) / 10 : 0; };
+            const avgReceive = avg(projects.map(function(p) { return durationHours(p.sentAt, p.receivedAt); }));
+            const avgExecute = avg(projects.map(function(p) { return durationHours(p.receivedAt, p.completedAt); }));
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-inbox', 'إجمالي ملفات الدعم', projects.length, '#5b21b6') +
+                reportKpi('fa-link', 'بانتظار رابط البيانات', waitingLink, '#d97706') +
+                reportKpi('fa-paper-plane', 'الرابط جاهز للاستلام', linkSent, '#0b63ce') +
+                reportKpi('fa-hand-holding-hand', 'جاري التنفيذ', received, '#2563eb') +
+                reportKpi('fa-circle-check', 'تم الرفع بنجاح', completed, '#059669') +
+                reportKpi('fa-clock', 'متوسط التنفيذ', avgExecute + ' ساعة', '#075cb9') +
+            '</div>';
+            html += reportSection('سرعة التسليم والتنفيذ', reportHighlights([
+                { icon: 'fa-stopwatch', label: 'متوسط الإرسال حتى الاستلام', name: avgReceive + ' ساعة', value: projects.length + ' ملف' },
+                { icon: 'fa-gears', label: 'متوسط الاستلام حتى الإنهاء', name: avgExecute + ' ساعة', value: completed + ' مكتمل' },
+                { icon: 'fa-percent', label: 'نسبة الإغلاق', name: reportPercent(completed, projects.length) + '%', value: completed + ' من ' + projects.length }
+            ]));
+            const supportAgents = (window.employees || []).filter(function(e) { return window.getEmployeeDepartment(e) === 'الدعم الفني'; }).map(function(e) {
+                const owned = projects.filter(function(p) { return p.receivedBy === e.name; });
+                const done = projects.filter(function(p) { return p.completedBy === e.name; });
+                const active = owned.filter(function(p) { return p.handoffStatus === 'تم الاستلام'; });
+                const agentAvg = avg(done.map(function(p) { return durationHours(p.receivedAt, p.completedAt); }));
+                return [e.name, owned.length, active.length, done.length, agentAvg + ' ساعة'];
+            });
+            html += reportSection('أداء موظفي الدعم الفني', reportTable(['الموظف','ملفات استلمها','جاري التنفيذ','تم رفعها','متوسط التنفيذ'], supportAgents));
+            html += reportSection('سجل تسليم وتنفيذ العملاء', reportTable(
+                ['العميل','خدمات العملاء','حالة الملف','مستلم الدعم','وقت الاستلام','من أنهى','وقت الإنهاء'],
+                projects.map(function(p) { return [p.clientName||'-',p.sender||'-',p.handoffStatus||'-',p.receivedBy||'-',p.receivedAt?new Date(p.receivedAt).toLocaleString('ar-EG'):'-',p.completedBy||'-',p.completedAt?new Date(p.completedAt).toLocaleString('ar-EG'):'-']; })
+            ), 'report-page-break');
+            return html;
+        }
+
         function buildStandardInfographic(reportType, tasks, clients) {
             let html = '';
             if (reportType === 'FUNNEL_STAGES') {
@@ -4219,7 +4365,9 @@
             let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent);
             content += reportType === 'SHIFT_AGENT'
                 ? buildShiftInfographic(tasks, clients, shift, agent)
-                : buildStandardInfographic(reportType, tasks, clients);
+                : reportType === 'SUPPORT_PERFORMANCE'
+                    ? buildSupportInfographic(start, end, agent)
+                    : buildStandardInfographic(reportType, tasks, clients);
             content += '<div class="report-note">تم إنشاء هذا التقرير من بيانات منصة نبضي بتاريخ ' + escapeHtml(new Date().toLocaleString('ar-EG')) + '.</div>';
             area.innerHTML = '<article class="report-sheet">' + content + '</article>';
         }
@@ -4485,7 +4633,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-user-gear text-emerald-300 ml-1"></i><span id="supportLoggedUserName">موظف الدعم</span></span>
                     <select id="supportScopeFilter" onchange="renderTechnicalSupport()" class="bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-black"><option value="ALL">الشغل النشط</option><option value="MINE">مهامي فقط</option><option value="UNASSIGNED">غير موزع</option><option value="COMPLETED">أرشيف المكتمل</option></select>
-                    <button onclick="openSupportTaskEditor()" class="bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-plus ml-1"></i>مهمة لأي موظف</button>
+                    <button id="btnSupportAssignTask" onclick="openDepartmentTaskModal('الدعم الفني')" class="hidden bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-plus ml-1"></i>إسناد مهمة لفريق الدعم</button>
                     <button onclick="openSelfChangePasswordModal()" class="bg-violet-700 hover:bg-violet-800 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-key ml-1"></i>تغيير الباسورد</button>
                     <button onclick="supportLogout()" class="bg-rose-600 hover:bg-rose-700 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-right-from-bracket ml-1"></i>خروج</button>
                 </div>
@@ -4498,6 +4646,10 @@
                 <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">تم رفعها بنجاح</span><b id="supportDoneCount" class="block text-2xl text-emerald-600 mt-1">0</b></div>
                 <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">المهام المتأخرة</span><b id="supportLateCount" class="block text-2xl text-rose-600 mt-1">0</b></div>
             </div>
+            <section class="bg-white rounded-3xl border shadow-sm overflow-hidden">
+                <div class="p-4 border-b flex justify-between items-center"><div><h3 class="font-black text-sm">مهام فريق الدعم الداخلية</h3><p class="text-[10px] text-slate-500 mt-1">مهام المشرف للموظفين، منفصلة عن مشروعات العملاء</p></div><span id="supportInternalTasksCount" class="bg-violet-100 text-violet-800 px-2.5 py-1 rounded-full text-xs font-black">0</span></div>
+                <div id="supportInternalTasksList" class="p-4 grid md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+            </section>
             <div class="grid lg:grid-cols-3 gap-5">
                 <section class="lg:col-span-2 bg-white rounded-3xl border shadow-sm overflow-hidden">
                     <div class="p-4 border-b flex flex-wrap justify-between gap-2"><div><h3 class="font-black text-sm">صندوق تسليم ملفات العملاء للدعم الفني</h3><p class="text-[10px] text-slate-500">يظهر العميل هنا بعد إنهاء خدمات العملاء لمرحلة إرسال البيانات</p></div><input id="supportSearch" oninput="renderTechnicalSupport()" placeholder="بحث باسم العميل أو المهمة..." class="border rounded-xl px-3 py-2 text-xs w-64"></div>
@@ -4534,11 +4686,11 @@
     (function(){
         const SUPPORT_STEPS = ['انتظار استلام بيانات العميل','مراجعة البيانات','طلب واستكمال البيانات الناقصة','تجهيز ورفع المنتجات والخدمات','رفع بيانات الدكاترة والصور','إدخال مواعيد الدكاترة','مراجعة الجودة','إرسال النسخة للعميل للمراجعة','تنفيذ تعديلات العميل','النشر والتسليم النهائي'];
         function loadSupport(){ try{return JSON.parse(localStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
-        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); }
+        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); if(window.syncSupportProjectsCloud)window.syncSupportProjectsCloud(v); }
         window.openTechnicalSupportWorkspace=function(){
             const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
             if(window.currentUserRole==='agent' && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
-            document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام'; syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
+            document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام';const assignBtn=document.getElementById('btnSupportAssignTask');const canAssign=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(emp)==='supervisor';if(assignBtn)assignBtn.classList.toggle('hidden',!canAssign); syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
         };
         window.closeTechnicalSupportWorkspace=function(){ const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.currentUserRole==='agent'&&window.getEmployeeDepartment(emp)==='الدعم الفني')return;document.getElementById('technicalSupportWorkspace').classList.add('hidden'); };
         window.supportDashboardHome=function(){document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
@@ -4583,9 +4735,11 @@
             p.handoffStatus='تم الرفع بنجاح';p.completedBy=window.currentLoggedInAgent||'المدير العام';p.completedAt=new Date().toISOString();(p.tasks||[]).forEach(t=>t.status='مكتملة');saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم إغلاق العميل ونقله إلى أرشيف المكتمل');
         };
         window.openSupportTaskEditor=function(projectId='',taskId=''){
+            const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(!taskId&&window.currentUserRole!=='manager'&&window.getEmployeeAccessLevel(logged)!=='supervisor'){if(window.showToast)showToast('إسناد المهام متاح لمدير الدعم الفني فقط','error');return;}
             const projects=loadSupport(), project=projects.find(p=>p.id===projectId), task=project&&project.tasks.find(t=>t.id===taskId);
+            const supervisor=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';if(task&&!supervisor&&task.agent!==window.currentLoggedInAgent){if(window.showToast)showToast('يمكنك تحديث مهامك فقط','error');return;}
             const clients=(window.clients||[]); document.getElementById('supportTaskClient').innerHTML=clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-            document.getElementById('supportTaskAgent').innerHTML=['غير موزعة',...(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)==='الدعم الفني').map(e=>e.name)].map(n=>`<option>${n}</option>`).join('');
+            const supportNames=supervisor?['غير موزعة',...(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)==='الدعم الفني').map(e=>e.name)]:[window.currentLoggedInAgent];document.getElementById('supportTaskAgent').innerHTML=supportNames.map(n=>`<option>${n}</option>`).join('');
             document.getElementById('supportTaskId').value=taskId; document.getElementById('supportTaskProjectId').value=projectId;
             document.getElementById('supportTaskClient').value=project?.clientId||clients[0]?.id||''; document.getElementById('supportTaskTitle').value=task?.title||''; document.getElementById('supportTaskAgent').value=task?.agent||'غير موزعة';
             document.getElementById('supportTaskDue').value=task?.due||new Date().toISOString().slice(0,10); document.getElementById('supportTaskStatus').value=task?.status||'جديدة'; document.getElementById('supportTaskPriority').value=task?.priority||'عادية'; document.getElementById('supportTaskNotes').value=task?.notes||'';
@@ -4595,10 +4749,13 @@
         window.saveSupportTask=function(e){ e.preventDefault(); let projects=loadSupport(); const cid=document.getElementById('supportTaskClient').value, client=(window.clients||[]).find(c=>c.id===cid); if(!client)return;
             let pid=document.getElementById('supportTaskProjectId').value, project=projects.find(p=>p.id===pid); if(!project){project=projects.find(p=>p.clientId===cid)||{id:'sp_'+Date.now(),clientId:cid,clientName:client.name,phone:client.phone||'',createdAt:new Date().toISOString(),tasks:[]}; if(!projects.includes(project))projects.push(project);}
             const id=document.getElementById('supportTaskId').value||'st_'+Date.now(), data={id,title:document.getElementById('supportTaskTitle').value,agent:document.getElementById('supportTaskAgent').value,due:document.getElementById('supportTaskDue').value,status:document.getElementById('supportTaskStatus').value,priority:document.getElementById('supportTaskPriority').value,notes:document.getElementById('supportTaskNotes').value};
+            if(project.handoffStatus!=='تم الاستلام'){project.handoffStatus='تم الاستلام';project.receivedBy=data.agent;project.receivedAt=new Date().toISOString();}
             const ix=project.tasks.findIndex(t=>t.id===id); ix>=0?project.tasks[ix]=data:project.tasks.push(data); saveSupport(projects); closeSupportTaskEditor(); renderTechnicalSupport(); if(window.showToast)showToast('تم حفظ مهمة الدعم الفني بنجاح');
         };
         window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(t){t.status=status;saveSupport(p);renderTechnicalSupport();}};
+        window.renderSupportInternalTasks=function(){const box=document.getElementById('supportInternalTasksList');if(!box)return;const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canSeeAll=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';let list=(window.tasks||[]).filter(t=>t.taskType==='internal'&&t.department==='الدعم الفني'&&(canSeeAll||t.agent===window.currentLoggedInAgent));list.sort((a,b)=>(a.status==='مكتمل')-(b.status==='مكتمل')||String(a.date||'').localeCompare(String(b.date||'')));document.getElementById('supportInternalTasksCount').textContent=list.filter(t=>t.status!=='مكتمل').length;box.innerHTML=list.length?list.map(t=>{const last=t.activityLog?.[t.activityLog.length-1];return `<article class="border rounded-2xl p-4 ${t.status==='مكتمل'?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><div class="flex justify-between gap-2"><div><b class="text-sm">${escapeHtml(t.title||'مهمة داخلية')}</b><p class="text-[10px] text-slate-500 mt-1">إلى: ${escapeHtml(t.agent||'-')} · من: ${escapeHtml(t.assignedBy||'-')}</p></div><span class="text-[10px] font-black ${t.status==='مكتمل'?'text-emerald-700':'text-amber-700'}">${t.status}</span></div><p class="text-xs text-slate-700 mt-3">${escapeHtml(t.notes||'')}</p>${last?`<div class="mt-2 bg-sky-50 border border-sky-100 rounded-xl p-2 text-[10px]"><b>${escapeHtml(last.type)}:</b> ${escapeHtml(last.comment)}<div class="text-slate-400 mt-1">${escapeHtml(last.by)} · ${new Date(last.at).toLocaleString('ar-EG')}</div></div>`:''}<div class="flex gap-2 mt-3">${t.status!=='مكتمل'&&t.agent===window.currentLoggedInAgent?`<button onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إجراء / تعليق</button><button onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إنهاء المهمة</button>`:''}</div></article>`}).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';};
         window.renderTechnicalSupport=function(){
+            renderSupportInternalTasks();
             const projects=loadSupport(), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=new Date().toISOString().slice(0,10);
             const open=all.filter(t=>t.status!=='مكتملة'), late=open.filter(t=>t.status==='متأخرة'||(t.due&&t.due<today));
             const pending=projects.filter(p=>!['تم الاستلام','تم الرفع بنجاح'].includes(p.handoffStatus)),receivedProjects=projects.filter(p=>p.handoffStatus==='تم الاستلام'),completedProjects=projects.filter(p=>p.handoffStatus==='تم الرفع بنجاح'); ['supportOpenTasksBadge'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pending.length}); document.getElementById('supportProjectsCount').textContent=pending.length; document.getElementById('supportOpenCount').textContent=receivedProjects.length; document.getElementById('supportDoneCount').textContent=completedProjects.length; document.getElementById('supportLateCount').textContent=late.length;
