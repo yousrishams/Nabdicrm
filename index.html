@@ -475,6 +475,7 @@
                         <button id="btnAgentChangePin" onclick="openSelfChangePasswordModal()" class="text-purple-700 hover:text-purple-900 text-[11px] font-extrabold mr-1 border-r border-slate-300 pr-2 cursor-pointer hidden" title="تغيير كلمة المرور الخاصة بي">تغيير الباسورد</button>
                         <button onclick="logout()" class="text-rose-600 hover:text-rose-800 text-[11px] font-bold mr-1 border-r border-slate-300 pr-2 cursor-pointer" title="تسجيل الخروج">خروج</button>
                     </div>
+                    <button id="btnTaskNotifications" onclick="openTaskNotifications()" class="hidden relative bg-white border border-slate-200 text-slate-800 w-10 h-10 rounded-xl items-center justify-center shadow-sm cursor-pointer" title="إشعارات المهام"><i class="fa-solid fa-bell text-amber-500"></i><span class="task-notification-badge hidden absolute -top-1 -left-1 bg-rose-600 text-white min-w-5 h-5 px-1 rounded-full text-[9px] font-black items-center justify-center">0</span></button>
 
                     <div class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200">
                         <i class="fa-regular fa-calendar text-brand-600"></i>
@@ -948,6 +949,14 @@
             <div><label class="font-black">التعليق وما تم تنفيذه *</label><textarea id="internalTaskActionComment" required class="w-full border rounded-xl p-3 mt-1 min-h-28" placeholder="اكتب الإجراء الذي قمت به والنتيجة الحالية"></textarea></div>
             <button class="w-full bg-sky-700 text-white rounded-xl p-3 font-black"><i class="fa-solid fa-comment-dots ml-1"></i>حفظ الإجراء والتعليق</button>
         </form>
+    </div>
+
+    <div id="taskNotificationsModal" class="fixed inset-0 bg-slate-950/65 z-[135] hidden p-4 flex items-start justify-center pt-20" dir="rtl">
+        <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div class="bg-slate-950 text-white p-4 flex justify-between items-center"><div><h3 class="font-black">إشعارات المهام</h3><p class="text-[10px] text-slate-300">المهام الجديدة المسندة إليك</p></div><button onclick="closeTaskNotifications()"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="p-3 border-b flex justify-end"><button onclick="markAllTaskNotificationsRead()" class="text-xs font-black text-sky-700">تحديد الكل كمقروء</button></div>
+            <div id="taskNotificationsList" class="max-h-[60vh] overflow-y-auto divide-y"></div>
+        </div>
     </div>
 
     <!-- MODAL: SELF CHANGE PASSWORD FOR AGENT -->
@@ -1935,6 +1944,25 @@
             if (department === 'خدمات العملاء') return supervisor ? 'مدير إشراف خدمات العملاء' : 'موظف خدمات عملاء';
             return supervisor ? 'مدير إداري' : 'موظف إدارة';
         };
+        window.dedupeClients = function(list) {
+            const map = new Map();
+            (list || []).forEach(function(client) {
+                if (!client || String(client.name || '').startsWith('مهمة داخلية')) return;
+                const phone = String(client.phone || '').replace(/\D/g, '');
+                const name = String(client.name || '').trim().toLowerCase();
+                const city = String(client.city || '').trim().toLowerCase();
+                const key = phone.length >= 5 ? 'phone:' + phone : 'name:' + name + '|' + city;
+                if (!name && phone.length < 5) return;
+                const previous = map.get(key);
+                if (!previous) map.set(key, client);
+                else {
+                    const newer = (Number(client.createdAt)||0) >= (Number(previous.createdAt)||0) ? client : previous;
+                    const older = newer === client ? previous : client;
+                    map.set(key, {...older, ...newer, docs: {...(older.docs||{}), ...(newer.docs||{})}});
+                }
+            });
+            return Array.from(map.values());
+        };
         window.tasks = [];
         window.clients = [];
 
@@ -1976,10 +2004,10 @@
 
                 const storedClients = localStorage.getItem('cs_nabdi_clients');
                 if (storedClients) {
-                    window.clients = JSON.parse(storedClients).map(client => ({
+                    window.clients = window.dedupeClients(JSON.parse(storedClients).map(client => ({
                         ...client,
                         stage: window.normalizeFunnelStage(client.stage)
-                    }));
+                    })));
                 }
             } catch(e) {}
         };
@@ -2041,6 +2069,7 @@
                     window.syncTasksToClients();
                     renderApp();
                     if (window.renderTechnicalSupport) window.renderTechnicalSupport();
+                    if (window.updateTaskNotifications) window.updateTaskNotifications(true);
                     if (window.activeProfileClientId) {
                         renderClientTimelineUI(window.activeProfileClientId);
                     }
@@ -2054,7 +2083,7 @@
                     clientList.push({ id: docSnap.id, ...data, stage: window.normalizeFunnelStage(data.stage) });
                 });
                 if (clientList.length > 0) {
-                    window.clients = clientList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    window.clients = window.dedupeClients(clientList).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                     window.saveLocalBackup();
                     window.syncTasksToClients();
                     renderClientSelectInTaskForm();
@@ -2065,8 +2094,9 @@
             });
 
             onSnapshot(supportProjectsColRef, (snapshot) => {
-                const list = []; snapshot.forEach(docSnap => list.push({ id: docSnap.id, ...docSnap.data() }));
-                if (list.length > 0) { localStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport(); }
+                const raw = []; snapshot.forEach(docSnap => raw.push({ id: docSnap.id, ...docSnap.data() }));
+                const byClient = new Map(); raw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
+                const list=Array.from(byClient.values()); if (list.length > 0) { localStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport(); }
             });
         }
 
@@ -2084,6 +2114,7 @@
             let updatedAny = false;
 
             window.tasks.forEach(t => {
+                if (t.taskType === 'internal') return;
                 if (!t.customer && !t.phone) return;
                 
                 let client = window.clients.find(c => 
@@ -2806,6 +2837,22 @@
 
             const isNewClient = !id;
             const clientId = id || `lead_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            if (isNewClient) {
+                const normalizedPhone = phone.replace(/\D/g, '');
+                const normalizedName = name.trim().toLowerCase();
+                const duplicate = (window.clients || []).find(c => {
+                    const existingPhone = String(c.phone || '').replace(/\D/g, '');
+                    const samePhone = normalizedPhone.length >= 5 && existingPhone === normalizedPhone;
+                    const sameNameCity = String(c.name || '').trim().toLowerCase() === normalizedName && String(c.city || '') === String(city || '');
+                    return samePhone || sameNameCity;
+                });
+                if (duplicate) {
+                    showToast(`العميل (${duplicate.name}) مسجل بالفعل — لن يتم إنشاء سجل مكرر`, 'error');
+                    closeAddClientModal();
+                    setTimeout(() => openClientProfileModal(duplicate.id), 100);
+                    return;
+                }
+            }
             const submitButton = e.submitter || e.target.querySelector('button[type="submit"]');
             const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
 
@@ -3329,6 +3376,15 @@
             }).join('');
         }
 
+        function getTaskNotificationReadIds(){try{return JSON.parse(localStorage.getItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'))||'[]')}catch(e){return[]}}
+        function setTaskNotificationReadIds(ids){localStorage.setItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'),JSON.stringify(Array.from(new Set(ids))));}
+        function getAssignedNotificationTasks(){if(!window.currentLoggedInAgent)return[];return (window.tasks||[]).filter(t=>t.taskType==='internal'&&t.agent===window.currentLoggedInAgent).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));}
+        function updateTaskNotifications(showNewToast=false){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),unread=tasks.filter(t=>!read.includes(t.id));document.querySelectorAll('.task-notification-badge').forEach(b=>{b.textContent=unread.length;b.classList.toggle('hidden',!unread.length);b.classList.toggle('flex',!!unread.length);});const btn=document.getElementById('btnTaskNotifications');if(btn&&window.currentUserRole==='agent'){btn.classList.remove('hidden');btn.classList.add('flex');}if(showNewToast){const fresh=unread.find(t=>(t.createdAt||0)>(window.userLoginAt||Date.now())&&t.id!==window.lastTaskToastId);if(fresh){window.lastTaskToastId=fresh.id;showToast(`مهمة جديدة من ${fresh.assignedBy||'المدير'}: ${fresh.title||fresh.notes}`,'info');}}}
+        function openTaskNotifications(){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),box=document.getElementById('taskNotificationsList');box.innerHTML=tasks.length?tasks.map(t=>`<button onclick="openTaskFromNotification('${t.id}')" class="w-full text-right p-4 hover:bg-sky-50 ${read.includes(t.id)?'bg-white':'bg-amber-50'}"><div class="flex justify-between gap-2"><b class="text-xs">${escapeHtml(t.title||'مهمة داخلية')}</b>${read.includes(t.id)?'':'<span class="w-2 h-2 rounded-full bg-rose-500 mt-1"></span>'}</div><p class="text-[10px] text-slate-500 mt-1">من: ${escapeHtml(t.assignedBy||'-')} · التسليم: ${escapeHtml(t.date||'-')} · الأولوية: ${escapeHtml(t.priority||'عادية')}</p><p class="text-[11px] text-slate-700 mt-2">${escapeHtml(t.notes||'')}</p></button>`).join(''):'<div class="p-10 text-center text-xs text-slate-400">لا توجد إشعارات مهام.</div>';document.getElementById('taskNotificationsModal').classList.remove('hidden');}
+        function closeTaskNotifications(){document.getElementById('taskNotificationsModal').classList.add('hidden');}
+        function markAllTaskNotificationsRead(){setTaskNotificationReadIds(getAssignedNotificationTasks().map(t=>t.id));updateTaskNotifications();openTaskNotifications();}
+        function openTaskFromNotification(id){const ids=getTaskNotificationReadIds();ids.push(id);setTaskNotificationReadIds(ids);updateTaskNotifications();closeTaskNotifications();const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.getEmployeeDepartment(emp)==='الدعم الفني'){openTechnicalSupportWorkspace();document.getElementById('supportInternalTasksList')?.scrollIntoView({behavior:'smooth',block:'start'});}else{switchRole('agent');document.getElementById('agentTaskTableBody')?.scrollIntoView({behavior:'smooth',block:'start'});}}
+
         function openDepartmentTaskModal(department) {
             const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
             if(window.currentUserRole!=='manager'&&window.getEmployeeAccessLevel(logged)!=='supervisor'){showToast('إسناد المهام متاح لمدير/مشرف القسم فقط','error');return;}
@@ -3531,6 +3587,7 @@
         function applyLoginSession(role, agentName) {
             window.currentUserRole = role;
             window.currentLoggedInAgent = agentName;
+            window.userLoginAt = Date.now();
 
             try {
                 sessionStorage.setItem('cs_logged_role', role);
@@ -3582,6 +3639,7 @@
             }
 
             renderApp();
+            updateTaskNotifications(false);
         }
 
         function logout() {
@@ -3598,6 +3656,8 @@
             if (btnTechnicalSupport) { btnTechnicalSupport.classList.add('hidden'); btnTechnicalSupport.classList.remove('flex'); }
             const btnCustomerAssignTask = document.getElementById('btnCustomerAssignTask');
             if (btnCustomerAssignTask) { btnCustomerAssignTask.classList.add('hidden'); btnCustomerAssignTask.classList.remove('flex'); }
+            const btnTaskNotifications = document.getElementById('btnTaskNotifications');
+            if (btnTaskNotifications) { btnTaskNotifications.classList.add('hidden'); btnTaskNotifications.classList.remove('flex'); }
             showToast("تم تسجيل الخروج", "info");
         }
 
@@ -4632,6 +4692,7 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-user-gear text-emerald-300 ml-1"></i><span id="supportLoggedUserName">موظف الدعم</span></span>
+                    <button onclick="openTaskNotifications()" class="relative bg-white/10 border border-white/15 w-10 h-10 rounded-xl flex items-center justify-center"><i class="fa-solid fa-bell text-amber-300"></i><span class="task-notification-badge hidden absolute -top-1 -left-1 bg-rose-600 text-white min-w-5 h-5 px-1 rounded-full text-[9px] font-black items-center justify-center">0</span></button>
                     <select id="supportScopeFilter" onchange="renderTechnicalSupport()" class="bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-black"><option value="ALL">الشغل النشط</option><option value="MINE">مهامي فقط</option><option value="UNASSIGNED">غير موزع</option><option value="COMPLETED">أرشيف المكتمل</option></select>
                     <button id="btnSupportAssignTask" onclick="openDepartmentTaskModal('الدعم الفني')" class="hidden bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-plus ml-1"></i>إسناد مهمة لفريق الدعم</button>
                     <button onclick="openSelfChangePasswordModal()" class="bg-violet-700 hover:bg-violet-800 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-key ml-1"></i>تغيير الباسورد</button>
