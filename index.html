@@ -1944,6 +1944,21 @@
             if (department === 'خدمات العملاء') return supervisor ? 'مدير إشراف خدمات العملاء' : 'موظف خدمات عملاء';
             return supervisor ? 'مدير إداري' : 'موظف إدارة';
         };
+        window.normalizeEmployeeName = function(value) {
+            return String(value || '').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim().toLowerCase();
+        };
+        window.findEmployeeByName = function(name) {
+            const key=window.normalizeEmployeeName(name);
+            return (window.employees||[]).find(e=>window.normalizeEmployeeName(e.name)===key);
+        };
+        window.sameEmployee = function(firstName, secondName, firstId='', secondId='') {
+            if(firstId&&secondId&&firstId===secondId) return true;
+            return window.normalizeEmployeeName(firstName)===window.normalizeEmployeeName(secondName);
+        };
+        window.attachEmployeeIds = function() {
+            (window.clients||[]).forEach(c=>{if(!c.addedById){const emp=window.findEmployeeByName(c.addedBy);if(emp)c.addedById=emp.id;}});
+            (window.tasks||[]).forEach(t=>{if(!t.agentId){const emp=window.findEmployeeByName(t.agent);if(emp)t.agentId=emp.id;}});
+        };
         window.dedupeClients = function(list) {
             const deletedIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
             const map = new Map();
@@ -2054,6 +2069,7 @@
                 snapshot.forEach(docSnap => { const emp = { id: docSnap.id, ...docSnap.data() }; list.push({...emp, department: window.getEmployeeDepartment(emp)}); });
                 if (list.length > 0) {
                     window.employees = list;
+                    window.attachEmployeeIds();
                     window.saveLocalBackup();
                 }
                 renderEmployeeSelects();
@@ -2062,18 +2078,18 @@
             });
 
             onSnapshot(tasksColRef, (snapshot) => {
+                const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
                 let taskList = [];
-                snapshot.forEach(docSnap => taskList.push({ id: docSnap.id, ...docSnap.data() }));
-                if (taskList.length > 0) {
-                    window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                    window.saveLocalBackup();
-                    window.syncTasksToClients();
-                    renderApp();
-                    if (window.renderTechnicalSupport) window.renderTechnicalSupport();
-                    if (window.updateTaskNotifications) window.updateTaskNotifications(true);
-                    if (window.activeProfileClientId) {
-                        renderClientTimelineUI(window.activeProfileClientId);
-                    }
+                snapshot.forEach(docSnap => { const data=docSnap.data(); if(!data.deletedAt&&!deletedTaskIds.has(docSnap.id)) taskList.push({ id: docSnap.id, ...data }); });
+                window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                window.attachEmployeeIds();
+                window.saveLocalBackup();
+                window.syncTasksToClients();
+                renderApp();
+                if (window.renderTechnicalSupport) window.renderTechnicalSupport();
+                if (window.updateTaskNotifications) window.updateTaskNotifications(true);
+                if (window.activeProfileClientId) {
+                    renderClientTimelineUI(window.activeProfileClientId);
                 }
             });
 
@@ -2083,30 +2099,31 @@
                     const data = docSnap.data();
                     clientList.push({ id: docSnap.id, ...data, stage: window.normalizeFunnelStage(data.stage) });
                 });
-                if (clientList.length > 0) {
-                    window.clients = window.dedupeClients(clientList).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-                    window.saveLocalBackup();
-                    window.syncTasksToClients();
-                    renderClientSelectInTaskForm();
-                    renderLeadsTable();
-                    updateClientsCountBadges();
-                    renderApp();
-                }
+                window.clients = window.dedupeClients(clientList).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                window.attachEmployeeIds();
+                window.saveLocalBackup();
+                window.syncTasksToClients();
+                renderClientSelectInTaskForm();
+                renderLeadsTable();
+                updateClientsCountBadges();
+                renderApp();
             });
 
             onSnapshot(supportProjectsColRef, (snapshot) => {
-                const raw = []; snapshot.forEach(docSnap => raw.push({ id: docSnap.id, ...docSnap.data() }));
+                const raw = []; snapshot.forEach(docSnap => {const data=docSnap.data();if(!data.deletedAt)raw.push({ id: docSnap.id, ...data });});
                 const byClient = new Map(); raw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
-                const list=Array.from(byClient.values()); if (list.length > 0) { localStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport(); }
+                const list=Array.from(byClient.values()); localStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport();
             });
         }
 
         window.syncSupportProjectsCloud = async function(projects) {
             if (!window.dbUser) return;
+            const failures = [];
             for (const project of (projects || [])) {
                 if (!project.id) continue;
-                try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'supportProjects', project.id), project); } catch(e) {}
+                try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'supportProjects', project.id), project); } catch(e) { failures.push(project.id); }
             }
+            if (failures.length) throw new Error('تعذر تثبيت تحديث ملفات الدعم في Firebase. راجع صلاحيات الكتابة.');
         };
 
         window.syncTasksToClients = function() {
@@ -2115,7 +2132,9 @@
             let updatedAny = false;
 
             window.tasks.forEach(t => {
-                if (t.taskType === 'internal') return;
+                if (t.taskType === 'internal' || t.deletedAt) return;
+                const deletedClientIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
+                if (t.clientId && deletedClientIds.has(t.clientId)) return;
                 if (!t.customer && !t.phone) return;
                 
                 let client = window.clients.find(c => 
@@ -2167,7 +2186,10 @@
             if (!clientData.id) clientData.id = 'lead_' + Date.now();
             clientData.createdAt = clientData.createdAt || Date.now();
             clientData.stage = window.normalizeFunnelStage(clientData.stage);
-            clientData.addedBy = window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام';
+            const existingClient=(window.clients||[]).find(c=>c.id===clientData.id);
+            const loggedEmployee=window.findEmployeeByName(window.currentLoggedInAgent);
+            clientData.addedBy = clientData.addedBy || existingClient?.addedBy || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام');
+            clientData.addedById = clientData.addedById || existingClient?.addedById || (window.currentUserRole === 'agent' ? loggedEmployee?.id || '' : 'manager');
 
             try {
                 await waitForFirebaseUser();
@@ -2202,8 +2224,14 @@
             const deletedIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
             ids.forEach(id => deletedIds.add(id));
             localStorage.setItem('nabdi_deleted_client_ids', JSON.stringify([...deletedIds]));
+            const targetPhone = String(target.phone || '').replace(/\D/g, '');
+            const targetName = String(target.name || '').trim().toLowerCase();
+            const removedTasks = (window.tasks || []).filter(t => ids.includes(t.clientId) || (targetPhone.length >= 5 && String(t.phone || '').replace(/\D/g, '') === targetPhone) || (targetName && String(t.customer || '').trim().toLowerCase() === targetName));
+            const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
+            removedTasks.forEach(t => t.id && deletedTaskIds.add(t.id));
+            localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
             window.clients = window.clients.filter(c => !ids.includes(c.id));
-            window.tasks = window.tasks.filter(t => !ids.includes(t.clientId));
+            window.tasks = window.tasks.filter(t => !removedTasks.some(removed => removed.id === t.id));
             const support = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]');
             const removedSupport = support.filter(p => ids.includes(p.clientId));
             localStorage.setItem('nabdi_support_projects', JSON.stringify(support.filter(p => !ids.includes(p.clientId))));
@@ -2220,7 +2248,17 @@
                     try { await deleteDoc(ref); }
                     catch(e) { try { await setDoc(ref, {deletedAt: new Date().toISOString(), deletedBy: window.currentLoggedInAgent || 'المدير العام'}, {merge:true}); } catch(markError) { cloudFailures++; } }
                 }
-                try { for (const project of removedSupport) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'supportProjects', project.id)); } } catch(e) {}
+                for (const task of removedTasks) {
+                    if (!task.id) continue;
+                    const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
+                    try { await deleteDoc(taskRef); }
+                    catch(e) { try { await setDoc(taskRef, {deletedAt:new Date().toISOString(),deletedBy:window.currentLoggedInAgent||'المدير العام'}, {merge:true}); } catch(markError) { cloudFailures++; } }
+                }
+                for (const project of removedSupport) {
+                    const projectRef=doc(db,'artifacts',appId,'public','data','supportProjects',project.id);
+                    try { await deleteDoc(projectRef); }
+                    catch(e) { try { await setDoc(projectRef,{deletedAt:new Date().toISOString(),deletedBy:window.currentLoggedInAgent||'المدير العام'},{merge:true}); } catch(markError) { cloudFailures++; } }
+                }
             }
             if (window.showToast) window.showToast(cloudFailures ? 'تم إخفاء العميل، لكن Firebase رفض الحذف السحابي. راجع صلاحيات الحذف في Firebase Rules.' : (ids.length > 1 ? `تم حذف ${ids.length} سجلات مكررة للعميل` : 'تم حذف العميل بنجاح'), cloudFailures ? 'error' : 'success');
         };
@@ -2262,6 +2300,8 @@
         window.saveTaskToCloud = async function(taskData) {
             if (!taskData.id) taskData.id = 'task_' + Date.now();
             taskData.createdAt = taskData.createdAt || Date.now();
+            const taskEmployee=window.findEmployeeByName(taskData.agent);
+            taskData.agentId=taskData.agentId||taskEmployee?.id||'';
 
             if (taskData.customer && taskData.taskType !== 'internal') {
                 let matchedClient = (window.clients || []).find(c => 
@@ -2286,16 +2326,24 @@
                         specialty: taskData.specialty || '',
                         stage: stageForTask,
                         addedBy: taskData.agent || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام'),
+                        addedById: taskData.agentId || '',
                         createdAt: Date.now()
                     };
-                    window.saveClientToCloud(matchedClient);
+                    await window.saveClientToCloud(matchedClient);
                 } else {
                     taskData.clientId = matchedClient.id;
                     if (stageForTask !== matchedClient.stage) {
                         matchedClient.stage = stageForTask;
-                        window.saveClientToCloud(matchedClient);
+                        await window.saveClientToCloud(matchedClient);
                     }
                 }
+            }
+
+            try {
+                await waitForFirebaseUser();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskData.id), taskData);
+            } catch(error) {
+                throw new Error('لم يتم حفظ العمل المركزي للموظف. تحقق من الإنترنت وصلاحيات Firebase ثم أعد المحاولة.');
             }
 
             const idx = window.tasks.findIndex(t => t.id === taskData.id);
@@ -2305,24 +2353,24 @@
             window.saveLocalBackup();
             renderApp();
 
-            if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskData.id);
-                    await setDoc(docRef, taskData);
-                } catch(e) {}
-            }
+            return taskData;
         };
 
         window.deleteTaskFromCloud = async function(taskId) {
+            const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
+            deletedTaskIds.add(taskId);
+            localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
             window.tasks = window.tasks.filter(t => t.id !== taskId);
             window.saveLocalBackup();
             renderApp();
 
             if (window.dbUser) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
-                    await deleteDoc(docRef);
-                } catch(e) { if(window.showToast) window.showToast('Firebase رفض حذف المهمة. راجع صلاحيات الحذف.','error'); }
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
+                try { await deleteDoc(docRef); }
+                catch(e) {
+                    try { await setDoc(docRef,{deletedAt:new Date().toISOString(),deletedBy:window.currentLoggedInAgent||'المدير العام'},{merge:true}); }
+                    catch(markError) { if(window.showToast) window.showToast('تعذر تثبيت حذف المهمة في Firebase. راجع صلاحيات الكتابة.','error'); }
+                }
             }
         };
 
@@ -2713,7 +2761,7 @@
         window.resumePendingDocumentSync = function() {
             (window.clients || []).forEach(client => {
                 const pendingKeys = Object.entries(client.docs || {})
-                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && documentInfo.syncStatus === 'pending')
+                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && !documentInfo.url && ['pending','local'].includes(documentInfo.syncStatus))
                     .map(([key]) => key);
                 if (pendingKeys.length > 0) syncDocumentsInBackground(client.id, pendingKeys);
             });
@@ -2922,24 +2970,28 @@
                     }
 
                     if (fileToSave) {
-                        updateDocumentBadge(key, `جاري حفظ ${fileToSave.name} على الجهاز...`, 'uploading');
+                        updateDocumentBadge(key, `جاري تجهيز ${fileToSave.name}...`, 'uploading');
                         const localId = await storeDocumentLocally(fileToSave, clientId, key, documentInfo.localId || null);
+                        const cloudDocument = await window.uploadDocumentToCloud(fileToSave, clientId, key, progress => {
+                            updateDocumentBadge(key, `جاري الرفع السحابي: ${progress}% — ${fileToSave.name}`, 'uploading');
+                        });
                         docsToSave[key] = {
-                            name: fileToSave.name,
-                            size: formatFileSize(fileToSave.size),
-                            sizeBytes: fileToSave.size,
-                            type: fileToSave.type || 'application/octet-stream',
+                            ...cloudDocument,
                             localId,
                             savedAt: Date.now(),
-                            syncStatus: 'pending'
+                            syncStatus: 'cloud'
                         };
-                        pendingSyncKeys.push(key);
-                        updateDocumentBadge(key, `تم الحفظ: ${fileToSave.name} (${formatFileSize(fileToSave.size)})`);
+                        updateDocumentBadge(key, `تم الرفع السحابي: ${fileToSave.name}`);
                     } else {
                         const { file, pending, ...storedDocumentInfo } = documentInfo;
-                        docsToSave[key] = storedDocumentInfo;
-                        if (storedDocumentInfo.localId && !storedDocumentInfo.url && storedDocumentInfo.syncStatus === 'pending') {
-                            pendingSyncKeys.push(key);
+                        if (storedDocumentInfo.localId && !storedDocumentInfo.url) {
+                            const localRecord = await getLocalDocument(storedDocumentInfo.localId);
+                            if (!localRecord || !localRecord.blob) throw new Error(`المستند القديم (${storedDocumentInfo.name || key}) كان محفوظًا محليًا فقط ولم يعد موجودًا على هذا الرابط. أعد إرفاقه مرة واحدة.`);
+                            const oldFile = new File([localRecord.blob], storedDocumentInfo.name || localRecord.name, {type:storedDocumentInfo.type || localRecord.type || 'application/octet-stream'});
+                            const cloudDocument = await window.uploadDocumentToCloud(oldFile, clientId, key, progress => updateDocumentBadge(key, `ترحيل المستند للسحابة: ${progress}%`, 'uploading'));
+                            docsToSave[key] = {...storedDocumentInfo,...cloudDocument,syncStatus:'cloud'};
+                        } else {
+                            docsToSave[key] = storedDocumentInfo;
                         }
                     }
                 }
@@ -2994,9 +3046,7 @@
                 } else if (window.normalizeFunnelStage(stage) === 'إرفاق رابط Google Drive بالبيانات') {
                     setTimeout(() => window.openSupportHandoffForm(clientId), 150);
                 }
-                if (pendingSyncKeys.length > 0) {
-                    syncDocumentsInBackground(clientId, pendingSyncKeys);
-                }
+                if (pendingSyncKeys.length > 0) syncDocumentsInBackground(clientId, pendingSyncKeys);
             } catch (error) {
                 showToast(error.message || getUploadErrorMessage(error), 'error');
             } finally {
@@ -3331,10 +3381,12 @@
 
             let allTasks = window.tasks || [];
             let activeAgent = (window.currentUserRole === 'agent') ? window.currentLoggedInAgent : window.currentAgent;
+            const activeEmployee=(activeAgent==='ALL')?null:window.findEmployeeByName(activeAgent);
+            const employeeMatch=t=>activeAgent==='ALL'||window.sameEmployee(t.agent,activeAgent,t.agentId||'',activeEmployee?.id||window.currentLoggedInEmployeeId||'');
 
             let filtered = allTasks.filter(t => {
                 const matchShift = (shiftVal === 'ALL') || (t.shift === shiftVal);
-                const matchAgent = (activeAgent === 'ALL') || (t.agent === activeAgent);
+                const matchAgent = employeeMatch(t);
                 const matchEntityType = (entityTypeVal === 'ALL') || (t.entityType === entityTypeVal);
                 const matchStatus = (statusVal === 'ALL') || (t.status === statusVal);
                 const matchSearch = !searchVal || 
@@ -3348,17 +3400,17 @@
                 return matchShift && matchAgent && matchEntityType && matchStatus && matchSearch;
             });
 
-            const answeredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isAnsweredPhoneAction(t)).length;
-            const unansweredCalls = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isUnansweredPhoneAction(t)).length;
+            const answeredCalls = allTasks.filter(t => employeeMatch(t) && isAnsweredPhoneAction(t)).length;
+            const unansweredCalls = allTasks.filter(t => employeeMatch(t) && isUnansweredPhoneAction(t)).length;
             
             if (document.getElementById('agentTotalCalls')) document.getElementById('agentTotalCalls').innerText = answeredCalls + unansweredCalls;
             if (document.getElementById('agentAnsweredCalls')) document.getElementById('agentAnsweredCalls').innerText = answeredCalls;
             if (document.getElementById('agentUnansweredCalls')) document.getElementById('agentUnansweredCalls').innerText = unansweredCalls;
-            if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.category === 'إرسال واتساب').length;
-            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isMeetingAction(t)).length;
-            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isSentContractAction(t)).length;
-            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && isSignedContractAction(t)).length;
-            if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = allTasks.filter(t => (activeAgent === 'ALL' || t.agent === activeAgent) && t.status === 'تصعيد للمدير').length;
+            if (document.getElementById('agentWhatsappCount')) document.getElementById('agentWhatsappCount').innerText = allTasks.filter(t => employeeMatch(t) && t.category === 'إرسال واتساب').length;
+            if (document.getElementById('agentMeetingsCount')) document.getElementById('agentMeetingsCount').innerText = allTasks.filter(t => employeeMatch(t) && isMeetingAction(t)).length;
+            if (document.getElementById('agentNabdiContracts')) document.getElementById('agentNabdiContracts').innerText = allTasks.filter(t => employeeMatch(t) && isSentContractAction(t)).length;
+            if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = allTasks.filter(t => employeeMatch(t) && isSignedContractAction(t)).length;
+            if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = allTasks.filter(t => employeeMatch(t) && t.status === 'تصعيد للمدير').length;
 
             if (document.getElementById('agentTasksCountBadge')) document.getElementById('agentTasksCountBadge').innerText = filtered.length;
 
@@ -3611,7 +3663,7 @@
                     showToast("يرجى اختيار اسم الموظف", "error");
                     return;
                 }
-                const empObj = window.employees.find(e => e.name === agentName);
+                const empObj = window.findEmployeeByName(agentName);
                 const validPin = (empObj && empObj.pin) ? empObj.pin : '123456';
 
                 if (password !== validPin && password !== '123456') {
@@ -3642,7 +3694,9 @@
 
         function applyLoginSession(role, agentName) {
             window.currentUserRole = role;
-            window.currentLoggedInAgent = agentName;
+            const resolvedEmployee = role === 'agent' ? window.findEmployeeByName(agentName) : null;
+            window.currentLoggedInAgent = resolvedEmployee?.name || agentName;
+            window.currentLoggedInEmployeeId = resolvedEmployee?.id || (role === 'manager' ? 'manager' : '');
             window.userLoginAt = Date.now();
 
             try {
@@ -3677,7 +3731,7 @@
                 btnManageEmp.classList.add('hidden');
                 agentSelectorWrapper.classList.add('hidden');
                 if (btnAgentChangePin) btnAgentChangePin.classList.remove('hidden');
-                const loggedEmployee = (window.employees || []).find(e => e.name === agentName);
+                const loggedEmployee = resolvedEmployee;
                 const isTechnicalSupport = window.getEmployeeDepartment && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
                 const isSupervisor = window.getEmployeeAccessLevel && window.getEmployeeAccessLevel(loggedEmployee) === 'supervisor';
                 if (btnTechnicalSupport) {
@@ -3689,7 +3743,7 @@
                     btnCustomerAssignTask.classList.toggle('hidden', !canAssignCustomer);
                     btnCustomerAssignTask.classList.toggle('flex', canAssignCustomer);
                 }
-                window.currentAgent = agentName;
+                window.currentAgent = window.currentLoggedInAgent;
                 switchRole('agent');
                 if (isTechnicalSupport) setTimeout(() => window.openTechnicalSupportWorkspace && window.openTechnicalSupportWorkspace(), 100);
             }
@@ -3701,6 +3755,7 @@
         function logout() {
             window.currentUserRole = null;
             window.currentLoggedInAgent = null;
+            window.currentLoggedInEmployeeId = null;
             try {
                 sessionStorage.removeItem('cs_logged_role');
                 sessionStorage.removeItem('cs_logged_agent');
@@ -4803,7 +4858,7 @@
     (function(){
         const SUPPORT_STEPS = ['انتظار استلام بيانات العميل','مراجعة البيانات','طلب واستكمال البيانات الناقصة','تجهيز ورفع المنتجات والخدمات','رفع بيانات الدكاترة والصور','إدخال مواعيد الدكاترة','مراجعة الجودة','إرسال النسخة للعميل للمراجعة','تنفيذ تعديلات العميل','النشر والتسليم النهائي'];
         function loadSupport(){ try{return JSON.parse(localStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
-        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); if(window.syncSupportProjectsCloud)window.syncSupportProjectsCloud(v); }
+        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); if(window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(v);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));} }
         window.openTechnicalSupportWorkspace=function(){
             const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
             if(window.currentUserRole==='agent' && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
@@ -4870,20 +4925,20 @@
             const ix=project.tasks.findIndex(t=>t.id===id); ix>=0?project.tasks[ix]=data:project.tasks.push(data); saveSupport(projects); closeSupportTaskEditor(); renderTechnicalSupport(); if(window.showToast)showToast('تم حفظ مهمة الدعم الفني بنجاح');
         };
         window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(t){t.status=status;saveSupport(p);renderTechnicalSupport();}};
-        window.deleteSupportProjectTask=function(pid,tid){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف مهام الدعم متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف مهمة الدعم نهائيًا؟'))return;let projects=loadSupport(),project=projects.find(p=>p.id===pid);if(!project)return;project.tasks=(project.tasks||[]).filter(t=>t.id!==tid);saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم حذف مهمة الدعم');};
+        window.deleteSupportProjectTask=function(pid,tid){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف مهام الدعم متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف مهمة الدعم نهائيًا؟'))return;let projects=loadSupport(),project=projects.find(p=>p.id===pid);if(!project)return;const task=(project.tasks||[]).find(t=>t.id===tid);if(task){task.deletedAt=new Date().toISOString();task.deletedBy=window.currentLoggedInAgent||'المدير العام';}saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم حذف مهمة الدعم');};
         window.deleteInternalSupportTask=async function(id){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف المهام متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف المهمة المسندة نهائيًا؟'))return;await window.deleteTaskFromCloud(id);renderTechnicalSupport();if(window.showToast)showToast('تم حذف المهمة');};
         window.renderSupportInternalTasks=function(){const box=document.getElementById('supportInternalTasksList');if(!box)return;const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canSeeAll=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';let list=(window.tasks||[]).filter(t=>t.taskType==='internal'&&t.department==='الدعم الفني'&&(canSeeAll||t.agent===window.currentLoggedInAgent));list.sort((a,b)=>(a.status==='مكتمل')-(b.status==='مكتمل')||String(a.date||'').localeCompare(String(b.date||'')));document.getElementById('supportInternalTasksCount').textContent=list.filter(t=>t.status!=='مكتمل').length;box.innerHTML=list.length?list.map(t=>{const last=t.activityLog?.[t.activityLog.length-1];return `<article class="border rounded-2xl p-4 ${t.status==='مكتمل'?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><div class="flex justify-between gap-2"><div><b class="text-sm">${escapeHtml(t.title||'مهمة داخلية')}</b><p class="text-[10px] text-slate-500 mt-1">إلى: ${escapeHtml(t.agent||'-')} · من: ${escapeHtml(t.assignedBy||'-')}</p></div><span class="text-[10px] font-black ${t.status==='مكتمل'?'text-emerald-700':'text-amber-700'}">${t.status}</span></div><p class="text-xs text-slate-700 mt-3">${escapeHtml(t.notes||'')}</p>${last?`<div class="mt-2 bg-sky-50 border border-sky-100 rounded-xl p-2 text-[10px]"><b>${escapeHtml(last.type)}:</b> ${escapeHtml(last.comment)}<div class="text-slate-400 mt-1">${escapeHtml(last.by)} · ${new Date(last.at).toLocaleString('ar-EG')}</div></div>`:''}<div class="flex gap-2 mt-3">${t.status!=='مكتمل'&&t.agent===window.currentLoggedInAgent?`<button onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إجراء / تعليق</button><button onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إنهاء المهمة</button>`:''}${canSeeAll?`<button onclick="deleteInternalSupportTask('${t.id}')" class="bg-rose-600 text-white px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-trash ml-1"></i>حذف</button>`:''}</div></article>`}).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';};
         window.renderTechnicalSupport=function(){
             renderSupportInternalTasks();
             const supportUser=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canManageSupport=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(supportUser)==='supervisor';
-            const projects=loadSupport(), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=new Date().toISOString().slice(0,10);
+            const projects=loadSupport().filter(p=>!p.deletedAt), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=new Date().toISOString().slice(0,10);
             const open=all.filter(t=>t.status!=='مكتملة'), late=open.filter(t=>t.status==='متأخرة'||(t.due&&t.due<today));
             const pending=projects.filter(p=>!['تم الاستلام','تم الرفع بنجاح'].includes(p.handoffStatus)),receivedProjects=projects.filter(p=>p.handoffStatus==='تم الاستلام'),completedProjects=projects.filter(p=>p.handoffStatus==='تم الرفع بنجاح'); ['supportOpenTasksBadge'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pending.length}); document.getElementById('supportProjectsCount').textContent=pending.length; document.getElementById('supportOpenCount').textContent=receivedProjects.length; document.getElementById('supportDoneCount').textContent=completedProjects.length; document.getElementById('supportLateCount').textContent=late.length;
             const scope=document.getElementById('supportScopeFilter')?.value||'ALL';
             const activeProjects=projects.filter(p=>p.handoffStatus!=='تم الرفع بنجاح');
             const visibleProjects=scope==='COMPLETED'?completedProjects:scope==='MINE'?activeProjects.filter(p=>p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent)):scope==='UNASSIGNED'?activeProjects.filter(p=>p.handoffStatus!=='تم الاستلام'):activeProjects;
             const filtered=visibleProjects.filter(p=>!q||p.clientName.toLowerCase().includes(q)||(p.tasks||[]).some(t=>t.title.toLowerCase().includes(q)));
-            document.getElementById('supportProjectsList').innerHTML=filtered.length?filtered.map(p=>{const received=p.handoffStatus==='تم الاستلام',linkReady=p.handoffStatus==='تم إرسال رابط البيانات',c=(window.clients||[]).find(x=>x.id===p.clientId)||{},drive=p.supportPackage?.driveLink||c.supportPackage?.driveLink||'',label=received?'تم الاستلام بواسطة '+p.receivedBy:(linkReady?'تم إرسال رابط البيانات':'عميل جديد — بانتظار رابط البيانات');return `<article class="border ${received?'border-emerald-200':linkReady?'border-sky-300':'border-amber-300'} rounded-2xl overflow-hidden"><div class="${received?'bg-emerald-50':linkReady?'bg-sky-50':'bg-amber-50'} p-4 flex flex-wrap justify-between items-center gap-3"><div><div class="flex items-center gap-2"><b class="text-sm text-slate-950">${p.clientName}</b><span class="px-2 py-1 rounded-full text-[10px] font-black ${received?'bg-emerald-200 text-emerald-900':linkReady?'bg-sky-200 text-sky-900':'bg-amber-200 text-amber-900'}">${label}</span></div><p class="text-[10px] text-slate-600 mt-1">أرسله: ${p.sender||'خدمات العملاء'} · ${p.phone||''}</p></div><div class="flex flex-wrap gap-2">${drive?`<a href="${drive}" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-brands fa-google-drive ml-1"></i>فتح ملفات العميل</a>`:''}<button onclick="closeTechnicalSupportWorkspace();openClientProfileModal('${p.clientId}')" class="bg-white border px-3 py-2 rounded-xl text-xs font-black text-indigo-700">فتح بيانات العميل</button>${linkReady?`<button onclick="acceptSupportHandoff('${p.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black">استلام وبدء التنفيذ</button>`:received?`<button onclick="openSupportTaskEditor('${p.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-black">+ مهمة</button>`:`<span class="bg-amber-100 text-amber-900 px-3 py-2 rounded-xl text-xs font-black">بانتظار خدمات العملاء</span>`}</div></div>${received?`<div class="divide-y">${(p.tasks||[]).map(t=>`<div class="p-3 grid sm:grid-cols-[1fr_120px_140px_auto] gap-2 items-center"><button onclick="openSupportTaskEditor('${p.id}','${t.id}')" class="text-right"><b class="block text-xs">${t.title}</b><span class="text-[10px] text-slate-500">${t.notes||'بدون ملاحظات'}</span></button><span class="text-[10px] font-bold">${t.agent}</span><select onchange="setSupportTaskStatus('${p.id}','${t.id}',this.value)" class="border rounded-lg p-1.5 text-[10px]">${['جديدة','جاري التنفيذ','انتظار العميل','مكتملة','متأخرة'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>${canManageSupport?`<button onclick="deleteSupportProjectTask('${p.id}','${t.id}')" class="bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2 text-[10px] font-black"><i class="fa-solid fa-trash"></i></button>`:''}</div>`).join('')}</div>`:`<div class="p-4 bg-white text-xs text-slate-600">${linkReady?'وصل رابط الملفات ويمكن لموظف الدعم استلام العميل وبدء التنفيذ.':'تم إشعار الدعم بالعميل، وسيظهر رابط الملفات فور إرساله من خدمات العملاء.'}</div>`}</article>`}).join(''):'<div class="text-center text-xs text-slate-400 py-12">لا توجد ملفات مرسلة إلى الدعم الفني حتى الآن.</div>';
+            document.getElementById('supportProjectsList').innerHTML=filtered.length?filtered.map(p=>{const received=p.handoffStatus==='تم الاستلام',linkReady=p.handoffStatus==='تم إرسال رابط البيانات',c=(window.clients||[]).find(x=>x.id===p.clientId)||{},drive=p.supportPackage?.driveLink||c.supportPackage?.driveLink||'',label=received?'تم الاستلام بواسطة '+p.receivedBy:(linkReady?'تم إرسال رابط البيانات':'عميل جديد — بانتظار رابط البيانات');return `<article class="border ${received?'border-emerald-200':linkReady?'border-sky-300':'border-amber-300'} rounded-2xl overflow-hidden"><div class="${received?'bg-emerald-50':linkReady?'bg-sky-50':'bg-amber-50'} p-4 flex flex-wrap justify-between items-center gap-3"><div><div class="flex items-center gap-2"><b class="text-sm text-slate-950">${p.clientName}</b><span class="px-2 py-1 rounded-full text-[10px] font-black ${received?'bg-emerald-200 text-emerald-900':linkReady?'bg-sky-200 text-sky-900':'bg-amber-200 text-amber-900'}">${label}</span></div><p class="text-[10px] text-slate-600 mt-1">أرسله: ${p.sender||'خدمات العملاء'} · ${p.phone||''}</p></div><div class="flex flex-wrap gap-2">${drive?`<a href="${drive}" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-brands fa-google-drive ml-1"></i>فتح ملفات العميل</a>`:''}<button onclick="closeTechnicalSupportWorkspace();openClientProfileModal('${p.clientId}')" class="bg-white border px-3 py-2 rounded-xl text-xs font-black text-indigo-700">فتح بيانات العميل</button>${linkReady?`<button onclick="acceptSupportHandoff('${p.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black">استلام وبدء التنفيذ</button>`:received?`<button onclick="openSupportTaskEditor('${p.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-black">+ مهمة</button>`:`<span class="bg-amber-100 text-amber-900 px-3 py-2 rounded-xl text-xs font-black">بانتظار خدمات العملاء</span>`}</div></div>${received?`<div class="divide-y">${(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>`<div class="p-3 grid sm:grid-cols-[1fr_120px_140px_auto] gap-2 items-center"><button onclick="openSupportTaskEditor('${p.id}','${t.id}')" class="text-right"><b class="block text-xs">${t.title}</b><span class="text-[10px] text-slate-500">${t.notes||'بدون ملاحظات'}</span></button><span class="text-[10px] font-bold">${t.agent}</span><select onchange="setSupportTaskStatus('${p.id}','${t.id}',this.value)" class="border rounded-lg p-1.5 text-[10px]">${['جديدة','جاري التنفيذ','انتظار العميل','مكتملة','متأخرة'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>${canManageSupport?`<button onclick="deleteSupportProjectTask('${p.id}','${t.id}')" class="bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2 text-[10px] font-black"><i class="fa-solid fa-trash"></i></button>`:''}</div>`).join('')}</div>`:`<div class="p-4 bg-white text-xs text-slate-600">${linkReady?'وصل رابط الملفات ويمكن لموظف الدعم استلام العميل وبدء التنفيذ.':'تم إشعار الدعم بالعميل، وسيظهر رابط الملفات فور إرساله من خدمات العملاء.'}</div>`}</article>`}).join(''):'<div class="text-center text-xs text-slate-400 py-12">لا توجد ملفات مرسلة إلى الدعم الفني حتى الآن.</div>';
             Array.from(document.getElementById('supportProjectsList').children).forEach((article,index)=>{const p=filtered[index];if(!p)return;const actions=article.querySelector('.flex.flex-wrap.gap-2');if(p.handoffStatus==='تم الاستلام'&&actions){const btn=document.createElement('button');btn.className='bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-black';btn.innerHTML='<i class="fa-solid fa-circle-check ml-1"></i>تم الرفع بنجاح';btn.onclick=()=>completeSupportProject(p.id);actions.appendChild(btn);}if(p.handoffStatus==='تم الرفع بنجاح'){const badge=article.querySelector('span.px-2');if(badge){badge.textContent='تم الرفع بنجاح بواسطة '+(p.completedBy||'-');badge.className='px-2 py-1 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900';}const info=article.lastElementChild;if(info)info.innerHTML='<i class="fa-solid fa-box-archive text-emerald-600 ml-1"></i>أُغلق الملف ونُقل للأرشيف — '+(p.completedAt?new Date(p.completedAt).toLocaleString('ar-EG'):'');}}
             );
             const agents={}; all.forEach(t=>{if(t.agent==='غير موزعة')return; agents[t.agent]??={done:0,total:0,late:0};agents[t.agent].total++;if(t.status==='مكتملة')agents[t.agent].done++;if(t.status==='متأخرة'||(t.status!=='مكتملة'&&t.due&&t.due<today))agents[t.agent].late++;}); document.getElementById('supportLeaderboard').innerHTML=Object.entries(agents).sort((a,b)=>(b[1].total?b[1].done/b[1].total:0)-(a[1].total?a[1].done/a[1].total:0)).map(([n,v],i)=>`<div class="border rounded-2xl p-3"><div class="flex justify-between"><b class="text-xs">${i+1}. ${n}</b><b class="text-xs text-emerald-700">${v.total?Math.round(v.done/v.total*100):0}% إنجاز</b></div><div class="h-2 bg-slate-100 rounded mt-2 overflow-hidden"><div class="h-full bg-emerald-500" style="width:${v.total?Math.round(v.done/v.total*100):0}%"></div></div><span class="text-[10px] text-slate-500">${v.done} مكتملة من ${v.total} · ${v.late} متأخرة</span></div>`).join('')||'<p class="text-xs text-slate-400 text-center py-8">وزّع المهام لعرض المتابعة</p>';
