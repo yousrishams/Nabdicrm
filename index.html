@@ -1763,7 +1763,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, setDoc, getDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // جميع الموظفين يجب أن يقرأوا ويكتبوا في مساحة عمل واحدة ثابتة.
@@ -2115,33 +2115,44 @@
         }
 
         async function migrateExistingDataToSharedDatabase() {
-            const migrationKey = `nabdi_shared_database_migration_v3_${legacyAppId}`;
+            const migrationKey = `nabdi_shared_database_migration_v4_${legacyAppId}`;
             if (localStorage.getItem(migrationKey) === 'done') return;
+
+            // قفل مركزي يمنع كل جهاز/موظف من إعادة نسخ آلاف السجلات نفسها.
+            // في النسخة السابقة كان القفل محلياً داخل المتصفح فقط، وهو ما ضاعف
+            // الكتابات عند فتح النظام بالتزامن من عدة أجهزة.
+            const markerRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'legacyMigrationV4');
+            const leaseOwner = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            let leaseState = 'busy';
+            try {
+                leaseState = await runTransaction(db, async (transaction) => {
+                    const markerSnapshot = await transaction.get(markerRef);
+                    const marker = markerSnapshot.exists() ? markerSnapshot.data() : {};
+                    if (marker.status === 'done') return 'done';
+                    const startedAt = Number(marker.startedAt || 0);
+                    if (marker.status === 'running' && Date.now() - startedAt < 10 * 60 * 1000) return 'busy';
+                    transaction.set(markerRef, {
+                        status: 'running',
+                        owner: leaseOwner,
+                        startedAt: Date.now(),
+                        legacyAppId
+                    }, { merge: true });
+                    return 'claimed';
+                });
+            } catch (error) {
+                // فشل الترحيل لا يمنع تشغيل القراءة اللحظية للتطبيق.
+                console.error('Failed to claim shared migration lease:', error);
+                return;
+            }
+
+            if (leaseState === 'done') {
+                localStorage.setItem(migrationKey, 'done');
+                return;
+            }
+            if (leaseState !== 'claimed') return;
 
             let migratedCount = 0;
             let migrationFailed = false;
-            const localCollections = {
-                clients: [...(window.clients || [])],
-                tasks: [...(window.tasks || [])],
-                supportProjects: JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]')
-            };
-            if (localStorage.getItem('cs_nabdi_employees')) {
-                localCollections.employees = [...(window.employees || [])];
-            }
-
-            for (const [collectionName, records] of Object.entries(localCollections)) {
-                for (const record of records) {
-                    try {
-                        if (await migrateRecordToSharedDatabase(collectionName, record)) migratedCount += 1;
-                    } catch (error) {
-                        migrationFailed = true;
-                        console.error(`Failed to migrate local ${collectionName} record:`, error);
-                    }
-                }
-            }
-
-            // اجلب ما كان محفوظاً في المسار المتغير القديم لهذه الجلسة وانقله
-            // إلى المسار الثابت الذي يراه جميع الموظفين.
             if (legacyAppId !== appId) {
                 for (const collectionName of ['clients', 'tasks', 'employees', 'supportProjects']) {
                     try {
@@ -2157,11 +2168,27 @@
                 }
             }
 
-            if (!migrationFailed) {
+            try {
+                if (migrationFailed) {
+                    await setDoc(markerRef, {
+                        status: 'failed',
+                        owner: leaseOwner,
+                        failedAt: Date.now()
+                    }, { merge: true });
+                    return;
+                }
+                await setDoc(markerRef, {
+                    status: 'done',
+                    owner: leaseOwner,
+                    completedAt: Date.now(),
+                    migratedCount
+                }, { merge: true });
                 localStorage.setItem(migrationKey, 'done');
                 if (migratedCount > 0 && window.showToast) {
                     window.showToast(`تم توحيد ${migratedCount} سجل قديم في قاعدة الموظفين المشتركة.`, 'info');
                 }
+            } catch (error) {
+                console.error('Failed to finalize shared migration:', error);
             }
         }
 
@@ -2187,7 +2214,6 @@
                         window.resumePendingClientSync();
                     }
                 }, 500);
-                try { const localSupport = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); if (localSupport.length && window.syncSupportProjectsCloud) window.syncSupportProjectsCloud(localSupport); } catch(e) {}
                 if (typeof window.resumePendingDocumentSync === 'function') {
                     window.resumePendingDocumentSync();
                 }
@@ -5114,7 +5140,13 @@
     (function(){
         const SUPPORT_STEPS = ['انتظار استلام بيانات العميل','مراجعة البيانات','طلب واستكمال البيانات الناقصة','تجهيز ورفع المنتجات والخدمات','رفع بيانات الدكاترة والصور','إدخال مواعيد الدكاترة','مراجعة الجودة','إرسال النسخة للعميل للمراجعة','تنفيذ تعديلات العميل','النشر والتسليم النهائي'];
         function loadSupport(){ try{return JSON.parse(localStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
-        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); if(window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(v);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));} }
+        function saveSupport(v){
+            const next=Array.isArray(v)?v:[],previous=loadSupport(),previousById=new Map(previous.filter(p=>p&&p.id).map(p=>[p.id,JSON.stringify(p)]));
+            const changed=next.filter(p=>p&&p.id&&previousById.get(p.id)!==JSON.stringify(p));
+            localStorage.setItem('nabdi_support_projects',JSON.stringify(next));
+            // اكتب السجل الذي تغيّر فقط؛ لا تعِد كتابة جميع مشاريع الدعم عند كل فتح.
+            if(changed.length&&window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(changed);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));}
+        }
         window.openTechnicalSupportWorkspace=function(){
             const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
             if(window.currentUserRole==='agent' && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
