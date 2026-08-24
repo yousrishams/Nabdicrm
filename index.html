@@ -2187,13 +2187,6 @@
             clientData.createdAt = clientData.createdAt || Date.now();
             clientData.stage = window.normalizeFunnelStage(clientData.stage);
             const existingClient=(window.clients||[]).find(c=>c.id===clientData.id);
-            // احتفظ بأي بيانات أضيفت من شاشات أخرى (مثل حزمة الدعم الفني)
-            // حتى لا يؤدي تعديل بيانات الجهة أو المرفقات إلى مسحها من Firebase.
-            clientData = {
-                ...(existingClient || {}),
-                ...clientData,
-                docs: clientData.docs || existingClient?.docs || {}
-            };
             const loggedEmployee=window.findEmployeeByName(window.currentLoggedInAgent);
             clientData.addedBy = clientData.addedBy || existingClient?.addedBy || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام');
             clientData.addedById = clientData.addedById || existingClient?.addedById || (window.currentUserRole === 'agent' ? loggedEmployee?.id || '' : 'manager');
@@ -2202,8 +2195,7 @@
                 await waitForFirebaseUser();
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', clientData.id);
                 const { _duplicateIds, ...cloudClientData } = clientData;
-                // merge يمنع أي حفظ متزامن للمرفقات أو الدعم الفني من حذف حقول أخرى.
-                await setDoc(docRef, cloudClientData, { merge: true });
+                await setDoc(docRef, cloudClientData);
             } catch (error) {
                 const saveError = new Error('لم يتم حفظ الجهة على قاعدة البيانات، لذلك لن تظهر لباقي الموظفين. تحقق من الإنترنت وصلاحيات Firebase ثم حاول مرة أخرى.');
                 saveError.cause = error;
@@ -2477,20 +2469,6 @@
             return `${(size / (1024 * 1024)).toFixed(1)} MB`;
         }
 
-        function buildCanonicalClientId(name, phone, city) {
-            const digits = String(phone || '').replace(/\D/g, '');
-            if (digits.length >= 5) return `lead_phone_${digits}`;
-
-            // احتياطي فقط؛ الهاتف مطلوب في النموذج. المعرّف الثابت يمنع أن يقوم
-            // موظفان بإنشاء وثيقتين مختلفتين لنفس الجهة في اللحظة نفسها.
-            const source = `${name || ''}|${city || ''}`.normalize('NFKC').trim().toLowerCase();
-            let hash = 0;
-            for (let index = 0; index < source.length; index += 1) {
-                hash = ((hash << 5) - hash + source.charCodeAt(index)) | 0;
-            }
-            return `lead_entity_${Math.abs(hash)}`;
-        }
-
         function updateDocumentBadge(key, message, state = 'ready') {
             const badge = document.getElementById(`badge_${key}`);
             if (!badge) return;
@@ -2529,16 +2507,6 @@
         let attachmentDbPromise = null;
         const syncingDocumentClients = new Set();
 
-        function getDocumentSyncDeviceId() {
-            const storageKey = 'nabdi_document_sync_device_id';
-            let deviceId = localStorage.getItem(storageKey);
-            if (!deviceId) {
-                deviceId = `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-                localStorage.setItem(storageKey, deviceId);
-            }
-            return deviceId;
-        }
-
         function openAttachmentDatabase() {
             if (attachmentDbPromise) return attachmentDbPromise;
             attachmentDbPromise = new Promise((resolve, reject) => {
@@ -2572,7 +2540,6 @@
                 type: file.type || 'application/octet-stream',
                 sizeBytes: file.size,
                 blob: file,
-                deviceId: getDocumentSyncDeviceId(),
                 savedAt: Date.now()
             };
 
@@ -2657,7 +2624,6 @@
             link.href = sourceUrl;
             link.download = fileName || 'document';
             link.rel = 'noopener noreferrer';
-            link.target = '_blank';
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -2706,19 +2672,8 @@
                     renderDocumentViewer(objectUrl, documentInfo);
                     return;
                 } catch (error) {
-                    // بعض إعدادات CORS تمنع تحويل الرابط إلى Blob رغم أن رابط
-                    // Firebase نفسه صالح. استخدم العرض/الفتح المباشر كمسار احتياطي.
-                    if (downloadOnly) {
-                        downloadDocumentFromSource(directUrl, documentInfo.name);
-                        showToast('تم فتح رابط المستند مباشرة.');
-                        return;
-                    }
-                    activeDocumentViewerRef = { clientId, fieldKey };
-                    document.getElementById('documentViewerMeta').innerText = `${documentInfo.type || 'ملف'} • ${documentInfo.size || ''} • عرض سحابي مباشر`;
-                    document.getElementById('documentViewerHint').innerText = 'تم استخدام الرابط المباشر لأن المتصفح منع تجهيز نسخة المعاينة.';
-                    document.getElementById('documentViewerDownloadBtn').onclick = () => openClientDocument(clientId, fieldKey, true);
-                    renderDocumentViewer(directUrl, documentInfo);
-                    showToast('تم فتح المستند بالرابط السحابي المباشر.', 'info');
+                    if (!downloadOnly) closeDocumentViewer();
+                    showToast(error.message || 'تعذر تحميل المستند السحابي. تحقق من صلاحيات Firebase Storage.', 'error');
                     return;
                 }
             }
@@ -2765,18 +2720,9 @@
                     const documentInfo = docs[key];
                     if (!documentInfo || !documentInfo.localId || documentInfo.url || documentInfo.syncStatus === 'cloud') continue;
 
-                    // الملف المحلي لا يوجد إلا على الجهاز الذي اختاره منه المستخدم.
-                    // لا تجعل جهاز موظف آخر يغيّر حالته أو يمسح نتيجة رفعه أثناء المزامنة الحية.
-                    if (documentInfo.localOwnerId && documentInfo.localOwnerId !== getDocumentSyncDeviceId()) continue;
-
                     try {
                         const localRecord = await getLocalDocument(documentInfo.localId);
-                        if (!localRecord || !localRecord.blob) {
-                            // مستند قديم بلا معرّف جهاز: تجاهله هنا كي لا يكتب هذا الجهاز
-                            // حالة فشل فوق نسخة قد يكون جهاز آخر بصدد رفعها.
-                            if (!documentInfo.localOwnerId) continue;
-                            throw new Error('النسخة المحلية غير موجودة على الجهاز الذي أرفق المستند.');
-                        }
+                        if (!localRecord || !localRecord.blob) throw new Error('النسخة المحلية غير موجودة.');
                         const file = new File([localRecord.blob], documentInfo.name || localRecord.name, {
                             type: documentInfo.type || localRecord.type || 'application/octet-stream'
                         });
@@ -2815,19 +2761,11 @@
         window.resumePendingDocumentSync = function() {
             (window.clients || []).forEach(client => {
                 const pendingKeys = Object.entries(client.docs || {})
-                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && !documentInfo.url &&
-                        ['pending','local'].includes(documentInfo.syncStatus) &&
-                        (!documentInfo.localOwnerId || documentInfo.localOwnerId === getDocumentSyncDeviceId()))
+                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && !documentInfo.url && ['pending','local'].includes(documentInfo.syncStatus))
                     .map(([key]) => key);
                 if (pendingKeys.length > 0) syncDocumentsInBackground(client.id, pendingKeys);
             });
         };
-
-        window.addEventListener('online', () => {
-            if (typeof window.resumePendingDocumentSync === 'function') {
-                window.resumePendingDocumentSync();
-            }
-        });
 
         function handleFileSelected(event, key) {
             const file = event.target.files[0];
@@ -2992,21 +2930,22 @@
             }
 
             const isNewClient = !id;
-            const clientId = id || buildCanonicalClientId(name, phone, city);
-            const normalizedPhone = phone.replace(/\D/g, '');
-            const normalizedName = name.trim().toLowerCase();
-            const duplicate = (window.clients || []).find(c => {
-                if (c.id === id) return false;
-                const existingPhone = String(c.phone || '').replace(/\D/g, '');
-                const samePhone = normalizedPhone.length >= 5 && existingPhone === normalizedPhone;
-                const sameNameCity = String(c.name || '').trim().toLowerCase() === normalizedName && String(c.city || '') === String(city || '');
-                return samePhone || sameNameCity;
-            });
-            if (duplicate) {
-                showToast(`العميل (${duplicate.name}) مسجل بالفعل — لن يتم إنشاء سجل مكرر`, 'error');
-                closeAddClientModal();
-                setTimeout(() => openClientProfileModal(duplicate.id), 100);
-                return;
+            const clientId = id || `lead_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            if (isNewClient) {
+                const normalizedPhone = phone.replace(/\D/g, '');
+                const normalizedName = name.trim().toLowerCase();
+                const duplicate = (window.clients || []).find(c => {
+                    const existingPhone = String(c.phone || '').replace(/\D/g, '');
+                    const samePhone = normalizedPhone.length >= 5 && existingPhone === normalizedPhone;
+                    const sameNameCity = String(c.name || '').trim().toLowerCase() === normalizedName && String(c.city || '') === String(city || '');
+                    return samePhone || sameNameCity;
+                });
+                if (duplicate) {
+                    showToast(`العميل (${duplicate.name}) مسجل بالفعل — لن يتم إنشاء سجل مكرر`, 'error');
+                    closeAddClientModal();
+                    setTimeout(() => openClientProfileModal(duplicate.id), 100);
+                    return;
+                }
             }
             const submitButton = e.submitter || e.target.querySelector('button[type="submit"]');
             const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
@@ -3031,29 +2970,26 @@
                     }
 
                     if (fileToSave) {
-                        // احفظ نسخة محلية سريعة أولاً. لا نربط تسجيل الجهة بنجاح
-                        // Firebase Storage؛ الرفع يتم بعد حفظ بيانات الجهة في الخلفية.
-                        updateDocumentBadge(key, `جاري حفظ ${fileToSave.name} محلياً...`, 'uploading');
+                        updateDocumentBadge(key, `جاري تجهيز ${fileToSave.name}...`, 'uploading');
                         const localId = await storeDocumentLocally(fileToSave, clientId, key, documentInfo.localId || null);
+                        const cloudDocument = await window.uploadDocumentToCloud(fileToSave, clientId, key, progress => {
+                            updateDocumentBadge(key, `جاري الرفع السحابي: ${progress}% — ${fileToSave.name}`, 'uploading');
+                        });
                         docsToSave[key] = {
-                            name: fileToSave.name,
-                            size: formatFileSize(fileToSave.size),
-                            sizeBytes: fileToSave.size,
-                            type: fileToSave.type || 'application/octet-stream',
+                            ...cloudDocument,
                             localId,
-                            localOwnerId: getDocumentSyncDeviceId(),
                             savedAt: Date.now(),
-                            syncStatus: 'pending'
+                            syncStatus: 'cloud'
                         };
-                        pendingSyncKeys.push(key);
-                        updateDocumentBadge(key, `تم الحفظ وسيُرفع في الخلفية: ${fileToSave.name}`);
+                        updateDocumentBadge(key, `تم الرفع السحابي: ${fileToSave.name}`);
                     } else {
                         const { file, pending, ...storedDocumentInfo } = documentInfo;
                         if (storedDocumentInfo.localId && !storedDocumentInfo.url) {
-                            docsToSave[key] = storedDocumentInfo;
-                            if (!storedDocumentInfo.localOwnerId || storedDocumentInfo.localOwnerId === getDocumentSyncDeviceId()) {
-                                pendingSyncKeys.push(key);
-                            }
+                            const localRecord = await getLocalDocument(storedDocumentInfo.localId);
+                            if (!localRecord || !localRecord.blob) throw new Error(`المستند القديم (${storedDocumentInfo.name || key}) كان محفوظًا محليًا فقط ولم يعد موجودًا على هذا الرابط. أعد إرفاقه مرة واحدة.`);
+                            const oldFile = new File([localRecord.blob], storedDocumentInfo.name || localRecord.name, {type:storedDocumentInfo.type || localRecord.type || 'application/octet-stream'});
+                            const cloudDocument = await window.uploadDocumentToCloud(oldFile, clientId, key, progress => updateDocumentBadge(key, `ترحيل المستند للسحابة: ${progress}%`, 'uploading'));
+                            docsToSave[key] = {...storedDocumentInfo,...cloudDocument,syncStatus:'cloud'};
                         } else {
                             docsToSave[key] = storedDocumentInfo;
                         }
@@ -3097,29 +3033,20 @@
                         notes: `تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.${notes ? ' ملاحظات: ' + notes : ''}`
                     };
 
-                    try {
-                        await window.saveTaskToCloud(initialTask);
-                    } catch (taskError) {
-                        // لا تعتبر تسجيل الجهة فاشلاً لمجرد تعذر إنشاء سجل الحركة.
-                        // بيانات الجهة أصبحت محفوظة بالفعل ويمكن إضافة الإجراء لاحقاً.
-                        console.error('Initial client action could not be synced:', taskError);
-                        showToast('تم حفظ الجهة، لكن تعذر تسجيل الإجراء الأول مؤقتاً.', 'info');
-                    }
+                    await window.saveTaskToCloud(initialTask);
                 }
 
                 window.currentTempDocs = { ...docsToSave };
                 closeAddClientModal();
                 const documentCount = Object.keys(docsToSave).length;
-                showToast(`تم حفظ الجهة (${name})${documentCount ? ` و${documentCount} مستند` : ''} بنجاح${pendingSyncKeys.length ? '، وجارٍ رفع المرفقات في الخلفية' : ''}.`);
+                showToast(`تم حفظ الجهة (${name})${documentCount ? ` و${documentCount} مستند` : ''} بنجاح.`);
                 if (window.normalizeFunnelStage(stage) === 'إرسال البيانات إلى الدعم الفني') {
                     window.syncSupportProjectsFromFunnel(false);
                     showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
                 } else if (window.normalizeFunnelStage(stage) === 'إرفاق رابط Google Drive بالبيانات') {
                     setTimeout(() => window.openSupportHandoffForm(clientId), 150);
                 }
-                if (pendingSyncKeys.length > 0) {
-                    setTimeout(() => syncDocumentsInBackground(clientId, pendingSyncKeys), 0);
-                }
+                if (pendingSyncKeys.length > 0) syncDocumentsInBackground(clientId, pendingSyncKeys);
             } catch (error) {
                 showToast(error.message || getUploadErrorMessage(error), 'error');
             } finally {
@@ -3315,7 +3242,7 @@
                         const d = client.docs[k];
                         const statusText = d.url || (typeof d.data === 'string' && d.data.startsWith('https://'))
                             ? 'محفوظ سحابياً'
-                            : (d.syncStatus === 'pending' ? 'محفوظ وجاري الرفع' : 'تعذر الرفع السحابي — ستتم إعادة المحاولة');
+                            : (d.syncStatus === 'pending' ? 'محفوظ وجاري المزامنة' : 'محفوظ على هذا الجهاز');
                         const statusClass = d.url
                             ? 'bg-emerald-100 text-emerald-800'
                             : (d.syncStatus === 'pending' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700');
