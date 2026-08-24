@@ -1763,14 +1763,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-        // جميع الموظفين يجب أن يقرأوا ويكتبوا في مساحة عمل واحدة ثابتة.
-        // الاعتماد على __app_id كان يسمح باختلاف المسار بين جلسة وموظف وآخر.
-        const legacyAppId = typeof __app_id !== 'undefined' && __app_id ? String(__app_id) : 'cs-shifts-app';
-        const appId = 'nabdi-crm';
-        window.NABDI_SHARED_APP_ID = appId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'cs-shifts-app';
         const firebaseConfig = {
             apiKey: "AIzaSyDI1SJ696IKaAk8567rXWeyDRz6Yjv94Nc",
             authDomain: "nabdi-crm.firebaseapp.com",
@@ -1841,31 +1837,6 @@
         window.activeProfileClientId = null;
         window.currentTempDocs = {};
 
-        function withOperationTimeout(promise, timeoutMs, message) {
-            return new Promise((resolve, reject) => {
-                let finished = false;
-                const timer = setTimeout(() => {
-                    if (finished) return;
-                    finished = true;
-                    const timeoutError = new Error(message || 'انتهت مهلة الاتصال بالسحابة.');
-                    timeoutError.code = 'cloud/timeout';
-                    reject(timeoutError);
-                }, timeoutMs);
-
-                Promise.resolve(promise).then(value => {
-                    if (finished) return;
-                    finished = true;
-                    clearTimeout(timer);
-                    resolve(value);
-                }, error => {
-                    if (finished) return;
-                    finished = true;
-                    clearTimeout(timer);
-                    reject(error);
-                });
-            });
-        }
-
         function waitForFirebaseUser() {
             if (auth.currentUser) return Promise.resolve(auth.currentUser);
 
@@ -1873,10 +1844,8 @@
                 let unsubscribe = () => {};
                 const timeoutId = setTimeout(() => {
                     unsubscribe();
-                    const authTimeoutError = new Error('تعذر تسجيل الاتصال بقاعدة البيانات خلال 6 ثوانٍ.');
-                    authTimeoutError.code = 'auth/timeout';
-                    reject(authTimeoutError);
-                }, 6000);
+                    reject(new Error('تعذر تجهيز الاتصال بخدمة رفع الملفات. تحقق من الإنترنت ثم حاول مرة أخرى.'));
+                }, 12000);
 
                 unsubscribe = onAuthStateChanged(auth, user => {
                     if (!user) return;
@@ -1986,19 +1955,6 @@
             if(firstId&&secondId&&firstId===secondId) return true;
             return window.normalizeEmployeeName(firstName)===window.normalizeEmployeeName(secondName);
         };
-        window.taskMatchesClient = function(task, client) {
-            if (!task || !client) return false;
-            if (task.clientId) return task.clientId === client.id;
-
-            const taskName = String(task.customer || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
-            const clientName = String(client.name || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
-            if (taskName && clientName) return taskName === clientName;
-
-            // الهاتف مسار احتياطي فقط عندما لا يوجد اسم ولا clientId.
-            const taskPhone = String(task.phone || '').replace(/\D/g, '');
-            const clientPhone = String(client.phone || '').replace(/\D/g, '');
-            return !taskName && taskPhone.length >= 5 && taskPhone === clientPhone;
-        };
         window.attachEmployeeIds = function() {
             (window.clients||[]).forEach(c=>{if(!c.addedById){const emp=window.findEmployeeByName(c.addedBy);if(emp)c.addedById=emp.id;}});
             (window.tasks||[]).forEach(t=>{if(!t.agentId){const emp=window.findEmployeeByName(t.agent);if(emp)t.agentId=emp.id;}});
@@ -2011,16 +1967,12 @@
                 const phone = String(client.phone || '').replace(/\D/g, '');
                 const name = String(client.name || '').trim().toLowerCase();
                 const city = String(client.city || '').trim().toLowerCase();
-                // لا تعتبر رقم الهاتف وحده هوية للجهة؛ قد تستخدم جهتان رقم مسؤول واحد.
-                // لا ندمج إلا السجلات المتطابقة فعلياً في الاسم والمدينة والهاتف.
-                const key = 'entity:' + name + '|city:' + city + '|phone:' + phone;
+                const key = phone.length >= 5 ? 'phone:' + phone : 'name:' + name + '|' + city;
                 if (!name && phone.length < 5) return;
                 const previous = map.get(key);
                 if (!previous) map.set(key, {...client, _duplicateIds: [client.id].filter(Boolean)});
                 else {
-                    const clientTime = Number(client.updatedAt || client.createdAt || 0);
-                    const previousTime = Number(previous.updatedAt || previous.createdAt || 0);
-                    const newer = clientTime >= previousTime ? client : previous;
+                    const newer = (Number(client.createdAt)||0) >= (Number(previous.createdAt)||0) ? client : previous;
                     const older = newer === client ? previous : client;
                     map.set(key, {...older, ...newer, docs: {...(older.docs||{}), ...(newer.docs||{})}, _duplicateIds: Array.from(new Set([...(previous._duplicateIds||[previous.id]), client.id].filter(Boolean)))});
                 }
@@ -2068,14 +2020,10 @@
 
                 const storedClients = localStorage.getItem('cs_nabdi_clients');
                 if (storedClients) {
-                    window.clients = window.dedupeClients(
-                        JSON.parse(storedClients)
-                            .filter(client => client && client.cloudSyncStatus !== 'pending')
-                            .map(client => ({
-                                ...client,
-                                stage: window.normalizeFunnelStage(client.stage)
-                            }))
-                    );
+                    window.clients = window.dedupeClients(JSON.parse(storedClients).map(client => ({
+                        ...client,
+                        stage: window.normalizeFunnelStage(client.stage)
+                    })));
                 }
             } catch(e) {}
         };
@@ -2087,110 +2035,6 @@
                 localStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
             } catch(e) {}
         };
-
-        function cleanRecordForSharedDatabase(record) {
-            const { _duplicateIds, file, pending, ...cleanRecord } = record || {};
-            return cleanRecord;
-        }
-
-        async function migrateRecordToSharedDatabase(collectionName, record) {
-            if (!record || !record.id) return false;
-            const targetRef = doc(db, 'artifacts', appId, 'public', 'data', collectionName, record.id);
-            const targetSnapshot = await getDoc(targetRef);
-            const sourceData = cleanRecordForSharedDatabase(record);
-
-            if (targetSnapshot.exists()) {
-                const targetData = targetSnapshot.data() || {};
-                const sourceTime = Number(sourceData.updatedAt || sourceData.createdAt || 0);
-                const targetTime = Number(targetData.updatedAt || targetData.createdAt || 0);
-                // لا تكتب نسخة محلية/قديمة فوق تعديل أحدث وصل بالفعل للقاعدة الموحدة.
-                if (!sourceTime || targetTime >= sourceTime) return false;
-            }
-
-            await setDoc(targetRef, {
-                ...sourceData,
-                migratedToSharedDatabaseAt: Date.now()
-            }, { merge: true });
-            return true;
-        }
-
-        async function migrateExistingDataToSharedDatabase() {
-            const migrationKey = `nabdi_shared_database_migration_v4_${legacyAppId}`;
-            if (localStorage.getItem(migrationKey) === 'done') return;
-
-            // قفل مركزي يمنع كل جهاز/موظف من إعادة نسخ آلاف السجلات نفسها.
-            // في النسخة السابقة كان القفل محلياً داخل المتصفح فقط، وهو ما ضاعف
-            // الكتابات عند فتح النظام بالتزامن من عدة أجهزة.
-            const markerRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'legacyMigrationV4');
-            const leaseOwner = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-            let leaseState = 'busy';
-            try {
-                leaseState = await runTransaction(db, async (transaction) => {
-                    const markerSnapshot = await transaction.get(markerRef);
-                    const marker = markerSnapshot.exists() ? markerSnapshot.data() : {};
-                    if (marker.status === 'done') return 'done';
-                    const startedAt = Number(marker.startedAt || 0);
-                    if (marker.status === 'running' && Date.now() - startedAt < 10 * 60 * 1000) return 'busy';
-                    transaction.set(markerRef, {
-                        status: 'running',
-                        owner: leaseOwner,
-                        startedAt: Date.now(),
-                        legacyAppId
-                    }, { merge: true });
-                    return 'claimed';
-                });
-            } catch (error) {
-                // فشل الترحيل لا يمنع تشغيل القراءة اللحظية للتطبيق.
-                console.error('Failed to claim shared migration lease:', error);
-                return;
-            }
-
-            if (leaseState === 'done') {
-                localStorage.setItem(migrationKey, 'done');
-                return;
-            }
-            if (leaseState !== 'claimed') return;
-
-            let migratedCount = 0;
-            let migrationFailed = false;
-            if (legacyAppId !== appId) {
-                for (const collectionName of ['clients', 'tasks', 'employees', 'supportProjects']) {
-                    try {
-                        const legacySnapshot = await getDocs(collection(db, 'artifacts', legacyAppId, 'public', 'data', collectionName));
-                        for (const legacyDocument of legacySnapshot.docs) {
-                            const record = { id: legacyDocument.id, ...legacyDocument.data() };
-                            if (await migrateRecordToSharedDatabase(collectionName, record)) migratedCount += 1;
-                        }
-                    } catch (error) {
-                        migrationFailed = true;
-                        console.error(`Failed to migrate legacy ${collectionName} collection:`, error);
-                    }
-                }
-            }
-
-            try {
-                if (migrationFailed) {
-                    await setDoc(markerRef, {
-                        status: 'failed',
-                        owner: leaseOwner,
-                        failedAt: Date.now()
-                    }, { merge: true });
-                    return;
-                }
-                await setDoc(markerRef, {
-                    status: 'done',
-                    owner: leaseOwner,
-                    completedAt: Date.now(),
-                    migratedCount
-                }, { merge: true });
-                localStorage.setItem(migrationKey, 'done');
-                if (migratedCount > 0 && window.showToast) {
-                    window.showToast(`تم توحيد ${migratedCount} سجل قديم في قاعدة الموظفين المشتركة.`, 'info');
-                }
-            } catch (error) {
-                console.error('Failed to finalize shared migration:', error);
-            }
-        }
 
         async function initCloudSync() {
             window.loadFromLocalStorage();
@@ -2207,21 +2051,13 @@
                     const userCredential = await signInAnonymously(auth);
                     window.dbUser = userCredential.user;
                 }
-                await migrateExistingDataToSharedDatabase();
                 startRealtimeListeners();
-                setTimeout(() => {
-                    if (typeof window.resumePendingClientSync === 'function') {
-                        window.resumePendingClientSync();
-                    }
-                }, 500);
+                try { const localSupport = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); if (localSupport.length && window.syncSupportProjectsCloud) window.syncSupportProjectsCloud(localSupport); } catch(e) {}
                 if (typeof window.resumePendingDocumentSync === 'function') {
                     window.resumePendingDocumentSync();
                 }
             } catch (err) {
                 renderEmployeeSelects();
-                if (window.showToast) {
-                    window.showToast(`تعذر تشغيل المزامنة المشتركة: ${err.code || err.message || 'خطأ غير معروف'}`, 'error');
-                }
             }
         }
 
@@ -2263,9 +2099,7 @@
                     const data = docSnap.data();
                     clientList.push({ id: docSnap.id, ...data, stage: window.normalizeFunnelStage(data.stage) });
                 });
-                // دليل الجهات يعرض ما وصل فعلاً إلى القاعدة المشتركة فقط.
-                window.clients = window.dedupeClients(clientList)
-                    .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+                window.clients = window.dedupeClients(clientList).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 window.attachEmployeeIds();
                 window.saveLocalBackup();
                 window.syncTasksToClients();
@@ -2273,10 +2107,6 @@
                 renderLeadsTable();
                 updateClientsCountBadges();
                 renderApp();
-            }, (error) => {
-                if (window.showToast) {
-                    window.showToast(`تعذر استقبال الجهات المشتركة: ${error.code || error.message || 'خطأ في Firestore'}`, 'error');
-                }
             });
 
             onSnapshot(supportProjectsColRef, (snapshot) => {
@@ -2307,13 +2137,17 @@
                 if (t.clientId && deletedClientIds.has(t.clientId)) return;
                 if (!t.customer && !t.phone) return;
                 
-                let client = window.clients.find(c => window.taskMatchesClient(t, c));
+                let client = window.clients.find(c => 
+                    (t.clientId && c.id === t.clientId) ||
+                    (t.phone && c.phone && c.phone.trim() === t.phone.trim()) ||
+                    (t.customer && c.name && c.name.trim().toLowerCase() === t.customer.trim().toLowerCase())
+                );
 
                 if (!client && t.customer) {
                     const newStage = window.getStageForTaskCategory(t.category, window.FUNNEL_STAGES[0]);
 
                     const newClient = {
-                        id: t.clientId || buildCanonicalClientId(t.customer, t.phone, t.city || 'الرياض'),
+                        id: t.clientId || ('lead_' + Date.now() + '_' + Math.floor(Math.random()*1000)),
                         name: t.customer.trim(),
                         phone: t.phone ? t.phone.trim() : '',
                         contactPerson: '',
@@ -2351,16 +2185,8 @@
         window.saveClientToCloud = async function(clientData) {
             if (!clientData.id) clientData.id = 'lead_' + Date.now();
             clientData.createdAt = clientData.createdAt || Date.now();
-            clientData.updatedAt = Date.now();
             clientData.stage = window.normalizeFunnelStage(clientData.stage);
             const existingClient=(window.clients||[]).find(c=>c.id===clientData.id);
-            // احتفظ بأي بيانات أضيفت من شاشات أخرى (مثل حزمة الدعم الفني)
-            // حتى لا يؤدي تعديل بيانات الجهة أو المرفقات إلى مسحها من Firebase.
-            clientData = {
-                ...(existingClient || {}),
-                ...clientData,
-                docs: clientData.docs || existingClient?.docs || {}
-            };
             const loggedEmployee=window.findEmployeeByName(window.currentLoggedInAgent);
             clientData.addedBy = clientData.addedBy || existingClient?.addedBy || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام');
             clientData.addedById = clientData.addedById || existingClient?.addedById || (window.currentUserRole === 'agent' ? loggedEmployee?.id || '' : 'manager');
@@ -2368,28 +2194,10 @@
             try {
                 await waitForFirebaseUser();
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', clientData.id);
-                const syncTime = Date.now();
-                const { _duplicateIds, ...cloudClientData } = {
-                    ...clientData,
-                    cloudSyncStatus: 'synced',
-                    cloudSyncedAt: syncTime,
-                    cloudSyncError: ''
-                };
-                // merge يمنع أي حفظ متزامن للمرفقات أو الدعم الفني من حذف حقول أخرى.
-                // setDoc لا ينتهي إلا بعد قبول الخادم للكتابة. قراءة getDoc إضافية
-                // كانت تضاعف وقت الحفظ وقد تعلق النموذج عند ضعف الاتصال.
-                await withOperationTimeout(
-                    setDoc(docRef, cloudClientData, { merge: true }),
-                    8000,
-                    'انتهت مهلة حفظ الجهة في قاعدة الموظفين المشتركة.'
-                );
-                clientData.cloudSyncStatus = 'synced';
-                clientData.cloudSyncedAt = syncTime;
-                clientData.cloudSyncError = '';
+                const { _duplicateIds, ...cloudClientData } = clientData;
+                await setDoc(docRef, cloudClientData);
             } catch (error) {
-                // لا تعرض سجلاً وهمياً داخل دليل الجهات. يظل نموذج التسجيل
-                // مفتوحاً ببياناته حتى ينجح الحفظ المركزي أو يعيد الموظف المحاولة.
-                const saveError = new Error(`فشل الحفظ المركزي ولم تُسجل الجهة: ${error.code || error.message || 'تعذر الاتصال'}`);
+                const saveError = new Error('لم يتم حفظ الجهة على قاعدة البيانات، لذلك لن تظهر لباقي الموظفين. تحقق من الإنترنت وصلاحيات Firebase ثم حاول مرة أخرى.');
                 saveError.cause = error;
                 throw saveError;
             }
@@ -2407,20 +2215,6 @@
             return clientData;
         };
 
-        window.resumePendingClientSync = async function() {
-            const pendingClients = (window.clients || []).filter(client => client.cloudSyncStatus === 'pending');
-            for (const pendingClient of pendingClients) {
-                try {
-                    await window.saveClientToCloud({ ...pendingClient });
-                    if (window.showToast) {
-                        window.showToast(`تمت مزامنة الجهة (${pendingClient.name}) وظهرت لكل الموظفين.`);
-                    }
-                } catch (error) {
-                    console.error('Pending client sync failed:', error);
-                }
-            }
-        };
-
         window.deleteClientFromCloud = async function(clientId) {
             const target = (window.clients || []).find(c => c.id === clientId);
             if (!target) return;
@@ -2430,11 +2224,9 @@
             const deletedIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
             ids.forEach(id => deletedIds.add(id));
             localStorage.setItem('nabdi_deleted_client_ids', JSON.stringify([...deletedIds]));
+            const targetPhone = String(target.phone || '').replace(/\D/g, '');
             const targetName = String(target.name || '').trim().toLowerCase();
-            const removedTasks = (window.tasks || []).filter(t =>
-                ids.includes(t.clientId) ||
-                (!t.clientId && targetName && String(t.customer || '').trim().toLowerCase() === targetName)
-            );
+            const removedTasks = (window.tasks || []).filter(t => ids.includes(t.clientId) || (targetPhone.length >= 5 && String(t.phone || '').replace(/\D/g, '') === targetPhone) || (targetName && String(t.customer || '').trim().toLowerCase() === targetName));
             const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
             removedTasks.forEach(t => t.id && deletedTaskIds.add(t.id));
             localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
@@ -2512,7 +2304,11 @@
             taskData.agentId=taskData.agentId||taskEmployee?.id||'';
 
             if (taskData.customer && taskData.taskType !== 'internal') {
-                let matchedClient = (window.clients || []).find(c => window.taskMatchesClient(taskData, c));
+                let matchedClient = (window.clients || []).find(c => 
+                    (taskData.clientId && c.id === taskData.clientId) ||
+                    (taskData.phone && c.phone && c.phone.trim() === taskData.phone.trim()) ||
+                    (c.name && c.name.trim().toLowerCase() === taskData.customer.trim().toLowerCase())
+                );
 
                 const stageForTask = window.getStageForTaskCategory(
                     taskData.category,
@@ -2521,7 +2317,7 @@
 
                 if (!matchedClient) {
                     matchedClient = {
-                        id: taskData.clientId || buildCanonicalClientId(taskData.customer, taskData.phone, taskData.city || 'الرياض'),
+                        id: taskData.clientId || ('lead_' + Date.now()),
                         name: taskData.customer.trim(),
                         phone: taskData.phone ? taskData.phone.trim() : '',
                         contactPerson: '',
@@ -2545,13 +2341,9 @@
 
             try {
                 await waitForFirebaseUser();
-                await withOperationTimeout(
-                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskData.id), taskData),
-                    8000,
-                    'انتهت مهلة تسجيل الإجراء في قاعدة الموظفين المشتركة.'
-                );
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskData.id), taskData);
             } catch(error) {
-                throw new Error(`لم يتم حفظ العمل المركزي للموظف: ${error.code || error.message || 'تعذر الاتصال'}`);
+                throw new Error('لم يتم حفظ العمل المركزي للموظف. تحقق من الإنترنت وصلاحيات Firebase ثم أعد المحاولة.');
             }
 
             const idx = window.tasks.findIndex(t => t.id === taskData.id);
@@ -2677,21 +2469,6 @@
             return `${(size / (1024 * 1024)).toFixed(1)} MB`;
         }
 
-        function buildCanonicalClientId(name, phone, city) {
-            const digits = String(phone || '').replace(/\D/g, '');
-            // الاسم + المدينة + الهاتف معاً يكوّنون هوية الجهة. رقم الهاتف وحده
-            // لا يكفي لأن أكثر من جهة قد تستخدم رقم الطبيب أو المسؤول نفسه.
-            const normalizedName = String(name || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
-            const normalizedCity = String(city || '').normalize('NFKC').trim().toLowerCase();
-            const source = `${normalizedName}|${normalizedCity}|${digits}`;
-            let hash = 2166136261;
-            for (let index = 0; index < source.length; index += 1) {
-                hash ^= source.charCodeAt(index);
-                hash = Math.imul(hash, 16777619);
-            }
-            return `lead_entity_${(hash >>> 0).toString(36)}`;
-        }
-
         function updateDocumentBadge(key, message, state = 'ready') {
             const badge = document.getElementById(`badge_${key}`);
             if (!badge) return;
@@ -2730,16 +2507,6 @@
         let attachmentDbPromise = null;
         const syncingDocumentClients = new Set();
 
-        function getDocumentSyncDeviceId() {
-            const storageKey = 'nabdi_document_sync_device_id';
-            let deviceId = localStorage.getItem(storageKey);
-            if (!deviceId) {
-                deviceId = `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-                localStorage.setItem(storageKey, deviceId);
-            }
-            return deviceId;
-        }
-
         function openAttachmentDatabase() {
             if (attachmentDbPromise) return attachmentDbPromise;
             attachmentDbPromise = new Promise((resolve, reject) => {
@@ -2773,7 +2540,6 @@
                 type: file.type || 'application/octet-stream',
                 sizeBytes: file.size,
                 blob: file,
-                deviceId: getDocumentSyncDeviceId(),
                 savedAt: Date.now()
             };
 
@@ -2858,7 +2624,6 @@
             link.href = sourceUrl;
             link.download = fileName || 'document';
             link.rel = 'noopener noreferrer';
-            link.target = '_blank';
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -2907,19 +2672,8 @@
                     renderDocumentViewer(objectUrl, documentInfo);
                     return;
                 } catch (error) {
-                    // بعض إعدادات CORS تمنع تحويل الرابط إلى Blob رغم أن رابط
-                    // Firebase نفسه صالح. استخدم العرض/الفتح المباشر كمسار احتياطي.
-                    if (downloadOnly) {
-                        downloadDocumentFromSource(directUrl, documentInfo.name);
-                        showToast('تم فتح رابط المستند مباشرة.');
-                        return;
-                    }
-                    activeDocumentViewerRef = { clientId, fieldKey };
-                    document.getElementById('documentViewerMeta').innerText = `${documentInfo.type || 'ملف'} • ${documentInfo.size || ''} • عرض سحابي مباشر`;
-                    document.getElementById('documentViewerHint').innerText = 'تم استخدام الرابط المباشر لأن المتصفح منع تجهيز نسخة المعاينة.';
-                    document.getElementById('documentViewerDownloadBtn').onclick = () => openClientDocument(clientId, fieldKey, true);
-                    renderDocumentViewer(directUrl, documentInfo);
-                    showToast('تم فتح المستند بالرابط السحابي المباشر.', 'info');
+                    if (!downloadOnly) closeDocumentViewer();
+                    showToast(error.message || 'تعذر تحميل المستند السحابي. تحقق من صلاحيات Firebase Storage.', 'error');
                     return;
                 }
             }
@@ -2966,18 +2720,9 @@
                     const documentInfo = docs[key];
                     if (!documentInfo || !documentInfo.localId || documentInfo.url || documentInfo.syncStatus === 'cloud') continue;
 
-                    // الملف المحلي لا يوجد إلا على الجهاز الذي اختاره منه المستخدم.
-                    // لا تجعل جهاز موظف آخر يغيّر حالته أو يمسح نتيجة رفعه أثناء المزامنة الحية.
-                    if (documentInfo.localOwnerId && documentInfo.localOwnerId !== getDocumentSyncDeviceId()) continue;
-
                     try {
                         const localRecord = await getLocalDocument(documentInfo.localId);
-                        if (!localRecord || !localRecord.blob) {
-                            // مستند قديم بلا معرّف جهاز: تجاهله هنا كي لا يكتب هذا الجهاز
-                            // حالة فشل فوق نسخة قد يكون جهاز آخر بصدد رفعها.
-                            if (!documentInfo.localOwnerId) continue;
-                            throw new Error('النسخة المحلية غير موجودة على الجهاز الذي أرفق المستند.');
-                        }
+                        if (!localRecord || !localRecord.blob) throw new Error('النسخة المحلية غير موجودة.');
                         const file = new File([localRecord.blob], documentInfo.name || localRecord.name, {
                             type: documentInfo.type || localRecord.type || 'application/octet-stream'
                         });
@@ -3016,22 +2761,11 @@
         window.resumePendingDocumentSync = function() {
             (window.clients || []).forEach(client => {
                 const pendingKeys = Object.entries(client.docs || {})
-                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && !documentInfo.url &&
-                        ['pending','local'].includes(documentInfo.syncStatus) &&
-                        (!documentInfo.localOwnerId || documentInfo.localOwnerId === getDocumentSyncDeviceId()))
+                    .filter(([, documentInfo]) => documentInfo && documentInfo.localId && !documentInfo.url && ['pending','local'].includes(documentInfo.syncStatus))
                     .map(([key]) => key);
                 if (pendingKeys.length > 0) syncDocumentsInBackground(client.id, pendingKeys);
             });
         };
-
-        window.addEventListener('online', () => {
-            if (typeof window.resumePendingClientSync === 'function') {
-                window.resumePendingClientSync();
-            }
-            if (typeof window.resumePendingDocumentSync === 'function') {
-                window.resumePendingDocumentSync();
-            }
-        });
 
         function handleFileSelected(event, key) {
             const file = event.target.files[0];
@@ -3196,29 +2930,22 @@
             }
 
             const isNewClient = !id;
-            const clientId = id || buildCanonicalClientId(name, phone, city);
-            const normalizedPhone = phone.replace(/\D/g, '');
-            const normalizedName = name.trim().toLowerCase();
-            const duplicate = (window.clients || []).find(c => {
-                if (c.id === id) return false;
-                const existingPhone = String(c.phone || '').replace(/\D/g, '');
-                const existingName = String(c.name || '').trim().toLowerCase();
-                const samePhoneAndName = normalizedPhone.length >= 5 &&
-                    existingPhone === normalizedPhone &&
-                    existingName === normalizedName;
-                const sameNameCity = existingName === normalizedName &&
-                    String(c.city || '') === String(city || '');
-                return samePhoneAndName || sameNameCity;
-            });
-            if (duplicate) {
-                const duplicateMessage = `الجهة (${duplicate.name}) متسجلة بالفعل — راجع الاسم والمدينة أو عدّل الجهة الموجودة`;
-                showToast(duplicateMessage, 'error');
-                const phoneInput = document.getElementById('clientPhone');
-                phoneInput.setCustomValidity(duplicateMessage);
-                phoneInput.reportValidity();
-                phoneInput.focus();
-                setTimeout(() => phoneInput.setCustomValidity(''), 4000);
-                return;
+            const clientId = id || `lead_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            if (isNewClient) {
+                const normalizedPhone = phone.replace(/\D/g, '');
+                const normalizedName = name.trim().toLowerCase();
+                const duplicate = (window.clients || []).find(c => {
+                    const existingPhone = String(c.phone || '').replace(/\D/g, '');
+                    const samePhone = normalizedPhone.length >= 5 && existingPhone === normalizedPhone;
+                    const sameNameCity = String(c.name || '').trim().toLowerCase() === normalizedName && String(c.city || '') === String(city || '');
+                    return samePhone || sameNameCity;
+                });
+                if (duplicate) {
+                    showToast(`العميل (${duplicate.name}) مسجل بالفعل — لن يتم إنشاء سجل مكرر`, 'error');
+                    closeAddClientModal();
+                    setTimeout(() => openClientProfileModal(duplicate.id), 100);
+                    return;
+                }
             }
             const submitButton = e.submitter || e.target.querySelector('button[type="submit"]');
             const originalButtonHtml = submitButton ? submitButton.innerHTML : '';
@@ -3243,29 +2970,26 @@
                     }
 
                     if (fileToSave) {
-                        // احفظ نسخة محلية سريعة أولاً. لا نربط تسجيل الجهة بنجاح
-                        // Firebase Storage؛ الرفع يتم بعد حفظ بيانات الجهة في الخلفية.
-                        updateDocumentBadge(key, `جاري حفظ ${fileToSave.name} محلياً...`, 'uploading');
+                        updateDocumentBadge(key, `جاري تجهيز ${fileToSave.name}...`, 'uploading');
                         const localId = await storeDocumentLocally(fileToSave, clientId, key, documentInfo.localId || null);
+                        const cloudDocument = await window.uploadDocumentToCloud(fileToSave, clientId, key, progress => {
+                            updateDocumentBadge(key, `جاري الرفع السحابي: ${progress}% — ${fileToSave.name}`, 'uploading');
+                        });
                         docsToSave[key] = {
-                            name: fileToSave.name,
-                            size: formatFileSize(fileToSave.size),
-                            sizeBytes: fileToSave.size,
-                            type: fileToSave.type || 'application/octet-stream',
+                            ...cloudDocument,
                             localId,
-                            localOwnerId: getDocumentSyncDeviceId(),
                             savedAt: Date.now(),
-                            syncStatus: 'pending'
+                            syncStatus: 'cloud'
                         };
-                        pendingSyncKeys.push(key);
-                        updateDocumentBadge(key, `تم الحفظ وسيُرفع في الخلفية: ${fileToSave.name}`);
+                        updateDocumentBadge(key, `تم الرفع السحابي: ${fileToSave.name}`);
                     } else {
                         const { file, pending, ...storedDocumentInfo } = documentInfo;
                         if (storedDocumentInfo.localId && !storedDocumentInfo.url) {
-                            docsToSave[key] = storedDocumentInfo;
-                            if (!storedDocumentInfo.localOwnerId || storedDocumentInfo.localOwnerId === getDocumentSyncDeviceId()) {
-                                pendingSyncKeys.push(key);
-                            }
+                            const localRecord = await getLocalDocument(storedDocumentInfo.localId);
+                            if (!localRecord || !localRecord.blob) throw new Error(`المستند القديم (${storedDocumentInfo.name || key}) كان محفوظًا محليًا فقط ولم يعد موجودًا على هذا الرابط. أعد إرفاقه مرة واحدة.`);
+                            const oldFile = new File([localRecord.blob], storedDocumentInfo.name || localRecord.name, {type:storedDocumentInfo.type || localRecord.type || 'application/octet-stream'});
+                            const cloudDocument = await window.uploadDocumentToCloud(oldFile, clientId, key, progress => updateDocumentBadge(key, `ترحيل المستند للسحابة: ${progress}%`, 'uploading'));
+                            docsToSave[key] = {...storedDocumentInfo,...cloudDocument,syncStatus:'cloud'};
                         } else {
                             docsToSave[key] = storedDocumentInfo;
                         }
@@ -3309,27 +3033,20 @@
                         notes: `تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.${notes ? ' ملاحظات: ' + notes : ''}`
                     };
 
-                    // تسجيل الإجراء الأول لا يجب أن يحبس نموذج الجهة. الجهة أصبحت
-                    // محفوظة مركزياً بالفعل، لذا نفّذ سجل الحركة في الخلفية.
-                    window.saveTaskToCloud(initialTask).catch(taskError => {
-                        console.error('Initial client action could not be synced:', taskError);
-                        showToast('تم حفظ الجهة، لكن تعذر تسجيل الإجراء الأول مؤقتاً.', 'info');
-                    });
+                    await window.saveTaskToCloud(initialTask);
                 }
 
                 window.currentTempDocs = { ...docsToSave };
                 closeAddClientModal();
                 const documentCount = Object.keys(docsToSave).length;
-                showToast(`تم حفظ الجهة (${name})${documentCount ? ` و${documentCount} مستند` : ''} بنجاح${pendingSyncKeys.length ? '، وجارٍ رفع المرفقات في الخلفية' : ''}.`);
+                showToast(`تم حفظ الجهة (${name})${documentCount ? ` و${documentCount} مستند` : ''} بنجاح.`);
                 if (window.normalizeFunnelStage(stage) === 'إرسال البيانات إلى الدعم الفني') {
                     window.syncSupportProjectsFromFunnel(false);
                     showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
                 } else if (window.normalizeFunnelStage(stage) === 'إرفاق رابط Google Drive بالبيانات') {
                     setTimeout(() => window.openSupportHandoffForm(clientId), 150);
                 }
-                if (pendingSyncKeys.length > 0) {
-                    setTimeout(() => syncDocumentsInBackground(clientId, pendingSyncKeys), 0);
-                }
+                if (pendingSyncKeys.length > 0) syncDocumentsInBackground(clientId, pendingSyncKeys);
             } catch (error) {
                 showToast(error.message || getUploadErrorMessage(error), 'error');
             } finally {
@@ -3424,9 +3141,6 @@
                         <td class="p-2.5">
                             <span class="px-2.5 py-1 rounded-xl text-[10px] font-black border ${colors.bg} ${colors.text} ${colors.border}">
                                 ${c.stage || window.FUNNEL_STAGES[0]}
-                            </span>
-                            <span class="mt-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg text-[9px] font-black inline-flex items-center gap-1">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> محفوظة ومشتركة
                             </span>
                         </td>
                         <td class="p-2.5 text-center">
@@ -3528,7 +3242,7 @@
                         const d = client.docs[k];
                         const statusText = d.url || (typeof d.data === 'string' && d.data.startsWith('https://'))
                             ? 'محفوظ سحابياً'
-                            : (d.syncStatus === 'pending' ? 'محفوظ وجاري الرفع' : 'تعذر الرفع السحابي — ستتم إعادة المحاولة');
+                            : (d.syncStatus === 'pending' ? 'محفوظ وجاري المزامنة' : 'محفوظ على هذا الجهاز');
                         const statusClass = d.url
                             ? 'bg-emerald-100 text-emerald-800'
                             : (d.syncStatus === 'pending' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700');
@@ -3598,7 +3312,11 @@
                 stageBadge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black border ${colors.bg} ${colors.text} ${colors.border}`;
             }
 
-            let clientTasks = (window.tasks || []).filter(t => window.taskMatchesClient(t, client));
+            let clientTasks = (window.tasks || []).filter(t => 
+                (t.clientId && t.clientId === client.id) ||
+                (t.phone && t.phone === client.phone) ||
+                (t.customer && t.customer.trim().toLowerCase() === client.name.trim().toLowerCase())
+            );
 
             clientTasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -3715,7 +3433,7 @@
 
                 let shiftBadge = (t.shift === 'شفت مسائي') ? 'مسائي' : 'صباحي';
 
-                let matchedClient = t.taskType === 'internal' ? null : (window.clients || []).find(c => window.taskMatchesClient(t, c));
+                let matchedClient = t.taskType === 'internal' ? null : (window.clients || []).find(c => (c.phone && c.phone === t.phone) || (c.name === t.customer) || (t.clientId && c.id === t.clientId));
                 let clientIdForProfile = matchedClient ? matchedClient.id : null;
 
                 return `
@@ -5140,13 +4858,7 @@
     (function(){
         const SUPPORT_STEPS = ['انتظار استلام بيانات العميل','مراجعة البيانات','طلب واستكمال البيانات الناقصة','تجهيز ورفع المنتجات والخدمات','رفع بيانات الدكاترة والصور','إدخال مواعيد الدكاترة','مراجعة الجودة','إرسال النسخة للعميل للمراجعة','تنفيذ تعديلات العميل','النشر والتسليم النهائي'];
         function loadSupport(){ try{return JSON.parse(localStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
-        function saveSupport(v){
-            const next=Array.isArray(v)?v:[],previous=loadSupport(),previousById=new Map(previous.filter(p=>p&&p.id).map(p=>[p.id,JSON.stringify(p)]));
-            const changed=next.filter(p=>p&&p.id&&previousById.get(p.id)!==JSON.stringify(p));
-            localStorage.setItem('nabdi_support_projects',JSON.stringify(next));
-            // اكتب السجل الذي تغيّر فقط؛ لا تعِد كتابة جميع مشاريع الدعم عند كل فتح.
-            if(changed.length&&window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(changed);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));}
-        }
+        function saveSupport(v){ localStorage.setItem('nabdi_support_projects',JSON.stringify(v)); if(window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(v);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));} }
         window.openTechnicalSupportWorkspace=function(){
             const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
             if(window.currentUserRole==='agent' && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
