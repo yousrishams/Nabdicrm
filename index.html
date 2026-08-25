@@ -1763,7 +1763,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, setDoc, getDoc, getDocs, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, getDoc, getDocs, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // الاسترداد الآمن: كل الكتابات الجديدة تظل في المسار الأصلي الذي استخدمه
@@ -1785,7 +1785,22 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        let db;
+        try {
+            // ذاكرة Firestore الدائمة تمنع تحميل نفس مئات السجلات من الصفر
+            // عند كل Refresh، وتشارك الكاش بين تبويبات المتصفح نفسها.
+            db = initializeFirestore(app, {
+                localCache: persistentLocalCache({
+                    tabManager: persistentMultipleTabManager(),
+                    cacheSizeBytes: 30 * 1024 * 1024
+                })
+            });
+            window.NABDI_PERSISTENT_CACHE_ENABLED = true;
+        } catch (cacheError) {
+            console.warn('Persistent Firestore cache is unavailable; using memory cache.', cacheError);
+            db = getFirestore(app);
+            window.NABDI_PERSISTENT_CACHE_ENABLED = false;
+        }
         const storage = getStorage(app);
 
         const employeesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
@@ -1793,6 +1808,8 @@
         const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
         const supportProjectsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'supportProjects');
         const archivedCloudData = { employees: [], tasks: [], clients: [], supportProjects: [] };
+        const archiveCacheKey = 'nabdi_archive_snapshot_v1';
+        const archiveCacheTtlMs = 24 * 60 * 60 * 1000;
 
         function recordTimestamp(record) {
             const value = record?.updatedAt || record?.deletedAt || record?.createdAt || record?.sentAt || 0;
@@ -1809,17 +1826,49 @@
             return Array.from(merged.values());
         }
 
+        function restoreArchivedDataCache() {
+            try {
+                const cached = JSON.parse(localStorage.getItem(archiveCacheKey) || 'null');
+                if (!cached || !cached.savedAt || !cached.collections) return false;
+                for (const collectionName of ['employees', 'tasks', 'clients', 'supportProjects']) {
+                    if (Array.isArray(cached.collections[collectionName])) {
+                        archivedCloudData[collectionName] = cached.collections[collectionName];
+                    }
+                }
+                return Date.now() - Number(cached.savedAt) < archiveCacheTtlMs;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function persistArchivedDataCache() {
+            try {
+                localStorage.setItem(archiveCacheKey, JSON.stringify({
+                    savedAt: Date.now(),
+                    collections: archivedCloudData
+                }));
+            } catch (error) {
+                console.warn('Archive cache could not be persisted.', error);
+            }
+        }
+
         async function loadArchivedSharedData() {
+            // مسار الأرشيف للقراءة والاسترداد فقط ولا يستقبل كتابات من التطبيق.
+            // لذلك تكفي نسخة يومية بدلاً من أربع قراءات كاملة عند كل فتح.
+            if (restoreArchivedDataCache()) return;
+            let refreshedAnyCollection = false;
             for (const collectionName of ['employees', 'tasks', 'clients', 'supportProjects']) {
                 try {
                     const snapshot = await getDocs(collection(db, 'artifacts', archiveAppId, 'public', 'data', collectionName));
                     archivedCloudData[collectionName] = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                    refreshedAnyCollection = true;
                 } catch (error) {
                     // عند انتهاء الحصة قد يفشل الأرشيف مؤقتاً؛ ابدأ المستمعات
                     // الأساسية ولا تعرض أن البيانات حُذفت.
                     console.error(`Failed to read archived ${collectionName}:`, error);
                 }
             }
+            if (refreshedAnyCollection) persistArchivedDataCache();
         }
 
         function decodeFirestoreValue(value) {
@@ -1866,12 +1915,16 @@
 
         async function loadRecoveryFallbackIfNeeded() {
             if (window.cloudClientsListenerReady && Array.isArray(window.clients) && window.clients.length > 0) return;
+            // إذا كانت نسخة الجهاز موجودة فلا نعيد ثمانية استعلامات كاملة عند
+            // بطء الشبكة أو انتهاء الحصة؛ ستقوم المستمعات بتحديثها عند التعافي.
+            if (Array.isArray(window.clients) && window.clients.length > 0) {
+                if (window.showToast) window.showToast('يتم عرض آخر نسخة محفوظة على هذا الجهاز لحين استعادة الاتصال.', 'info');
+                return;
+            }
             const recovered = {};
             for (const collectionName of ['employees', 'tasks', 'clients', 'supportProjects']) {
-                const [activeRecords, archivedRecords] = await Promise.all([
-                    fetchCollectionThroughRest(appId, collectionName),
-                    fetchCollectionThroughRest(archiveAppId, collectionName)
-                ]);
+                const activeRecords = await fetchCollectionThroughRest(appId, collectionName);
+                const archivedRecords = archivedCloudData[collectionName] || [];
                 recovered[collectionName] = mergeCloudRecords(archivedRecords, activeRecords).filter(record => !record.deletedAt);
             }
             if (!recovered.clients.length) return;
@@ -4067,7 +4120,8 @@
                 const empObj = window.findEmployeeByName(agentName);
                 const validPin = (empObj && empObj.pin) ? empObj.pin : '123456';
 
-                if (password !== validPin && password !== '123456') {
+                // لا تسمح للرمز الافتراضي بتجاوز رمز موظف قام بتغييره.
+                if (password !== validPin) {
                     showToast("كلمة مرور الموظف غير صحيحة", "error");
                     return;
                 }
@@ -4322,7 +4376,7 @@
                             <i class="fa-solid fa-user-check text-brand-600"></i>
                             ${emp.name}
                         </span>
-                        <span class="text-[10px] text-slate-500 font-semibold block">${window.getEmployeeJobTitle(emp)} | ${emp.shift} | PIN: ${emp.pin || '123456'}</span>
+                        <span class="text-[10px] text-slate-500 font-semibold block">${window.getEmployeeJobTitle(emp)} | ${emp.shift} | رمز الدخول: مضبوط</span>
                     </div>
                     <select onchange="updateEmployeeDepartment('${emp.id}',this.value)" class="border border-slate-200 rounded-lg p-1.5 text-[10px] font-bold bg-slate-50">
                         ${['خدمات العملاء','الدعم الفني','الإدارة'].map(d => `<option value="${d}" ${window.getEmployeeDepartment(emp)===d?'selected':''}>${d}</option>`).join('')}
