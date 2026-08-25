@@ -1177,7 +1177,7 @@
     </div>
 
     <!-- MODAL 2: ADD / EDIT CLIENT -->
-    <div id="addClientModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div id="addClientModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[95vh] flex flex-col">
             <div class="bg-indigo-900 text-white p-4 flex justify-between items-center shrink-0">
                 <div class="flex items-center gap-2">
@@ -1763,7 +1763,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, setDoc, getDoc, getDocs, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // الاسترداد الآمن: كل الكتابات الجديدة تظل في المسار الأصلي الذي استخدمه
@@ -1795,7 +1795,7 @@
         const archivedCloudData = { employees: [], tasks: [], clients: [], supportProjects: [] };
 
         function recordTimestamp(record) {
-            const value = record?.updatedAt || record?.createdAt || record?.sentAt || 0;
+            const value = record?.updatedAt || record?.deletedAt || record?.createdAt || record?.sentAt || 0;
             return Number(value) || Date.parse(value) || 0;
         }
 
@@ -1820,6 +1820,82 @@
                     console.error(`Failed to read archived ${collectionName}:`, error);
                 }
             }
+        }
+
+        function decodeFirestoreValue(value) {
+            if (!value || typeof value !== 'object') return null;
+            if ('nullValue' in value) return null;
+            if ('stringValue' in value) return value.stringValue;
+            if ('integerValue' in value) return Number(value.integerValue);
+            if ('doubleValue' in value) return Number(value.doubleValue);
+            if ('booleanValue' in value) return Boolean(value.booleanValue);
+            if ('timestampValue' in value) return value.timestampValue;
+            if ('bytesValue' in value) return value.bytesValue;
+            if ('referenceValue' in value) return value.referenceValue;
+            if ('geoPointValue' in value) return value.geoPointValue;
+            if ('arrayValue' in value) return (value.arrayValue.values || []).map(decodeFirestoreValue);
+            if ('mapValue' in value) {
+                return Object.fromEntries(Object.entries(value.mapValue.fields || {}).map(([key, child]) => [key, decodeFirestoreValue(child)]));
+            }
+            return null;
+        }
+
+        function decodeFirestoreDocument(documentData) {
+            const id = String(documentData?.name || '').split('/').pop();
+            const fields = Object.fromEntries(Object.entries(documentData?.fields || {}).map(([key, value]) => [key, decodeFirestoreValue(value)]));
+            return { id, ...fields };
+        }
+
+        async function fetchCollectionThroughRest(workspaceId, collectionName) {
+            const records = [];
+            let pageToken = '';
+            const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+            do {
+                const path = `artifacts/${workspaceId}/public/data/${collectionName}`;
+                const url = new URL(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${path}`);
+                url.searchParams.set('pageSize', '1000');
+                if (pageToken) url.searchParams.set('pageToken', pageToken);
+                const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+                records.push(...(payload.documents || []).map(decodeFirestoreDocument));
+                pageToken = payload.nextPageToken || '';
+            } while (pageToken);
+            return records;
+        }
+
+        async function loadRecoveryFallbackIfNeeded() {
+            if (window.cloudClientsListenerReady && Array.isArray(window.clients) && window.clients.length > 0) return;
+            const recovered = {};
+            for (const collectionName of ['employees', 'tasks', 'clients', 'supportProjects']) {
+                const [activeRecords, archivedRecords] = await Promise.all([
+                    fetchCollectionThroughRest(appId, collectionName),
+                    fetchCollectionThroughRest(archiveAppId, collectionName)
+                ]);
+                recovered[collectionName] = mergeCloudRecords(archivedRecords, activeRecords).filter(record => !record.deletedAt);
+            }
+            if (!recovered.clients.length) return;
+
+            window.employees = recovered.employees.map(emp => ({...emp, department: window.getEmployeeDepartment(emp)}));
+            window.tasks = recovered.tasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            window.clients = window.dedupeClients(recovered.clients.map(client => ({...client, stage: window.normalizeFunnelStage(client.stage)})))
+                .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+            const byClient = new Map();
+            recovered.supportProjects.forEach(project => {
+                const key = project.clientId || project.id;
+                const previous = byClient.get(key);
+                if (!previous || recordTimestamp(project) >= recordTimestamp(previous)) byClient.set(key, project);
+            });
+            localStorage.setItem('nabdi_support_projects', JSON.stringify(Array.from(byClient.values())));
+            window.attachEmployeeIds();
+            window.saveLocalBackup();
+            renderEmployeeSelects();
+            renderClientSelectInTaskForm();
+            renderLeadsTable();
+            updateClientsCountBadges();
+            renderApp();
+            if (window.renderTechnicalSupport) window.renderTechnicalSupport();
+            if (window.showToast) window.showToast(`تم استعادة عرض ${window.clients.length} جهة من قاعدة البيانات المحفوظة.`, 'info');
         }
 
         window.FUNNEL_STAGES = [
@@ -2241,6 +2317,9 @@
                 await loadArchivedSharedData();
                 startRealtimeListeners();
                 setTimeout(() => {
+                    loadRecoveryFallbackIfNeeded().catch(error => console.error('Recovery fallback failed:', error));
+                }, 6000);
+                setTimeout(() => {
                     if (typeof window.resumePendingClientSync === 'function') {
                         window.resumePendingClientSync();
                     }
@@ -2294,6 +2373,7 @@
             });
 
             onSnapshot(clientsColRef, (snapshot) => {
+                window.cloudClientsListenerReady = true;
                 let clientList = [];
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
@@ -2349,34 +2429,12 @@
                 
                 let client = window.clients.find(c => window.taskMatchesClient(t, c));
 
-                if (!client && t.customer) {
-                    const newStage = window.getStageForTaskCategory(t.category, window.FUNNEL_STAGES[0]);
-
-                    const newClient = {
-                        id: t.clientId || buildCanonicalClientId(t.customer, t.phone, t.city || 'الرياض'),
-                        name: t.customer.trim(),
-                        phone: t.phone ? t.phone.trim() : '',
-                        contactPerson: '',
-                        city: t.city || 'الرياض',
-                        entityType: t.entityType || 'عيادة',
-                        specialty: t.specialty || '',
-                        stage: newStage,
-                        addedBy: t.agent || (window.currentUserRole === 'agent' ? window.currentLoggedInAgent : 'المدير العام'),
-                        createdAt: t.createdAt || Date.now()
-                    };
-
-                    t.clientId = newClient.id;
-                    window.clients.unshift(newClient);
-                    updatedAny = true;
-
-                    if (window.dbUser) {
-                        try {
-                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', newClient.id);
-                            setDoc(docRef, newClient);
-                        } catch(e) {}
-                    }
-                } else if (client && !t.clientId) {
+                // مستمعات Firebase تربط السجلات للعرض فقط. إنشاء جهة هنا كان
+                // يعيد العميل المحذوف قبل انتهاء حذف متابعاته، وينشئ كتابات
+                // جديدة بمجرد فتح البرنامج من عدة أجهزة.
+                if (client && !t.clientId) {
                     t.clientId = client.id;
+                    updatedAny = true;
                 }
             });
 
@@ -2411,6 +2469,10 @@
                 const syncTime = Date.now();
                 const { _duplicateIds, ...cloudClientData } = {
                     ...clientData,
+                    // التسجيل أو التعديل الصريح يعيد تفعيل السجل إذا كان يحمل
+                    // علامة حذف قديمة لنفس المعرّف الحتمي.
+                    deletedAt: null,
+                    deletedBy: '',
                     cloudSyncStatus: 'synced',
                     cloudSyncedAt: syncTime,
                     cloudSyncError: ''
@@ -2491,21 +2553,28 @@
 
             let cloudFailures = 0;
             if (window.dbUser) {
-                for (const id of ids) {
-                    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'clients', id);
-                    try { await deleteDoc(ref); }
-                    catch(e) { try { await setDoc(ref, {deletedAt: new Date().toISOString(), deletedBy: window.currentLoggedInAgent || 'المدير العام'}, {merge:true}); } catch(markError) { cloudFailures++; } }
-                }
+                const deletedAt = new Date().toISOString();
+                const deletedAtMs = Date.now();
+                const deletedBy = window.currentLoggedInAgent || 'المدير العام';
+
+                // علّم العلاقات كمحذوفة أولاً، ثم الجهة أخيراً. لا نستخدم
+                // deleteDoc هنا لأن نسخة الاسترداد القديمة تُقرأ للعرض؛ علامة
+                // الحذف الأحدث تمنع السجل القديم من الرجوع عند كل الموظفين.
                 for (const task of removedTasks) {
                     if (!task.id) continue;
                     const taskRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task.id);
-                    try { await deleteDoc(taskRef); }
-                    catch(e) { try { await setDoc(taskRef, {deletedAt:new Date().toISOString(),deletedBy:window.currentLoggedInAgent||'المدير العام'}, {merge:true}); } catch(markError) { cloudFailures++; } }
+                    try { await setDoc(taskRef, {id: task.id, deletedAt, updatedAt: deletedAtMs, deletedBy}, {merge:true}); }
+                    catch(e) { cloudFailures++; }
                 }
                 for (const project of removedSupport) {
                     const projectRef=doc(db,'artifacts',appId,'public','data','supportProjects',project.id);
-                    try { await deleteDoc(projectRef); }
-                    catch(e) { try { await setDoc(projectRef,{deletedAt:new Date().toISOString(),deletedBy:window.currentLoggedInAgent||'المدير العام'},{merge:true}); } catch(markError) { cloudFailures++; } }
+                    try { await setDoc(projectRef, {id: project.id, deletedAt, updatedAt: deletedAtMs, deletedBy}, {merge:true}); }
+                    catch(e) { cloudFailures++; }
+                }
+                for (const id of ids) {
+                    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'clients', id);
+                    try { await setDoc(ref, {id, deletedAt, updatedAt: deletedAtMs, deletedBy}, {merge:true}); }
+                    catch(e) { cloudFailures++; }
                 }
             }
             if (window.showToast) window.showToast(cloudFailures ? 'تم إخفاء العميل، لكن Firebase رفض الحذف السحابي. راجع صلاحيات الحذف في Firebase Rules.' : (ids.length > 1 ? `تم حذف ${ids.length} سجلات مكررة للعميل` : 'تم حذف العميل بنجاح'), cloudFailures ? 'error' : 'success');
@@ -2540,7 +2609,12 @@
             if (window.dbUser) {
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'employees', empId);
-                    await deleteDoc(docRef);
+                    await setDoc(docRef, {
+                        id: empId,
+                        deletedAt: new Date().toISOString(),
+                        updatedAt: Date.now(),
+                        deletedBy: window.currentLoggedInAgent || 'المدير العام'
+                    }, {merge:true});
                 } catch(e) {}
             }
         };
@@ -2614,10 +2688,15 @@
 
             if (window.dbUser) {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
-                try { await deleteDoc(docRef); }
-                catch(e) {
-                    try { await setDoc(docRef,{deletedAt:new Date().toISOString(),deletedBy:window.currentLoggedInAgent||'المدير العام'},{merge:true}); }
-                    catch(markError) { if(window.showToast) window.showToast('تعذر تثبيت حذف المهمة في Firebase. راجع صلاحيات الكتابة.','error'); }
+                try {
+                    await setDoc(docRef, {
+                        id: taskId,
+                        deletedAt: new Date().toISOString(),
+                        updatedAt: Date.now(),
+                        deletedBy: window.currentLoggedInAgent || 'المدير العام'
+                    }, {merge:true});
+                } catch(error) {
+                    if(window.showToast) window.showToast('تعذر تثبيت حذف المهمة في Firebase. راجع صلاحيات الكتابة.','error');
                 }
             }
         };
