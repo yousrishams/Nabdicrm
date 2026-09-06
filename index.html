@@ -1575,7 +1575,7 @@
                 </div>
 
                 <div class="relative w-full sm:w-72">
-                    <input type="text" id="leadSearchInput" onkeyup="renderLeadsTable()" placeholder="بحث باسم الجهة، الحساب، الآيبان، الهاتف..." 
+                    <input type="text" id="leadSearchInput" onkeyup="renderLeadsTable()" placeholder="بحث باسم الجهة، الهاتف، الهوية، الحساب أو الآيبان..."
                            class="w-full bg-white border border-slate-300 rounded-xl pr-8 pl-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-brand-500">
                     <i class="fa-solid fa-search absolute right-2.5 top-2.5 text-slate-400 text-xs"></i>
                 </div>
@@ -3653,19 +3653,17 @@
             const normalizedPhone = normalizeSaudiPhone(phone);
             const normalizedNationalId = normalizeSaudiNationalId(nationalId);
             const normalizedName = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-            const normalizedCity = String(city || '').trim().toLowerCase();
 
             return (window.clients || []).find(client => {
                 if (!client || client.id === id || client.deletedAt) return false;
                 const existingPhone = normalizeSaudiPhone(client.phone || '');
                 const existingNationalId = normalizeSaudiNationalId(client.nationalId || '');
                 const existingName = String(client.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-                const existingCity = String(client.city || '').trim().toLowerCase();
 
                 const sameNationalId = normalizedNationalId && existingNationalId === normalizedNationalId;
-                const sameNameAndCity = normalizedName && existingName === normalizedName && existingCity === normalizedCity;
-                const sameNameAndPhone = normalizedName && normalizedPhone && existingName === normalizedName && existingPhone === normalizedPhone;
-                return sameNationalId || sameNameAndCity || sameNameAndPhone;
+                const samePhone = normalizedPhone && existingPhone === normalizedPhone;
+                const sameName = normalizedName && existingName === normalizedName;
+                return sameNationalId || samePhone || sameName;
             }) || null;
         }
 
