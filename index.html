@@ -568,14 +568,18 @@
                         </div>
                         <div>
                             <h2 class="font-black text-slate-900 text-base">مركز المتابعة اليومية</h2>
-                            <p class="text-[11px] text-slate-500 font-semibold mt-0.5">يعرض المطلوب تنفيذه الآن فقط حسب الموظف، مع المتأخر والمكالمات التي تحتاج إعادة اتصال.</p>
+                            <p class="text-[11px] text-slate-500 font-semibold mt-0.5">يعرض العملاء الجدد والمطلوب تنفيذه حسب الموظف، مع المتأخر والمكالمات التي تحتاج إعادة اتصال.</p>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full lg:w-auto">
                         <button id="smartFollowUpBtnToday" type="button" onclick="setSmartFollowUpFilter('TODAY')" class="smart-follow-up-filter px-3 py-2.5 rounded-xl border text-xs font-black transition-all cursor-pointer">
                             <i class="fa-solid fa-sun text-amber-500 ml-1"></i>مطلوب اليوم
                             <span id="smartFollowUpTodayCount" class="mr-1 px-1.5 py-0.5 rounded-full bg-white/80">0</span>
+                        </button>
+                        <button id="smartFollowUpBtnNewClients" type="button" onclick="setSmartFollowUpFilter('NEW_CLIENTS')" class="smart-follow-up-filter px-3 py-2.5 rounded-xl border text-xs font-black transition-all cursor-pointer">
+                            <i class="fa-solid fa-user-plus text-emerald-600 ml-1"></i>عملاء جدد
+                            <span id="smartFollowUpNewClientsCount" class="mr-1 px-1.5 py-0.5 rounded-full bg-white/80">0</span>
                         </button>
                         <button id="smartFollowUpBtnOverdue" type="button" onclick="setSmartFollowUpFilter('OVERDUE')" class="smart-follow-up-filter px-3 py-2.5 rounded-xl border text-xs font-black transition-all cursor-pointer">
                             <i class="fa-solid fa-clock-rotate-left text-rose-500 ml-1"></i>متأخر
@@ -1143,8 +1147,9 @@
 
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">التخصص</label>
-                        <select id="formSpecialty" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500 cursor-pointer">
-                        </select>
+                        <input type="text" id="formSpecialty" list="formSpecialtiesList" placeholder="اختر أو اكتب التخصص"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-brand-500">
+                        <datalist id="formSpecialtiesList"></datalist>
                     </div>
 
                     <div>
@@ -1366,8 +1371,9 @@
 
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">التخصص *</label>
-                            <select id="clientSpecialty" required class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
-                            </select>
+                            <input type="text" id="clientSpecialty" required list="clientSpecialtiesList" placeholder="اختر أو اكتب التخصص"
+                                   class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500">
+                            <datalist id="clientSpecialtiesList"></datalist>
                         </div>
 
                         <div>
@@ -2374,12 +2380,18 @@
         window.clients = [];
 
         window.specialtiesList = [
-            "طب وجراحة العيون", "طب وجراحة الأسنان", "الجلدية والتجميل", "الباطنة والقلب",
-            "طب الأطفال وحديثي الولادة", "العظام والمفاصل", "الجراحة العامة", "النساء والتوليد والعقم",
-            "المخ والأعصاب", "الأنف والأذن والحنجرة", "المسالك البولية والتناسلية", "العلاج الطبيعي والتأهيل",
-            "الأورام وجراحتها", "الأمراض الصدرية والتنفسية", "الغدد الصماء والسكري", "الكلى والجهاز الهضمي",
-            "النفسية والعصبية", "طب الأسرة والصحة العامة", "صيدلة عامة ودواء", "مختبرات وتحاليل طبية",
-            "أشعة وتشخيص طبي", "تجارة وتوزيع مستلزمات طبية", "خدمات طبية عامة وأخرى"
+            "طب وجراحة العيون", "طب وجراحة الأسنان", "تقويم الأسنان", "زراعة الأسنان", "الجلدية والتجميل",
+            "التجميل والليزر", "الباطنة العامة", "أمراض القلب والأوعية الدموية", "الجهاز الهضمي والكبد",
+            "طب الأطفال وحديثي الولادة", "العظام والمفاصل", "الروماتيزم والمناعة", "الجراحة العامة",
+            "جراحة التجميل", "جراحة الأوعية الدموية", "جراحة القلب والصدر", "النساء والتوليد والعقم",
+            "المخ والأعصاب", "جراحة المخ والأعصاب", "الطب النفسي والصحة النفسية", "النفسية والعصبية",
+            "الأنف والأذن والحنجرة", "السمعيات", "المسالك البولية والتناسلية", "العلاج الطبيعي والتأهيل",
+            "العلاج الوظيفي", "النطق والتخاطب", "التغذية العلاجية والسمنة", "طب السمنة وإدارة الوزن",
+            "الأورام وجراحتها", "أمراض الدم", "الأمراض الصدرية والتنفسية", "الغدد الصماء والسكري",
+            "أمراض الكلى", "الأمراض المعدية", "الحساسية والمناعة", "طب الأسرة والصحة العامة",
+            "طب الطوارئ", "العناية المركزة", "طب الشيخوخة", "طب الألم", "طب النوم", "الطب الرياضي",
+            "صيدلة عامة ودواء", "مختبرات وتحاليل طبية", "أشعة وتشخيص طبي", "بصريات",
+            "تجارة وتوزيع مستلزمات طبية", "خدمات طبية عامة وأخرى"
         ];
 
         window.getStageColorClasses = function(stage) {
@@ -3008,7 +3020,18 @@
         }
 
         function isPhoneAction(task) {
+            if (isClientRegistrationTask(task)) return false;
             return isPhoneCategory(task.category);
+        }
+
+        function isClientRegistrationTask(task) {
+            if (!task) return false;
+            if (task.isClientRegistration === true || task.activityType === 'client_registration') return true;
+            return task.channel === 'نظام نبضي' && String(task.notes || '').startsWith('تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.');
+        }
+
+        function getTaskDisplayCategory(task) {
+            return isClientRegistrationTask(task) ? 'تسجيل جهة جديدة' : (task?.category || '');
         }
 
         function isPhoneCategory(category) {
@@ -3016,10 +3039,12 @@
         }
 
         function isAnsweredPhoneAction(task) {
+            if (isClientRegistrationTask(task)) return false;
             return task.category === 'مكالمة (تم الرد)' || (task.category === 'مكالمة هاتفية' && task.status === 'مكتمل');
         }
 
         function isUnansweredPhoneAction(task) {
+            if (isClientRegistrationTask(task)) return false;
             return ['مكالمة لم يتم الرد عليها', 'مكالمة (لم يرد)'].includes(task.category) || (task.category === 'مكالمة هاتفية' && task.status !== 'مكتمل');
         }
 
@@ -3058,12 +3083,12 @@
 
         function populateSpecialtiesDropdowns() {
             const list = window.specialtiesList || [];
-            const formSpec = document.getElementById('formSpecialty');
-            const clientSpec = document.getElementById('clientSpecialty');
+            const formSpecList = document.getElementById('formSpecialtiesList');
+            const clientSpecList = document.getElementById('clientSpecialtiesList');
 
             const optionsHtml = list.map(s => `<option value="${s}">${s}</option>`).join('');
-            if (formSpec) formSpec.innerHTML = optionsHtml;
-            if (clientSpec) clientSpec.innerHTML = optionsHtml;
+            if (formSpecList) formSpecList.innerHTML = optionsHtml;
+            if (clientSpecList) clientSpecList.innerHTML = optionsHtml;
         }
 
         const MAX_DOCUMENT_SIZE = 25 * 1024 * 1024;
@@ -3727,10 +3752,14 @@
                         entityType,
                         specialty,
                         city,
-                        category: stage,
+                        category: 'تسجيل جهة جديدة',
                         channel: 'نظام نبضي',
                         priority: 'عادية',
                         status: 'مكتمل',
+                        activityType: 'client_registration',
+                        isClientRegistration: true,
+                        affectsFunnel: false,
+                        affectsFollowUp: false,
                         clientStatusNote: statusNote,
                         notes: `تم تسجيل وتوثيق بيانات الجهة بنجاح في النظام.${notes ? ' ملاحظات: ' + notes : ''}`
                     };
@@ -4056,7 +4085,7 @@
 
             container.innerHTML = clientTasks.map((t) => {
                 let iconClass = "fa-phone bg-blue-500 text-white";
-                if (t.category === 'تسجيل جهة جديدة') iconClass = "fa-user-plus bg-emerald-600 text-white";
+                if (isClientRegistrationTask(t)) iconClass = "fa-user-plus bg-emerald-600 text-white";
                 else if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
                 else if (t.category === 'عميل مهتم') iconClass = "fa-user-check bg-emerald-600 text-white";
                 else if (isMeetingPreparationAction(t)) iconClass = "fa-hourglass-half bg-sky-500 text-white";
@@ -4076,7 +4105,7 @@
                         <div class="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-xs flex-1">
                             <div class="flex flex-wrap justify-between items-center gap-1 mb-1 border-b border-slate-100 pb-2">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-extrabold text-slate-900 text-xs">${t.category}</span>
+                                    <span class="font-extrabold text-slate-900 text-xs">${getTaskDisplayCategory(t)}</span>
                                     <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg text-[10px] font-bold">بواسطة: ${t.agent}</span>
                                     <span class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-lg text-[10px] font-bold">${t.shift}</span>
                                 </div>
@@ -4120,6 +4149,7 @@
             const scopedTasks = getSmartFollowUpScopeTasks();
             const latestClientTasks = new Map();
             const internalEntries = [];
+            const newClientEntries = [];
 
             scopedTasks.forEach(task => {
                 if (task.taskType === 'internal') {
@@ -4132,6 +4162,18 @@
                             kind: 'INTERNAL'
                         });
                     }
+                    return;
+                }
+
+                if (isClientRegistrationTask(task)) {
+                    const matchedClient = (window.clients || []).find(client => window.taskMatchesClient(task, client));
+                    newClientEntries.push({
+                        task,
+                        clientId: matchedClient?.id || task.clientId || '',
+                        dueDate: window.getTaskDateString(task),
+                        dueTime: '',
+                        kind: 'NEW_CLIENT'
+                    });
                     return;
                 }
 
@@ -4167,7 +4209,7 @@
                 }];
             });
 
-            return [...clientEntries, ...internalEntries].sort((first, second) => {
+            return [...clientEntries, ...internalEntries, ...newClientEntries].sort((first, second) => {
                 const dateCompare = String(first.dueDate || '').localeCompare(String(second.dueDate || ''));
                 if (dateCompare) return dateCompare;
                 const timeCompare = String(first.dueTime || '').localeCompare(String(second.dueTime || ''));
@@ -4178,7 +4220,7 @@
         }
 
         function setSmartFollowUpFilter(filter) {
-            window.smartFollowUpFilter = ['TODAY', 'OVERDUE', 'UNANSWERED', 'UPCOMING'].includes(filter) ? filter : 'TODAY';
+            window.smartFollowUpFilter = ['TODAY', 'NEW_CLIENTS', 'OVERDUE', 'UNANSWERED', 'UPCOMING'].includes(filter) ? filter : 'TODAY';
             renderSmartFollowUpCenter();
         }
 
@@ -4213,14 +4255,16 @@
             const today = window.getLocalDateString();
             const entries = getSmartFollowUpEntries();
             const groups = {
-                TODAY: entries.filter(entry => entry.dueDate === today),
-                OVERDUE: entries.filter(entry => entry.dueDate && entry.dueDate < today),
+                TODAY: entries.filter(entry => entry.kind !== 'NEW_CLIENT' && entry.dueDate === today),
+                NEW_CLIENTS: entries.filter(entry => entry.kind === 'NEW_CLIENT' && entry.dueDate === today),
+                OVERDUE: entries.filter(entry => entry.kind !== 'NEW_CLIENT' && entry.dueDate && entry.dueDate < today),
                 UNANSWERED: entries.filter(entry => entry.kind === 'UNANSWERED'),
-                UPCOMING: entries.filter(entry => entry.dueDate && entry.dueDate > today)
+                UPCOMING: entries.filter(entry => entry.kind !== 'NEW_CLIENT' && entry.dueDate && entry.dueDate > today)
             };
 
             const countMap = {
                 smartFollowUpTodayCount: groups.TODAY.length,
+                smartFollowUpNewClientsCount: groups.NEW_CLIENTS.length,
                 smartFollowUpOverdueCount: groups.OVERDUE.length,
                 smartFollowUpUnansweredCount: groups.UNANSWERED.length,
                 smartFollowUpUpcomingCount: groups.UPCOMING.length
@@ -4233,6 +4277,7 @@
             const activeFilter = window.smartFollowUpFilter || 'TODAY';
             const buttonMap = {
                 TODAY: 'smartFollowUpBtnToday',
+                NEW_CLIENTS: 'smartFollowUpBtnNewClients',
                 OVERDUE: 'smartFollowUpBtnOverdue',
                 UNANSWERED: 'smartFollowUpBtnUnanswered',
                 UPCOMING: 'smartFollowUpBtnUpcoming'
@@ -4251,7 +4296,7 @@
                 emptyState.classList.remove('hidden');
                 const emptyText = document.getElementById('smartFollowUpEmptyText');
                 if (emptyText) {
-                    const labels = { TODAY: 'لا توجد متابعات مطلوبة اليوم.', OVERDUE: 'ممتاز، لا توجد متابعات متأخرة.', UNANSWERED: 'لا توجد مكالمات معلّقة لم يتم الرد عليها.', UPCOMING: 'لا توجد متابعات قادمة مسجلة.' };
+                    const labels = { TODAY: 'لا توجد متابعات مطلوبة اليوم.', NEW_CLIENTS: 'لا يوجد عملاء جدد مسجلون اليوم.', OVERDUE: 'ممتاز، لا توجد متابعات متأخرة.', UNANSWERED: 'لا توجد مكالمات معلّقة لم يتم الرد عليها.', UPCOMING: 'لا توجد متابعات قادمة مسجلة.' };
                     emptyText.textContent = labels[activeFilter] || 'لا توجد متابعات مطلوبة في هذا القسم.';
                 }
                 return;
@@ -4271,11 +4316,15 @@
                 const datePrefix = isOverdue ? 'متأخر منذ' : isToday ? 'اليوم' : 'موعد';
                 const kindLabel = entry.kind === 'UNANSWERED'
                     ? 'مكالمة لم يتم الرد عليها'
+                    : entry.kind === 'NEW_CLIENT'
+                        ? 'تسجيل جهة جديدة'
                     : entry.kind === 'INTERNAL'
                         ? 'مهمة داخلية'
                         : 'متابعة عميل';
                 const kindClass = entry.kind === 'UNANSWERED'
                     ? 'bg-fuchsia-100 text-fuchsia-800'
+                    : entry.kind === 'NEW_CLIENT'
+                        ? 'bg-emerald-100 text-emerald-800'
                     : entry.kind === 'INTERNAL'
                         ? 'bg-violet-100 text-violet-800'
                         : 'bg-indigo-100 text-indigo-800';
@@ -4291,7 +4340,7 @@
                                     <span class="border ${dateBadgeClass} px-2 py-0.5 rounded-full text-[10px] font-black">${datePrefix}: ${formatAgentPeriodDate(entry.dueDate)}${entry.dueTime ? ` — ${escapeHtml(entry.dueTime)}` : ''}</span>
                                 </div>
                                 <h3 class="font-black text-slate-900 text-sm">${escapeHtml(task.customer || task.title || 'مهمة متابعة')}</h3>
-                                <p class="text-[10px] text-slate-500 font-bold mt-1">${escapeHtml(task.agent || '-')} · ${escapeHtml(task.category || task.department || '')}</p>
+                                <p class="text-[10px] text-slate-500 font-bold mt-1">${escapeHtml(task.agent || '-')} · ${escapeHtml(getTaskDisplayCategory(task) || task.department || '')}</p>
                             </div>
                             <span class="text-[10px] font-black ${task.priority === 'عالية جداً' ? 'text-rose-600' : 'text-slate-500'}">الأولوية: ${escapeHtml(task.priority || 'عادية')}</span>
                         </div>
@@ -4331,7 +4380,7 @@
                     (t.entityType && t.entityType.toLowerCase().includes(searchVal)) ||
                     (t.specialty && t.specialty.toLowerCase().includes(searchVal)) ||
                     (t.notes && t.notes.toLowerCase().includes(searchVal)) ||
-                    (t.category && t.category.toLowerCase().includes(searchVal));
+                    (getTaskDisplayCategory(t) && getTaskDisplayCategory(t).toLowerCase().includes(searchVal));
 
                 return matchShift && matchEntityType && matchStatus && matchSearch;
             });
@@ -4390,7 +4439,7 @@
                             <span class="text-[10px] text-slate-500 font-semibold block mt-0.5">${t.specialty || ''}</span>
                         </td>
                         <td class="p-3 font-bold text-slate-700 whitespace-nowrap"><span class="bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">${t.city || 'الرياض'}</span></td>
-                        <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${t.category}</td>
+                        <td class="p-3 font-bold text-brand-700 whitespace-nowrap">${getTaskDisplayCategory(t)}</td>
                         <td class="p-3 text-slate-800 font-medium max-w-xs">${t.notes}${t.nextFollowUpDate?`<div class="mt-1.5 text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1 font-black"><i class="fa-solid fa-calendar-check ml-1"></i>المتابعة: ${formatAgentPeriodDate(t.nextFollowUpDate)}${t.nextFollowUpTime?` — ${escapeHtml(t.nextFollowUpTime)}`:''}</div>`:''}${t.taskType==='internal'&&t.activityLog?.length?`<div class="mt-1 text-[10px] text-sky-700 font-bold">آخر إجراء: ${escapeHtml(t.activityLog[t.activityLog.length-1].comment)} (${t.activityLog.length} إجراءات)</div>`:''}</td>
                         <td class="p-3 whitespace-nowrap">
                             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusClass}">${t.status}</span>
@@ -5615,7 +5664,7 @@
                             (task.date || '-') + ' ' + (task.time || ''),
                             (task.agent || '-') + ' — ' + (task.shift || '-'),
                             task.customer || '-',
-                            task.category || '-',
+                            getTaskDisplayCategory(task) || '-',
                             task.notes || '-',
                             task.status || '-'
                         ];
