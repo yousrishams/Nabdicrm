@@ -2130,13 +2130,53 @@
             return window.normalizeFunnelStage(category);
         };
 
+        window.APP_TIME_ZONE = 'Africa/Cairo';
+
+        window.getEgyptDateTimeParts = function(value = new Date()) {
+            const date = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(date.getTime())) return null;
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: window.APP_TIME_ZONE,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hourCycle: 'h23'
+            }).formatToParts(date);
+            return Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+        };
+
+        // الاسم القديم باقٍ للتوافق، لكنه يعيد تاريخ القاهرة دائماً وليس تاريخ الجهاز.
         window.getLocalDateString = function(value = new Date()) {
+            const parts = window.getEgyptDateTimeParts(value);
+            return parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
+        };
+
+        window.getEgyptTimeString = function(value = new Date()) {
             const date = value instanceof Date ? value : new Date(value);
             if (Number.isNaN(date.getTime())) return '';
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return new Intl.DateTimeFormat('ar-EG', {
+                timeZone: window.APP_TIME_ZONE,
+                hour: '2-digit', minute: '2-digit', hour12: true
+            }).format(date);
+        };
+
+        window.formatEgyptDateTime = function(value = new Date()) {
+            const date = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(date.getTime())) return '';
+            return new Intl.DateTimeFormat('ar-EG', {
+                timeZone: window.APP_TIME_ZONE,
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            }).format(date);
+        };
+
+        window.formatEgyptDate = function(value, options = { day: '2-digit', month: '2-digit', year: 'numeric' }) {
+            if (!value) return '';
+            // استخدم منتصف النهار UTC للتواريخ النصية حتى لا تتحول لليوم السابق بأي جهاز.
+            const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value))
+                ? new Date(`${value}T12:00:00Z`)
+                : (value instanceof Date ? value : new Date(value));
+            if (Number.isNaN(date.getTime())) return '';
+            return new Intl.DateTimeFormat('ar-EG', { timeZone: window.APP_TIME_ZONE, ...options }).format(date);
         };
 
         window.getTaskDateString = function(task) {
@@ -3883,7 +3923,7 @@
                     const currentEmpObj = (window.employees || []).find(e => e.name === currentAgentName);
                     const empShift = currentEmpObj ? currentEmpObj.shift : 'شفت صباحي';
                     const todayStr = window.getLocalDateString();
-                    const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                    const currentTimeStr = window.getEgyptTimeString();
 
                     const initialTask = {
                         id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -4635,10 +4675,10 @@
             const allowedDepartment=window.currentUserRole==='manager'?department:window.getEmployeeDepartment(logged);if(allowedDepartment!==department){showToast('لا يمكنك إسناد مهام لقسم آخر','error');return;}
             const staff=(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)===department&&window.getEmployeeAccessLevel(e)==='employee');
             if(!staff.length){showToast('لا يوجد موظفون عاديون مسجلون في هذا القسم','error');return;}
-            document.getElementById('departmentTaskDepartment').value=department;document.getElementById('departmentTaskSubtitle').textContent='القسم: '+department;document.getElementById('departmentTaskTitle').value='';document.getElementById('departmentTaskNotes').value='';document.getElementById('departmentTaskDue').value=new Date().toISOString().slice(0,10);document.getElementById('departmentTaskAssignee').innerHTML=staff.map(e=>`<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');document.getElementById('departmentTaskModal').classList.remove('hidden');
+            document.getElementById('departmentTaskDepartment').value=department;document.getElementById('departmentTaskSubtitle').textContent='القسم: '+department;document.getElementById('departmentTaskTitle').value='';document.getElementById('departmentTaskNotes').value='';document.getElementById('departmentTaskDue').value=window.getLocalDateString();document.getElementById('departmentTaskAssignee').innerHTML=staff.map(e=>`<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');document.getElementById('departmentTaskModal').classList.remove('hidden');
         }
         function closeDepartmentTaskModal(){document.getElementById('departmentTaskModal').classList.add('hidden');}
-        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',agent:assignee,date:due,time:new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'قيد المعالجة',title,notes:(title+(notes?' — '+notes:''))});closeDepartmentTaskModal();showToast('تم إسناد المهمة إلى '+assignee+' وستظهر في حسابه');}
+        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',agent:assignee,date:due,time:window.getEgyptTimeString(),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'قيد المعالجة',title,notes:(title+(notes?' — '+notes:''))});closeDepartmentTaskModal();showToast('تم إسناد المهمة إلى '+assignee+' وستظهر في حسابه');}
 
         function openAddTaskModal(clientIdToPreselect = null) {
             const modal = document.getElementById('addTaskModal');
@@ -4719,7 +4759,7 @@
                 return;
             }
 
-            const currentTimeStr = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            const currentTimeStr = window.getEgyptTimeString();
             const existingTask = taskId ? (window.tasks || []).find(task => task.id === taskId) : null;
 
             const taskData = {
@@ -5063,9 +5103,7 @@
 
         function formatAgentPeriodDate(value) {
             if (!value) return 'غير محدد';
-            const date = new Date(`${value}T00:00:00`);
-            if (Number.isNaN(date.getTime())) return value;
-            return date.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            return window.formatEgyptDate(value, { day: '2-digit', month: '2-digit', year: 'numeric' }) || value;
         }
 
         function syncAgentDateControls() {
@@ -5460,7 +5498,7 @@
 
         function openDailySummaryModal() {
             renderEmployeeSelects();
-            const today = window.currentDateFilter || new Date().toISOString().split('T')[0];
+            const today = window.currentDateFilter || window.getLocalDateString();
             const monthStart = `${today.slice(0, 8)}01`;
             document.getElementById('summaryStartDate').value = monthStart;
             document.getElementById('summaryEndDate').value = today;
@@ -5487,10 +5525,7 @@
 
         function reportDateText(value) {
             if (!value) return 'غير محدد';
-            const date = new Date(value + 'T00:00:00');
-            return Number.isNaN(date.getTime())
-                ? value
-                : date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+            return window.formatEgyptDate(value, { day: 'numeric', month: 'long', year: 'numeric' }) || value;
         }
 
         function reportKpi(icon, label, value, accent) {
@@ -5705,7 +5740,7 @@
             html += reportSection('أداء موظفي الدعم الفني', reportTable(['الموظف','ملفات استلمها','جاري التنفيذ','تم رفعها','متوسط التنفيذ'], supportAgents));
             html += reportSection('سجل تسليم وتنفيذ العملاء', reportTable(
                 ['العميل','خدمات العملاء','حالة الملف','مستلم الدعم','وقت الاستلام','من أنهى','وقت الإنهاء'],
-                projects.map(function(p) { return [p.clientName||'-',p.sender||'-',p.handoffStatus||'-',p.receivedBy||'-',p.receivedAt?new Date(p.receivedAt).toLocaleString('ar-EG'):'-',p.completedBy||'-',p.completedAt?new Date(p.completedAt).toLocaleString('ar-EG'):'-']; })
+                projects.map(function(p) { return [p.clientName||'-',p.sender||'-',p.handoffStatus||'-',p.receivedBy||'-',p.receivedAt?window.formatEgyptDateTime(p.receivedAt):'-',p.completedBy||'-',p.completedAt?window.formatEgyptDateTime(p.completedAt):'-']; })
             ), 'report-page-break');
             return html;
         }
@@ -5850,7 +5885,7 @@
                 : reportType === 'SUPPORT_PERFORMANCE'
                     ? buildSupportInfographic(start, end, agent)
                     : buildStandardInfographic(reportType, tasks, clients);
-            content += '<div class="report-note">تم إنشاء هذا التقرير من بيانات منصة نبضي بتاريخ ' + escapeHtml(new Date().toLocaleString('ar-EG')) + '.</div>';
+            content += '<div class="report-note">تم إنشاء هذا التقرير من بيانات منصة نبضي بتاريخ ' + escapeHtml(window.formatEgyptDateTime()) + ' بتوقيت مصر.</div>';
             area.innerHTML = '<article class="report-sheet">' + content + '</article>';
         }
 
@@ -5892,7 +5927,7 @@
                         <p class="text-xs text-purple-800 font-bold mt-1">المدى الزمني: من <b>${start}</b> إلى <b>${end}</b> | الشفت: <b>${shift}</b> | الموظف: <b>${agent}</b></p>
                     </div>
                     <div class="text-left text-xs font-bold text-slate-500">
-                        <div>تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-EG')}</div>
+                        <div>تاريخ الاستخراج: ${window.formatEgyptDate(new Date())} — توقيت مصر</div>
                         <div>حالة التقرير: مُراجع وموثق</div>
                     </div>
                 </div>
@@ -6231,7 +6266,7 @@
             const supportNames=supervisor?['غير موزعة',...(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)==='الدعم الفني').map(e=>e.name)]:[window.currentLoggedInAgent];document.getElementById('supportTaskAgent').innerHTML=supportNames.map(n=>`<option>${n}</option>`).join('');
             document.getElementById('supportTaskId').value=taskId; document.getElementById('supportTaskProjectId').value=projectId;
             document.getElementById('supportTaskClient').value=project?.clientId||clients[0]?.id||''; document.getElementById('supportTaskTitle').value=task?.title||''; document.getElementById('supportTaskAgent').value=task?.agent||'غير موزعة';
-            document.getElementById('supportTaskDue').value=task?.due||new Date().toISOString().slice(0,10); document.getElementById('supportTaskStatus').value=task?.status||'جديدة'; document.getElementById('supportTaskPriority').value=task?.priority||'عادية'; document.getElementById('supportTaskNotes').value=task?.notes||'';
+            document.getElementById('supportTaskDue').value=task?.due||window.getLocalDateString(); document.getElementById('supportTaskStatus').value=task?.status||'جديدة'; document.getElementById('supportTaskPriority').value=task?.priority||'عادية'; document.getElementById('supportTaskNotes').value=task?.notes||'';
             document.getElementById('supportTaskModal').classList.remove('hidden');
         };
         window.closeSupportTaskEditor=function(){document.getElementById('supportTaskModal').classList.add('hidden')};
@@ -6244,11 +6279,11 @@
         window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(t){t.status=status;saveSupport(p);renderTechnicalSupport();}};
         window.deleteSupportProjectTask=function(pid,tid){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف مهام الدعم متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف مهمة الدعم نهائيًا؟'))return;let projects=loadSupport(),project=projects.find(p=>p.id===pid);if(!project)return;const task=(project.tasks||[]).find(t=>t.id===tid);if(task){task.deletedAt=new Date().toISOString();task.deletedBy=window.currentLoggedInAgent||'المدير العام';}saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم حذف مهمة الدعم');};
         window.deleteInternalSupportTask=async function(id){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف المهام متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف المهمة المسندة نهائيًا؟'))return;await window.deleteTaskFromCloud(id);renderTechnicalSupport();if(window.showToast)showToast('تم حذف المهمة');};
-        window.renderSupportInternalTasks=function(){const box=document.getElementById('supportInternalTasksList');if(!box)return;const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canSeeAll=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';let list=(window.tasks||[]).filter(t=>t.taskType==='internal'&&t.department==='الدعم الفني'&&(canSeeAll||t.agent===window.currentLoggedInAgent));list.sort((a,b)=>(a.status==='مكتمل')-(b.status==='مكتمل')||String(a.date||'').localeCompare(String(b.date||'')));document.getElementById('supportInternalTasksCount').textContent=list.filter(t=>t.status!=='مكتمل').length;box.innerHTML=list.length?list.map(t=>{const last=t.activityLog?.[t.activityLog.length-1];return `<article class="border rounded-2xl p-4 ${t.status==='مكتمل'?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><div class="flex justify-between gap-2"><div><b class="text-sm">${escapeHtml(t.title||'مهمة داخلية')}</b><p class="text-[10px] text-slate-500 mt-1">إلى: ${escapeHtml(t.agent||'-')} · من: ${escapeHtml(t.assignedBy||'-')}</p></div><span class="text-[10px] font-black ${t.status==='مكتمل'?'text-emerald-700':'text-amber-700'}">${t.status}</span></div><p class="text-xs text-slate-700 mt-3">${escapeHtml(t.notes||'')}</p>${last?`<div class="mt-2 bg-sky-50 border border-sky-100 rounded-xl p-2 text-[10px]"><b>${escapeHtml(last.type)}:</b> ${escapeHtml(last.comment)}<div class="text-slate-400 mt-1">${escapeHtml(last.by)} · ${new Date(last.at).toLocaleString('ar-EG')}</div></div>`:''}<div class="flex gap-2 mt-3">${t.status!=='مكتمل'&&t.agent===window.currentLoggedInAgent?`<button onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إجراء / تعليق</button><button onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إنهاء المهمة</button>`:''}${canSeeAll?`<button onclick="deleteInternalSupportTask('${t.id}')" class="bg-rose-600 text-white px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-trash ml-1"></i>حذف</button>`:''}</div></article>`}).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';};
+        window.renderSupportInternalTasks=function(){const box=document.getElementById('supportInternalTasksList');if(!box)return;const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canSeeAll=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(logged)==='supervisor';let list=(window.tasks||[]).filter(t=>t.taskType==='internal'&&t.department==='الدعم الفني'&&(canSeeAll||t.agent===window.currentLoggedInAgent));list.sort((a,b)=>(a.status==='مكتمل')-(b.status==='مكتمل')||String(a.date||'').localeCompare(String(b.date||'')));document.getElementById('supportInternalTasksCount').textContent=list.filter(t=>t.status!=='مكتمل').length;box.innerHTML=list.length?list.map(t=>{const last=t.activityLog?.[t.activityLog.length-1];return `<article class="border rounded-2xl p-4 ${t.status==='مكتمل'?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><div class="flex justify-between gap-2"><div><b class="text-sm">${escapeHtml(t.title||'مهمة داخلية')}</b><p class="text-[10px] text-slate-500 mt-1">إلى: ${escapeHtml(t.agent||'-')} · من: ${escapeHtml(t.assignedBy||'-')}</p></div><span class="text-[10px] font-black ${t.status==='مكتمل'?'text-emerald-700':'text-amber-700'}">${t.status}</span></div><p class="text-xs text-slate-700 mt-3">${escapeHtml(t.notes||'')}</p>${last?`<div class="mt-2 bg-sky-50 border border-sky-100 rounded-xl p-2 text-[10px]"><b>${escapeHtml(last.type)}:</b> ${escapeHtml(last.comment)}<div class="text-slate-400 mt-1">${escapeHtml(last.by)} · ${window.formatEgyptDateTime(last.at)}</div></div>`:''}<div class="flex gap-2 mt-3">${t.status!=='مكتمل'&&t.agent===window.currentLoggedInAgent?`<button onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إجراء / تعليق</button><button onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إنهاء المهمة</button>`:''}${canSeeAll?`<button onclick="deleteInternalSupportTask('${t.id}')" class="bg-rose-600 text-white px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-trash ml-1"></i>حذف</button>`:''}</div></article>`}).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';};
         window.renderTechnicalSupport=function(){
             renderSupportInternalTasks();
             const supportUser=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canManageSupport=window.currentUserRole==='manager'||window.getEmployeeAccessLevel(supportUser)==='supervisor';
-            const projects=loadSupport().filter(p=>!p.deletedAt), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=new Date().toISOString().slice(0,10);
+            const projects=loadSupport().filter(p=>!p.deletedAt), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=window.getLocalDateString();
             const open=all.filter(t=>t.status!=='مكتملة'), late=open.filter(t=>t.status==='متأخرة'||(t.due&&t.due<today));
             const pending=projects.filter(p=>!['تم الاستلام','تم الرفع بنجاح'].includes(p.handoffStatus)),receivedProjects=projects.filter(p=>p.handoffStatus==='تم الاستلام'),completedProjects=projects.filter(p=>p.handoffStatus==='تم الرفع بنجاح'); ['supportOpenTasksBadge'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pending.length}); document.getElementById('supportProjectsCount').textContent=pending.length; document.getElementById('supportOpenCount').textContent=receivedProjects.length; document.getElementById('supportDoneCount').textContent=completedProjects.length; document.getElementById('supportLateCount').textContent=late.length;
             const scope=document.getElementById('supportScopeFilter')?.value||'ALL';
@@ -6256,7 +6291,7 @@
             const visibleProjects=scope==='COMPLETED'?completedProjects:scope==='MINE'?activeProjects.filter(p=>p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent)):scope==='UNASSIGNED'?activeProjects.filter(p=>p.handoffStatus!=='تم الاستلام'):activeProjects;
             const filtered=visibleProjects.filter(p=>!q||p.clientName.toLowerCase().includes(q)||(p.tasks||[]).some(t=>t.title.toLowerCase().includes(q)));
             document.getElementById('supportProjectsList').innerHTML=filtered.length?filtered.map(p=>{const received=p.handoffStatus==='تم الاستلام',linkReady=p.handoffStatus==='تم إرسال رابط البيانات',c=(window.clients||[]).find(x=>x.id===p.clientId)||{},drive=p.supportPackage?.driveLink||c.supportPackage?.driveLink||'',label=received?'تم الاستلام بواسطة '+p.receivedBy:(linkReady?'تم إرسال رابط البيانات':'عميل جديد — بانتظار رابط البيانات');return `<article class="border ${received?'border-emerald-200':linkReady?'border-sky-300':'border-amber-300'} rounded-2xl overflow-hidden"><div class="${received?'bg-emerald-50':linkReady?'bg-sky-50':'bg-amber-50'} p-4 flex flex-wrap justify-between items-center gap-3"><div><div class="flex items-center gap-2"><b class="text-sm text-slate-950">${p.clientName}</b><span class="px-2 py-1 rounded-full text-[10px] font-black ${received?'bg-emerald-200 text-emerald-900':linkReady?'bg-sky-200 text-sky-900':'bg-amber-200 text-amber-900'}">${label}</span></div><p class="text-[10px] text-slate-600 mt-1">أرسله: ${p.sender||'خدمات العملاء'} · ${p.phone||''}</p></div><div class="flex flex-wrap gap-2">${drive?`<a href="${drive}" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-brands fa-google-drive ml-1"></i>فتح ملفات العميل</a>`:''}<button onclick="closeTechnicalSupportWorkspace();openClientProfileModal('${p.clientId}')" class="bg-white border px-3 py-2 rounded-xl text-xs font-black text-indigo-700">فتح بيانات العميل</button>${linkReady?`<button onclick="acceptSupportHandoff('${p.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black">استلام وبدء التنفيذ</button>`:received?`<button onclick="openSupportTaskEditor('${p.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-black">+ مهمة</button>`:`<span class="bg-amber-100 text-amber-900 px-3 py-2 rounded-xl text-xs font-black">بانتظار خدمات العملاء</span>`}</div></div>${received?`<div class="divide-y">${(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>`<div class="p-3 grid sm:grid-cols-[1fr_120px_140px_auto] gap-2 items-center"><button onclick="openSupportTaskEditor('${p.id}','${t.id}')" class="text-right"><b class="block text-xs">${t.title}</b><span class="text-[10px] text-slate-500">${t.notes||'بدون ملاحظات'}</span></button><span class="text-[10px] font-bold">${t.agent}</span><select onchange="setSupportTaskStatus('${p.id}','${t.id}',this.value)" class="border rounded-lg p-1.5 text-[10px]">${['جديدة','جاري التنفيذ','انتظار العميل','مكتملة','متأخرة'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>${canManageSupport?`<button onclick="deleteSupportProjectTask('${p.id}','${t.id}')" class="bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2 text-[10px] font-black"><i class="fa-solid fa-trash"></i></button>`:''}</div>`).join('')}</div>`:`<div class="p-4 bg-white text-xs text-slate-600">${linkReady?'وصل رابط الملفات ويمكن لموظف الدعم استلام العميل وبدء التنفيذ.':'تم إشعار الدعم بالعميل، وسيظهر رابط الملفات فور إرساله من خدمات العملاء.'}</div>`}</article>`}).join(''):'<div class="text-center text-xs text-slate-400 py-12">لا توجد ملفات مرسلة إلى الدعم الفني حتى الآن.</div>';
-            Array.from(document.getElementById('supportProjectsList').children).forEach((article,index)=>{const p=filtered[index];if(!p)return;const actions=article.querySelector('.flex.flex-wrap.gap-2');if(p.handoffStatus==='تم الاستلام'&&actions){const btn=document.createElement('button');btn.className='bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-black';btn.innerHTML='<i class="fa-solid fa-circle-check ml-1"></i>تم الرفع بنجاح';btn.onclick=()=>completeSupportProject(p.id);actions.appendChild(btn);}if(p.handoffStatus==='تم الرفع بنجاح'){const badge=article.querySelector('span.px-2');if(badge){badge.textContent='تم الرفع بنجاح بواسطة '+(p.completedBy||'-');badge.className='px-2 py-1 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900';}const info=article.lastElementChild;if(info)info.innerHTML='<i class="fa-solid fa-box-archive text-emerald-600 ml-1"></i>أُغلق الملف ونُقل للأرشيف — '+(p.completedAt?new Date(p.completedAt).toLocaleString('ar-EG'):'');}}
+            Array.from(document.getElementById('supportProjectsList').children).forEach((article,index)=>{const p=filtered[index];if(!p)return;const actions=article.querySelector('.flex.flex-wrap.gap-2');if(p.handoffStatus==='تم الاستلام'&&actions){const btn=document.createElement('button');btn.className='bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-black';btn.innerHTML='<i class="fa-solid fa-circle-check ml-1"></i>تم الرفع بنجاح';btn.onclick=()=>completeSupportProject(p.id);actions.appendChild(btn);}if(p.handoffStatus==='تم الرفع بنجاح'){const badge=article.querySelector('span.px-2');if(badge){badge.textContent='تم الرفع بنجاح بواسطة '+(p.completedBy||'-');badge.className='px-2 py-1 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900';}const info=article.lastElementChild;if(info)info.innerHTML='<i class="fa-solid fa-box-archive text-emerald-600 ml-1"></i>أُغلق الملف ونُقل للأرشيف — '+(p.completedAt?window.formatEgyptDateTime(p.completedAt):'');}}
             );
             const agents={}; all.forEach(t=>{if(t.agent==='غير موزعة')return; agents[t.agent]??={done:0,total:0,late:0};agents[t.agent].total++;if(t.status==='مكتملة')agents[t.agent].done++;if(t.status==='متأخرة'||(t.status!=='مكتملة'&&t.due&&t.due<today))agents[t.agent].late++;}); document.getElementById('supportLeaderboard').innerHTML=Object.entries(agents).sort((a,b)=>(b[1].total?b[1].done/b[1].total:0)-(a[1].total?a[1].done/a[1].total:0)).map(([n,v],i)=>`<div class="border rounded-2xl p-3"><div class="flex justify-between"><b class="text-xs">${i+1}. ${n}</b><b class="text-xs text-emerald-700">${v.total?Math.round(v.done/v.total*100):0}% إنجاز</b></div><div class="h-2 bg-slate-100 rounded mt-2 overflow-hidden"><div class="h-full bg-emerald-500" style="width:${v.total?Math.round(v.done/v.total*100):0}%"></div></div><span class="text-[10px] text-slate-500">${v.done} مكتملة من ${v.total} · ${v.late} متأخرة</span></div>`).join('')||'<p class="text-xs text-slate-400 text-center py-8">وزّع المهام لعرض المتابعة</p>';
         };
