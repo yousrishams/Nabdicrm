@@ -1315,7 +1315,7 @@
                                     <input type="file" onchange="handleFileSelected(event, 'docMainName')" class="hidden">
                                 </label>
                             </div>
-                            <input type="text" id="clientName" required placeholder="مثال: عيادة د. خالد الأحمد / مجمع الشفاء الطبي" 
+                            <input type="text" id="clientName" required placeholder="مثال: عيادة د. خالد الأحمد / مجمع الشفاء الطبي" oninput="onClientIdentityInput()"
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
                             <span id="badge_docMainName" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
@@ -1343,16 +1343,29 @@
                                     <input type="file" onchange="handleFileSelected(event, 'docPhone')" class="hidden">
                                 </label>
                             </div>
-                            <input type="tel" id="clientPhone" required placeholder="05xxxxxxxx" dir="ltr" 
+                            <input type="tel" id="clientPhone" required placeholder="05xxxxxxxx / 011xxxxxxx / 9200xxxxx / 800xxxxxxx" dir="ltr"
+                                   inputmode="tel" autocomplete="tel" oninput="onClientIdentityInput()" onblur="validateClientPhoneField(this, true)"
                                    class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <p class="mt-1 text-[9px] font-bold text-slate-500">يُقبل الجوال والأرضي والرقم الموحد 9200 والمجاني 800 داخل السعودية فقط.</p>
                             <span id="badge_docPhone" class="hidden mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"></span>
                         </div>
 
                         <div>
-                            <label class="block font-bold text-slate-700 mb-1">مرحلة العميل الموحدة في الفانل (Funnel Stage) *</label>
-                            <select id="clientStage" required class="w-full bg-purple-50 border border-purple-300 rounded-xl p-2.5 font-bold text-purple-900 focus:outline-none focus:border-indigo-500 cursor-pointer">
-                            </select>
+                            <label class="block font-bold text-slate-700 mb-1">رقم الهوية الوطنية / الإقامة</label>
+                            <input type="text" id="clientNationalId" placeholder="10 أرقام تبدأ بـ 1 أو 2" dir="ltr" inputmode="numeric" maxlength="10"
+                                   pattern="[12][0-9]{9}" title="يجب أن يتكون الرقم من 10 أرقام ويبدأ بـ 1 أو 2"
+                                   oninput="onClientIdentityInput()" onblur="validateClientNationalIdField(this, true)"
+                                   class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:outline-none focus:border-indigo-500">
+                            <p class="mt-1 text-[9px] font-bold text-slate-500">الحقل اختياري، وعند إدخاله يتم التحقق من الصيغة ومنع تكراره.</p>
                         </div>
+                    </div>
+
+                    <div id="clientDuplicateAlert" class="hidden bg-rose-50 border border-rose-300 text-rose-900 rounded-xl p-3 text-[11px] font-black leading-5"></div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">مرحلة العميل الموحدة في الفانل (Funnel Stage) *</label>
+                        <select id="clientStage" required class="w-full bg-purple-50 border border-purple-300 rounded-xl p-2.5 font-bold text-purple-900 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                        </select>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1378,7 +1391,7 @@
 
                         <div>
                             <label class="block font-bold text-slate-700 mb-1">المدينة *</label>
-                            <select id="clientCity" required class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            <select id="clientCity" required onchange="onClientIdentityInput()" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer">
                                 <option value="الرياض">الرياض</option>
                                 <option value="جدة">جدة</option>
                                 <option value="مكة المكرمة">مكة المكرمة</option>
@@ -3559,6 +3572,131 @@
             setTimeout(scrollClientFinancialsIntoView, 80);
         }
 
+        function convertArabicDigits(value) {
+            return String(value || '')
+                .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+                .replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+        }
+
+        function normalizeSaudiPhone(value) {
+            const translated = convertArabicDigits(value).trim();
+            if (!translated || !/^[+\d\s().-]+$/.test(translated)) return '';
+
+            let digits = translated.replace(/\D/g, '');
+            if (digits.startsWith('00966')) digits = digits.slice(5);
+            else if (digits.startsWith('966')) digits = digits.slice(3);
+
+            // توحيد أرقام الجوال والأرضي المكتوبة بصيغة +966 إلى الصيغة المحلية.
+            if (/^(5\d{8}|1[123467]\d{7})$/.test(digits)) digits = `0${digits}`;
+            return digits;
+        }
+
+        function getSaudiPhoneValidation(value) {
+            const normalized = normalizeSaudiPhone(value);
+            if (/^05\d{8}$/.test(normalized)) return { valid: true, normalized, type: 'جوال سعودي' };
+            if (/^01[123467]\d{7}$/.test(normalized)) return { valid: true, normalized, type: 'هاتف أرضي سعودي' };
+            if (/^9200\d{5}$/.test(normalized)) return { valid: true, normalized, type: 'رقم موحد 9200' };
+            if (/^800\d{7}$/.test(normalized)) return { valid: true, normalized, type: 'رقم مجاني 800' };
+            return {
+                valid: false,
+                normalized,
+                message: 'أدخل رقمًا سعوديًا صحيحًا: جوال 05xxxxxxxx، أرضي 01xxxxxxxx، موحد 9200xxxxx، أو مجاني 800xxxxxxx.'
+            };
+        }
+
+        function normalizeSaudiNationalId(value) {
+            const translated = convertArabicDigits(value).trim();
+            if (!translated || !/^[\d\s-]+$/.test(translated)) return '';
+            return translated.replace(/\D/g, '');
+        }
+
+        function validateClientPhoneField(input, report = false) {
+            if (!input) return false;
+            if (!input.value.trim()) {
+                input.setCustomValidity('رقم الهاتف مطلوب.');
+                if (report) input.reportValidity();
+                return false;
+            }
+            const result = getSaudiPhoneValidation(input.value);
+            input.setCustomValidity(result.valid ? '' : result.message);
+            if (result.valid) input.value = result.normalized;
+            if (report && !result.valid) input.reportValidity();
+            return result.valid;
+        }
+
+        function validateClientNationalIdField(input, report = false) {
+            if (!input) return false;
+            if (!input.value.trim()) {
+                input.setCustomValidity('');
+                return true;
+            }
+            const normalized = normalizeSaudiNationalId(input.value);
+            const valid = /^[12]\d{9}$/.test(normalized);
+            input.setCustomValidity(valid ? '' : 'رقم الهوية الوطنية / الإقامة يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2.');
+            if (valid) input.value = normalized;
+            if (report && !valid) input.reportValidity();
+            return valid;
+        }
+
+        function getClientOwnerName(client) {
+            if (!client) return 'غير محدد';
+            if (client.addedBy) return client.addedBy;
+            const employee = (window.employees || []).find(emp => emp.id && emp.id === client.addedById);
+            if (employee?.name) return employee.name;
+            const registrationTask = (window.tasks || []).find(task =>
+                task.clientId === client.id && (task.isClientRegistration || task.activityType === 'client_registration')
+            );
+            return registrationTask?.agent || 'غير محدد';
+        }
+
+        function findRegisteredClientDuplicate({ id = '', name = '', phone = '', nationalId = '', city = '' }) {
+            const normalizedPhone = normalizeSaudiPhone(phone);
+            const normalizedNationalId = normalizeSaudiNationalId(nationalId);
+            const normalizedName = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+            const normalizedCity = String(city || '').trim().toLowerCase();
+
+            return (window.clients || []).find(client => {
+                if (!client || client.id === id || client.deletedAt) return false;
+                const existingPhone = normalizeSaudiPhone(client.phone || '');
+                const existingNationalId = normalizeSaudiNationalId(client.nationalId || '');
+                const existingName = String(client.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                const existingCity = String(client.city || '').trim().toLowerCase();
+
+                const sameNationalId = normalizedNationalId && existingNationalId === normalizedNationalId;
+                const sameNameAndCity = normalizedName && existingName === normalizedName && existingCity === normalizedCity;
+                const sameNameAndPhone = normalizedName && normalizedPhone && existingName === normalizedName && existingPhone === normalizedPhone;
+                return sameNationalId || sameNameAndCity || sameNameAndPhone;
+            }) || null;
+        }
+
+        function buildDuplicateClientMessage(client) {
+            return `الجهة «${client.name || 'بدون اسم'}» مسجلة من قبل وتابعة للموظف: ${getClientOwnerName(client)} — الهاتف: ${client.phone || 'غير مسجل'} — المدينة: ${client.city || 'غير محددة'}.`;
+        }
+
+        function refreshClientDuplicateAlert() {
+            const box = document.getElementById('clientDuplicateAlert');
+            if (!box) return null;
+            const duplicate = findRegisteredClientDuplicate({
+                id: document.getElementById('clientId')?.value || '',
+                name: document.getElementById('clientName')?.value || '',
+                phone: document.getElementById('clientPhone')?.value || '',
+                nationalId: document.getElementById('clientNationalId')?.value || '',
+                city: document.getElementById('clientCity')?.value || ''
+            });
+            box.classList.toggle('hidden', !duplicate);
+            box.innerHTML = duplicate
+                ? `<i class="fa-solid fa-triangle-exclamation ml-1"></i>${escapeHtml(buildDuplicateClientMessage(duplicate))}`
+                : '';
+            return duplicate;
+        }
+
+        function onClientIdentityInput() {
+            document.getElementById('clientPhone')?.setCustomValidity('');
+            document.getElementById('clientNationalId')?.setCustomValidity('');
+            clearTimeout(window.clientDuplicateCheckTimer);
+            window.clientDuplicateCheckTimer = setTimeout(refreshClientDuplicateAlert, 250);
+        }
+
         function openAddClientModal(prefillData = null) {
             populateFunnelDropdowns();
             const modal = document.getElementById('addClientModal');
@@ -3577,6 +3715,7 @@
                 document.getElementById('clientName').value = prefillData.name || '';
                 document.getElementById('clientContactPerson').value = prefillData.contactPerson || '';
                 document.getElementById('clientPhone').value = prefillData.phone || '';
+                document.getElementById('clientNationalId').value = prefillData.nationalId || '';
                 document.getElementById('clientStage').value = window.normalizeFunnelStage(prefillData.stage);
                 document.getElementById('clientCity').value = prefillData.city || 'الرياض';
                 document.getElementById('clientEntityType').value = prefillData.entityType || 'عيادة';
@@ -3610,6 +3749,10 @@
                 document.getElementById('clientEntityType').value = 'عيادة';
             }
 
+            document.getElementById('clientDuplicateAlert')?.classList.add('hidden');
+            document.getElementById('clientPhone')?.setCustomValidity('');
+            document.getElementById('clientNationalId')?.setCustomValidity('');
+
             modal.classList.remove('hidden');
         }
 
@@ -3622,7 +3765,11 @@
             const id = document.getElementById('clientId').value;
             const name = document.getElementById('clientName').value.trim();
             const contactPerson = document.getElementById('clientContactPerson').value.trim();
-            const phone = document.getElementById('clientPhone').value.trim();
+            const phoneInput = document.getElementById('clientPhone');
+            const nationalIdInput = document.getElementById('clientNationalId');
+            const phoneValidation = getSaudiPhoneValidation(phoneInput.value);
+            const phone = phoneValidation.normalized;
+            const nationalId = normalizeSaudiNationalId(nationalIdInput.value);
             const stage = document.getElementById('clientStage').value;
             const city = document.getElementById('clientCity').value;
             const entityType = document.getElementById('clientEntityType').value;
@@ -3640,33 +3787,33 @@
             const contractVatNumber = document.getElementById('contractVatNumber').value.trim();
             const contractSignerName = document.getElementById('contractSignerName').value.trim();
 
-            if (!name || !phone) {
+            if (!name || !phoneInput.value.trim()) {
                 showToast("يرجى ملء اسم الجهة ورقم الهاتف", "error");
+                return;
+            }
+
+            if (!validateClientPhoneField(phoneInput, true)) {
+                showToast(phoneValidation.message, 'error');
+                phoneInput.focus();
+                return;
+            }
+
+            if (!validateClientNationalIdField(nationalIdInput, true)) {
+                showToast('رقم الهوية الوطنية / الإقامة يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2.', 'error');
+                nationalIdInput.focus();
                 return;
             }
 
             const isNewClient = !id;
             const clientId = id || buildCanonicalClientId(name, phone, city);
-            const normalizedPhone = phone.replace(/\D/g, '');
-            const normalizedName = name.trim().toLowerCase();
-            const duplicate = (window.clients || []).find(c => {
-                if (c.id === id) return false;
-                const existingPhone = String(c.phone || '').replace(/\D/g, '');
-                const existingName = String(c.name || '').trim().toLowerCase();
-                const samePhoneAndName = normalizedPhone.length >= 5 &&
-                    existingPhone === normalizedPhone &&
-                    existingName === normalizedName;
-                const sameNameCity = existingName === normalizedName &&
-                    String(c.city || '') === String(city || '');
-                return samePhoneAndName || sameNameCity;
-            });
+            const duplicate = findRegisteredClientDuplicate({ id, name, phone, nationalId, city });
             if (duplicate) {
-                const duplicateMessage = `الجهة (${duplicate.name}) متسجلة بالفعل — راجع الاسم والمدينة أو عدّل الجهة الموجودة`;
+                const duplicateMessage = buildDuplicateClientMessage(duplicate);
                 showToast(duplicateMessage, 'error');
-                const phoneInput = document.getElementById('clientPhone');
                 phoneInput.setCustomValidity(duplicateMessage);
                 phoneInput.reportValidity();
                 phoneInput.focus();
+                refreshClientDuplicateAlert();
                 setTimeout(() => phoneInput.setCustomValidity(''), 4000);
                 return;
             }
@@ -3724,7 +3871,7 @@
 
                 const clientData = {
                     id: clientId,
-                    name, contactPerson, phone, stage, city, entityType, specialty, address, notes, statusNote,
+                    name, contactPerson, phone, nationalId, stage, city, entityType, specialty, address, notes, statusNote,
                     accountNumber, iban, commission,
                     contractTradeName, contractCrNumber, contractVatNumber, contractSignerName,
                     docs: docsToSave
@@ -3806,6 +3953,7 @@
                     (c.name && c.name.toLowerCase().includes(searchVal)) ||
                     (c.contactPerson && c.contactPerson.toLowerCase().includes(searchVal)) ||
                     (c.phone && c.phone.includes(searchVal)) ||
+                    (c.nationalId && c.nationalId.includes(searchVal)) ||
                     (c.addedBy && c.addedBy.toLowerCase().includes(searchVal)) ||
                     (c.accountNumber && c.accountNumber.includes(searchVal)) ||
                     (c.iban && c.iban.toLowerCase().includes(searchVal)) ||
@@ -3853,6 +4001,7 @@
                         </td>
                         <td class="p-2.5 font-bold text-slate-700">
                             <div class="dir-ltr text-right">${c.phone}</div>
+                            ${c.nationalId ? `<div class="dir-ltr text-right text-[9px] text-indigo-700 font-black">ID: ${c.nationalId}</div>` : ''}
                             <span class="text-[10px] text-slate-500 font-semibold">${c.city || 'الرياض'}</span>
                         </td>
                         <td class="p-2.5 font-bold text-purple-900">
@@ -3941,7 +4090,7 @@
             populateFunnelDropdowns();
 
             document.getElementById('profClientName').innerText = client.name;
-            document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone} | المسؤول: ${client.contactPerson || 'غير محدد'} | الموظف المضيف: ${client.addedBy || 'المدير العام'}`;
+            document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone}${client.nationalId ? ` | الهوية: ${client.nationalId}` : ''} | المسؤول: ${client.contactPerson || 'غير محدد'} | الموظف المضيف: ${client.addedBy || 'المدير العام'}`;
             
             const stageSelector = document.getElementById('profStageSelector');
             if (stageSelector) stageSelector.value = window.normalizeFunnelStage(client.stage);
