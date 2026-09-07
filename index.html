@@ -1133,7 +1133,7 @@
 
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <label class="font-bold text-indigo-900">اختيار من العملاء المسجلين</label>
+                            <label class="font-bold text-indigo-900">اختيار العميل من قائمتي *</label>
                             <button type="button" onclick="openAddClientModal()" class="text-[10px] text-brand-600 font-extrabold hover:underline cursor-pointer">
                                 + إضافة عميل جديد
                             </button>
@@ -3600,17 +3600,44 @@
             showToast(`تم تجهيز المستند: ${file.name}. اضغط حفظ لإتمام الرفع.`, 'info');
         }
 
+        function getClientsAvailableToCurrentUser() {
+            const clients = (window.clients || []).filter(client => client && !client.deletedAt);
+            if (window.currentUserRole === 'manager') return clients;
+
+            const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
+            if (!loggedEmployee) return [];
+
+            const isSupervisor = window.getEmployeeAccessLevel(loggedEmployee) === 'supervisor';
+            const department = window.getEmployeeDepartment(loggedEmployee);
+            const permittedEmployees = isSupervisor
+                ? (window.employees || []).filter(employee => window.getEmployeeDepartment(employee) === department)
+                : [loggedEmployee];
+            const permittedNames = new Set(permittedEmployees.map(employee => employee.name));
+            const permittedIds = new Set(permittedEmployees.map(employee => employee.id).filter(Boolean));
+
+            return clients.filter(client => {
+                const ownedDirectly = permittedNames.has(client.addedBy) || (client.addedById && permittedIds.has(client.addedById));
+                if (ownedDirectly) return true;
+                return (window.tasks || []).some(task =>
+                    !isInternalTask(task) &&
+                    permittedNames.has(task.agent) &&
+                    window.taskMatchesClient(task, client)
+                );
+            });
+        }
+
         function renderClientSelectInTaskForm() {
             const sel = document.getElementById('formClientSelect');
             if (!sel) return;
 
-            const clients = window.clients || [];
+            const clients = getClientsAvailableToCurrentUser();
             if (clients.length === 0) {
-                sel.innerHTML = '<option value="">لا يوجد عملاء مسجلون - اضغط + إضافة عميل جديد</option>';
+                sel.innerHTML = '<option value="">لا يوجد عملاء تابعون لهذا الحساب حتى الآن</option>';
                 return;
             }
 
-            sel.innerHTML = '<option value="">-- اختر جهة مسجلة لتشغيل التحديث التلقائي --</option>' + 
+            const listLabel = window.currentUserRole === 'manager' ? 'اختر جهة من جميع العملاء' : 'اختر عميلاً من العملاء التابعين لك';
+            sel.innerHTML = `<option value="">-- ${listLabel} --</option>` +
                 clients.map(c => `<option value="${c.id}">${c.name} - [المرحلة: ${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
 
             updateClientsCountBadges();
@@ -3621,13 +3648,13 @@
             const sel = document.getElementById('formClientSelect');
             if (!sel) return;
 
-            const clients = (window.clients || []).filter(c => !type || c.entityType === type);
+            const clients = getClientsAvailableToCurrentUser().filter(c => !type || c.entityType === type);
             if (clients.length === 0) {
-                sel.innerHTML = '<option value="">لا يوجد عملاء تطابق هذه المنشأة - اضغط + إضافة</option>';
+                sel.innerHTML = '<option value="">لا يوجد من عملائك عميل يطابق نوع المنشأة</option>';
                 return;
             }
 
-            sel.innerHTML = '<option value="">-- اختر جهة مسجلة لتشغيل التحديث التلقائي --</option>' + 
+            sel.innerHTML = '<option value="">-- اختر عميلاً من العملاء التابعين لك --</option>' +
                 clients.map(c => `<option value="${c.id}">${c.name} - [${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
         }
 
@@ -4492,7 +4519,7 @@
             const entries = getSmartFollowUpEntries();
             const groups = {
                 TODAY: entries.filter(entry => entry.kind !== 'NEW_CLIENT' && entry.dueDate === today),
-                NEW_CLIENTS: entries.filter(entry => entry.kind === 'NEW_CLIENT' && entry.dueDate === today),
+                NEW_CLIENTS: entries.filter(entry => entry.kind === 'NEW_CLIENT' && taskMatchesAgentDateFilter(entry.task)),
                 OVERDUE: entries.filter(entry => entry.kind !== 'NEW_CLIENT' && entry.dueDate && entry.dueDate < today),
                 UNANSWERED: entries.filter(entry => entry.kind === 'UNANSWERED'),
                 UPCOMING: entries.filter(entry => entry.kind !== 'NEW_CLIENT' && entry.dueDate && entry.dueDate > today)
@@ -4532,7 +4559,7 @@
                 emptyState.classList.remove('hidden');
                 const emptyText = document.getElementById('smartFollowUpEmptyText');
                 if (emptyText) {
-                    const labels = { TODAY: 'لا توجد متابعات مطلوبة اليوم.', NEW_CLIENTS: 'لا يوجد عملاء جدد مسجلون اليوم.', OVERDUE: 'ممتاز، لا توجد متابعات متأخرة.', UNANSWERED: 'لا توجد مكالمات معلّقة لم يتم الرد عليها.', UPCOMING: 'لا توجد متابعات قادمة مسجلة.' };
+                    const labels = { TODAY: 'لا توجد متابعات مطلوبة اليوم.', NEW_CLIENTS: 'لا يوجد عملاء جدد للموظف خلال الفترة المختارة.', OVERDUE: 'ممتاز، لا توجد متابعات متأخرة.', UNANSWERED: 'لا توجد مكالمات معلّقة لم يتم الرد عليها.', UPCOMING: 'لا توجد متابعات قادمة مسجلة.' };
                     emptyText.textContent = labels[activeFilter] || 'لا توجد متابعات مطلوبة في هذا القسم.';
                 }
                 return;
@@ -4542,14 +4569,17 @@
             listContainer.classList.remove('hidden');
             listContainer.innerHTML = visibleEntries.map(entry => {
                 const task = entry.task;
-                const isOverdue = entry.dueDate && entry.dueDate < today;
+                const isNewClientEntry = entry.kind === 'NEW_CLIENT';
+                const isOverdue = !isNewClientEntry && entry.dueDate && entry.dueDate < today;
                 const isToday = entry.dueDate === today;
-                const dateBadgeClass = isOverdue
+                const dateBadgeClass = isNewClientEntry
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    : isOverdue
                     ? 'bg-rose-100 text-rose-800 border-rose-200'
                     : isToday
                         ? 'bg-amber-100 text-amber-800 border-amber-200'
                         : 'bg-sky-100 text-sky-800 border-sky-200';
-                const datePrefix = isOverdue ? 'متأخر منذ' : isToday ? 'اليوم' : 'موعد';
+                const datePrefix = isNewClientEntry ? 'تاريخ التسجيل' : isOverdue ? 'متأخر منذ' : isToday ? 'اليوم' : 'موعد';
                 const kindLabel = entry.kind === 'UNANSWERED'
                     ? 'مكالمة لم يتم الرد عليها'
                     : entry.kind === 'NEW_CLIENT'
@@ -4583,7 +4613,7 @@
                         <p class="text-xs text-slate-700 font-semibold leading-relaxed mt-3 line-clamp-2">${escapeHtml(task.notes || task.title || 'لا توجد تفاصيل إضافية')}</p>
                         <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
                             <button type="button" onclick="openSmartFollowUpItem('${safeTaskId}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-[10px] font-black cursor-pointer">
-                                <i class="fa-solid ${entry.kind === 'INTERNAL' ? 'fa-comment-dots' : 'fa-plus'} ml-1"></i>${entry.kind === 'INTERNAL' ? 'إجراء / تعليق' : 'تسجيل الإجراء الآن'}
+                                <i class="fa-solid ${entry.kind === 'INTERNAL' ? 'fa-comment-dots' : 'fa-plus'} ml-1"></i>${entry.kind === 'INTERNAL' ? 'إجراء / تعليق' : entry.kind === 'NEW_CLIENT' ? 'تسجيل نتيجة العميل' : 'تسجيل الإجراء الآن'}
                             </button>
                             ${entry.clientId ? `<button type="button" onclick="openSmartFollowUpClient('${safeTaskId}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl text-[10px] font-black cursor-pointer"><i class="fa-solid fa-clock-rotate-left ml-1"></i>سجل العميل</button>` : ''}
                             ${phoneDigits ? `<a href="tel:${phoneDigits}" class="bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-phone ml-1"></i>اتصال</a>` : ''}
@@ -4796,6 +4826,19 @@
             const alsoWhatsapp = !taskId && Boolean(document.getElementById('formAlsoWhatsapp')?.checked) && isPhoneCategory(category);
             const nextFollowUpDate = document.getElementById('formNextFollowUpDate').value;
             const nextFollowUpTime = document.getElementById('formNextFollowUpTime').value;
+
+            if (window.currentUserRole === 'agent' && !taskId) {
+                if (!selectedClientId) {
+                    showToast('اختر العميل أولاً من قائمة العملاء التابعين لك.', 'error');
+                    document.getElementById('formClientSelect').focus();
+                    return;
+                }
+                const allowedClient = getClientsAvailableToCurrentUser().some(client => client.id === selectedClientId);
+                if (!allowedClient) {
+                    showToast('هذا العميل غير تابع لحسابك أو لفريقك.', 'error');
+                    return;
+                }
+            }
 
             if (nextFollowUpTime && !nextFollowUpDate) {
                 showToast('اختر تاريخ المتابعة القادمة أولاً.', 'error');
@@ -5834,6 +5877,39 @@
             const overdueEntries = entries.filter(function(entry) { return entry.dueDate && entry.dueDate < today; });
             const unansweredEntries = entries.filter(function(entry) { return entry.kind === 'UNANSWERED'; });
             const upcomingEntries = entries.filter(function(entry) { return entry.dueDate && entry.dueDate > today; });
+            const newClientDetails = clientsInPeriod.map(function(client) {
+                const actions = sourceTasks.filter(function(task) {
+                    return !isInternalTask(task) && !isClientRegistrationTask(task) && window.taskMatchesClient(task, client);
+                }).sort(function(a, b) { return getSmartFollowUpTaskTimestamp(b) - getSmartFollowUpTaskTimestamp(a); });
+                const registrationTask = sourceTasks.find(function(task) {
+                    return isClientRegistrationTask(task) && window.taskMatchesClient(task, client);
+                });
+                const latestAction = actions[0] || null;
+                const scheduledAction = actions.find(function(task) { return task.nextFollowUpDate; }) || null;
+                const registrationDate = client.createdAt
+                    ? window.getLocalDateString(Number(client.createdAt))
+                    : registrationTask ? window.getTaskDateString(registrationTask) : '';
+                let result = 'لم يبدأ التواصل';
+                if (latestAction) result = isUnansweredPhoneAction(latestAction) ? 'لم يرد' : (getTaskDisplayCategory(latestAction) || latestAction.status || 'تم التواصل');
+                if (client.stage === 'عميل مهتم') result = 'عميل مهتم';
+                if (client.statusNote) result += ' — ' + client.statusNote;
+                return {
+                    client: client,
+                    actions: actions,
+                    latestAction: latestAction,
+                    scheduledAction: scheduledAction,
+                    registrationDate: registrationDate,
+                    result: result
+                };
+            });
+            const clientsNotContacted = newClientDetails.filter(function(item) { return item.actions.length === 0; }).length;
+            const clientsContacted = newClientDetails.length - clientsNotContacted;
+            const clientsUnanswered = newClientDetails.filter(function(item) { return item.latestAction && isUnansweredPhoneAction(item.latestAction); }).length;
+            const clientsInterested = newClientDetails.filter(function(item) { return item.client.stage === 'عميل مهتم'; }).length;
+            const clientsWithMeetings = newClientDetails.filter(function(item) { return item.actions.some(isMeetingAction); }).length;
+            const clientsContracted = newClientDetails.filter(function(item) {
+                return ['توقيع العقد', 'تفعيل الجهة', 'الحصول على البيانات', 'إرسال البيانات إلى الدعم الفني', 'إرفاق رابط Google Drive بالبيانات'].includes(item.client.stage) || item.actions.some(isSignedContractAction);
+            }).length;
 
             let html = '<div class="report-kpi-grid">' +
                 reportKpi('fa-user-plus', 'العملاء الجدد', clientsInPeriod.length, '#0284c7') +
@@ -5843,6 +5919,36 @@
                 reportKpi('fa-phone-slash', 'مكالمات لم يرد', unansweredEntries.length, '#e11d48') +
                 reportKpi('fa-calendar-days', 'متابعات قادمة', upcomingEntries.length, '#059669') +
             '</div>';
+
+            html += reportSection('نتائج التعامل مع العملاء الجدد', reportHighlights([
+                { icon: 'fa-hourglass-start', label: 'لم يبدأ التواصل', name: 'بحاجة لأول إجراء', value: clientsNotContacted },
+                { icon: 'fa-headset', label: 'تم التواصل', name: 'لديهم إجراء مسجل', value: clientsContacted },
+                { icon: 'fa-phone-slash', label: 'لم يرد', name: 'بحاجة لإعادة اتصال', value: clientsUnanswered },
+                { icon: 'fa-user-check', label: 'عملاء مهتمون', name: 'مرحلة عميل مهتم', value: clientsInterested },
+                { icon: 'fa-handshake', label: 'اجتماعات تمت', name: 'لديهم اجتماع مسجل', value: clientsWithMeetings },
+                { icon: 'fa-file-circle-check', label: 'تعاقد أو تفعيل', name: 'وصلوا لمرحلة متقدمة', value: clientsContracted }
+            ]));
+
+            html += reportSection('تفاصيل العملاء الجدد ونتيجة كل عميل', reportTable(
+                ['تاريخ التسجيل', 'الموظف', 'العميل', 'الهاتف', 'النوع والتخصص', 'المدينة', 'المرحلة الحالية', 'آخر نتيجة', 'المتابعة القادمة'],
+                newClientDetails.map(function(item) {
+                    const client = item.client;
+                    const nextFollowUp = item.scheduledAction
+                        ? reportDateText(item.scheduledAction.nextFollowUpDate) + (item.scheduledAction.nextFollowUpTime ? ' — ' + item.scheduledAction.nextFollowUpTime : '')
+                        : '-';
+                    return [
+                        reportDateText(item.registrationDate),
+                        client.addedBy || 'المدير العام',
+                        client.name || '-',
+                        client.phone || '-',
+                        (client.entityType || '-') + ' — ' + (client.specialty || '-'),
+                        client.city || '-',
+                        client.stage || '-',
+                        item.result,
+                        nextFollowUp
+                    ];
+                })
+            ));
 
             const employeeNames = Array.from(new Set((window.employees || []).map(function(employee) { return employee.name; }).concat(entries.map(function(entry) { return entry.task.agent; })))).filter(Boolean);
             html += reportSection('توزيع المتابعات على الموظفين', reportTable(
