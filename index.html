@@ -603,7 +603,7 @@
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
                 <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
                     <div class="flex items-center justify-between text-slate-500 mb-1">
                         <span class="text-[11px] font-bold">إجمالي المكالمات</span>
@@ -845,7 +845,7 @@
                                 <span id="shiftMornBoth" class="font-black text-emerald-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-amber-100 shadow-sm">
-                                <span class="text-slate-500 font-bold block text-[10px]">نسبة الإنجاز</span>
+                                <span class="text-slate-500 font-bold block text-[10px]">إنجاز مهام المشرف</span>
                                 <span id="shiftMornRate" class="font-black text-brand-600 text-sm">0%</span>
                             </div>
                         </div>
@@ -882,7 +882,7 @@
                                 <span id="shiftEveBoth" class="font-black text-emerald-600 text-sm">0</span>
                             </div>
                             <div class="bg-white/90 p-2.5 rounded-xl border border-indigo-100 shadow-sm">
-                                <span class="text-slate-500 font-bold block text-[10px]">نسبة الإنجاز</span>
+                                <span class="text-slate-500 font-bold block text-[10px]">إنجاز مهام المشرف</span>
                                 <span id="shiftEveRate" class="font-black text-brand-600 text-sm">0%</span>
                             </div>
                         </div>
@@ -941,6 +941,30 @@
                         <i class="fa-solid fa-address-book text-indigo-500 text-xl"></i>
                     </div>
                 </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-500 block">العملاء الجدد</span>
+                    <div class="mt-1 flex items-center justify-between">
+                        <span id="mgrNewClientsCount" class="text-2xl font-black text-sky-600">0</span>
+                        <i class="fa-solid fa-user-plus text-sky-500 text-xl"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-500 block">مهام المشرفين المستحقة</span>
+                    <div class="mt-1 flex items-center justify-between">
+                        <span id="mgrInternalTasksCount" class="text-2xl font-black text-violet-600">0</span>
+                        <span class="text-[10px] font-black text-emerald-600">مكتمل: <b id="mgrInternalTasksDone">0</b></span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-500 block">المهام المتأخرة</span>
+                    <div class="mt-1 flex items-center justify-between">
+                        <span id="mgrOverdueInternalTasks" class="text-2xl font-black text-rose-600">0</span>
+                        <i class="fa-solid fa-clock-rotate-left text-rose-500 text-xl"></i>
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -977,12 +1001,15 @@
                         <thead class="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                             <tr class="text-center">
                                 <th class="p-3 text-right">اسم الموظف</th>
+                                <th class="p-3">عملاء جدد</th>
                                 <th class="p-3">المكالمات</th>
                                 <th class="p-3">واتساب</th>
                                 <th class="p-3">الاجتماعات</th>
                                 <th class="p-3">العقود المرسلة</th>
                                 <th class="p-3">العقود الموقعة</th>
-                                <th class="p-3">نسبة الإنجاز</th>
+                                <th class="p-3">المهام المكتملة</th>
+                                <th class="p-3">المهام المتأخرة</th>
+                                <th class="p-3">إنجاز المهام</th>
                                 <th class="p-3">الحالة اليومية</th>
                             </tr>
                         </thead>
@@ -1836,6 +1863,8 @@
                         <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوبة:</label>
                         <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none">
                             <option value="SHIFT_AGENT">📊 تقرير أداء الشفتات والموظفين</option>
+                            <option value="FOLLOW_UPS">📅 تقرير المتابعات والعملاء الجدد</option>
+                            <option value="INTERNAL_TASKS">✅ تقرير مهام المشرفين والإنجاز</option>
                             <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء وتحول الفانل</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
                             <option value="ENTITIES_GEO">🗺️ تقرير نوع المنشآت والتوزيع الجغرافي</option>
@@ -3132,6 +3161,26 @@
 
         function isSignedContractAction(task) {
             return ['توقيع العقد', 'عقد (الطرفين)'].includes(task.category);
+        }
+
+        function isInternalTask(task) {
+            return Boolean(task && task.taskType === 'internal');
+        }
+
+        function getInternalTaskState(task, referenceDate = window.getLocalDateString()) {
+            if (!isInternalTask(task)) return '';
+            if (task.status === 'مكتمل' || task.completedAt) return 'مكتملة';
+            const dueDate = window.getTaskDateString(task);
+            if (dueDate && dueDate < referenceDate) return 'متأخرة';
+            if (Array.isArray(task.activityLog) && task.activityLog.length) return 'جاري التنفيذ';
+            return 'جديدة';
+        }
+
+        function getInternalTaskCompletionRate(tasks) {
+            const internalTasks = (tasks || []).filter(isInternalTask);
+            if (!internalTasks.length) return 0;
+            const completed = internalTasks.filter(task => getInternalTaskState(task) === 'مكتملة').length;
+            return reportPercent(completed, internalTasks.length);
         }
 
         function populateSpecialtiesDropdowns() {
@@ -5343,6 +5392,13 @@
             const meetingsCount = dayTasks.filter(isMeetingAction).length;
             const nabdiContracts = dayTasks.filter(isSentContractAction).length;
             const bothContracts = dayTasks.filter(isSignedContractAction).length;
+            const newClientsCount = dayTasks.filter(isClientRegistrationTask).length;
+            const internalDayTasks = dayTasks.filter(isInternalTask);
+            const completedInternalDayTasks = internalDayTasks.filter(task => getInternalTaskState(task, window.currentDateFilter) === 'مكتملة').length;
+            const overdueInternalTasks = (window.tasks || []).filter(task =>
+                isInternalTask(task) &&
+                getInternalTaskState(task, window.currentDateFilter) === 'متأخرة'
+            ).length;
 
             if (document.getElementById('mgrTotalCalls')) document.getElementById('mgrTotalCalls').innerText = totalCalls;
             if (document.getElementById('mgrAnsweredCalls')) document.getElementById('mgrAnsweredCalls').innerText = answeredCalls;
@@ -5352,9 +5408,15 @@
             if (document.getElementById('mgrNabdiContracts')) document.getElementById('mgrNabdiContracts').innerText = nabdiContracts;
             if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = bothContracts;
             if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = window.clients.length;
+            if (document.getElementById('mgrNewClientsCount')) document.getElementById('mgrNewClientsCount').innerText = newClientsCount;
+            if (document.getElementById('mgrInternalTasksCount')) document.getElementById('mgrInternalTasksCount').innerText = internalDayTasks.length;
+            if (document.getElementById('mgrInternalTasksDone')) document.getElementById('mgrInternalTasksDone').innerText = completedInternalDayTasks;
+            if (document.getElementById('mgrOverdueInternalTasks')) document.getElementById('mgrOverdueInternalTasks').innerText = overdueInternalTasks;
 
             const mornTasks = dayTasks.filter(t => t.shift === 'شفت صباحي');
             const eveTasks = dayTasks.filter(t => t.shift === 'شفت مسائي');
+            const mornInternalTasks = mornTasks.filter(isInternalTask);
+            const eveInternalTasks = eveTasks.filter(isInternalTask);
 
             const mornAns = mornTasks.filter(isAnsweredPhoneAction).length;
             const mornUnans = mornTasks.filter(isUnansweredPhoneAction).length;
@@ -5383,7 +5445,7 @@
             if (document.getElementById('shiftMornMeet')) document.getElementById('shiftMornMeet').innerText = mornMeet;
             if (document.getElementById('shiftMornNabdi')) document.getElementById('shiftMornNabdi').innerText = mornNabdi;
             if (document.getElementById('shiftMornBoth')) document.getElementById('shiftMornBoth').innerText = mornBoth;
-            if (document.getElementById('shiftMornRate')) document.getElementById('shiftMornRate').innerText = (mornTasks.length > 0) ? Math.min(100, Math.round((mornTasks.length / 20) * 100)) + '%' : '0%';
+            if (document.getElementById('shiftMornRate')) document.getElementById('shiftMornRate').innerText = getInternalTaskCompletionRate(mornInternalTasks) + '%';
 
             if (document.getElementById('shiftEveEmpCount')) document.getElementById('shiftEveEmpCount').innerText = `${eveEmps} موظفين`;
             if (document.getElementById('shiftEveCalls')) document.getElementById('shiftEveCalls').innerText = eveCallsTotal;
@@ -5393,7 +5455,7 @@
             if (document.getElementById('shiftEveMeet')) document.getElementById('shiftEveMeet').innerText = eveMeet;
             if (document.getElementById('shiftEveNabdi')) document.getElementById('shiftEveNabdi').innerText = eveNabdi;
             if (document.getElementById('shiftEveBoth')) document.getElementById('shiftEveBoth').innerText = eveBoth;
-            if (document.getElementById('shiftEveRate')) document.getElementById('shiftEveRate').innerText = (eveTasks.length > 0) ? Math.min(100, Math.round((eveTasks.length / 20) * 100)) + '%' : '0%';
+            if (document.getElementById('shiftEveRate')) document.getElementById('shiftEveRate').innerText = getInternalTaskCompletionRate(eveInternalTasks) + '%';
 
             renderManagerTeamSummaryTable(dayTasks);
             renderCharts(dayTasks);
@@ -5405,21 +5467,29 @@
 
             const emps = window.employees || [];
             if (emps.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-slate-400 font-bold">لا يوجد موظفين مسجلين.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center p-4 text-slate-400 font-bold">لا يوجد موظفين مسجلين.</td></tr>';
                 return;
             }
 
             tbody.innerHTML = emps.map(emp => {
                 const empTasks = dayTasks.filter(t => t.agent === emp.name);
+                const newClients = empTasks.filter(isClientRegistrationTask).length;
                 const calls = empTasks.filter(isPhoneAction).length;
                 const wa = empTasks.filter(t => t.category === 'إرسال واتساب').length;
                 const meet = empTasks.filter(isMeetingAction).length;
                 const nabdi = empTasks.filter(isSentContractAction).length;
                 const both = empTasks.filter(isSignedContractAction).length;
-                const totalOps = empTasks.length;
-                const rate = Math.min(100, totalOps * 10);
+                const internalTasks = empTasks.filter(isInternalTask);
+                const completedInternal = internalTasks.filter(task => getInternalTaskState(task, window.currentDateFilter) === 'مكتملة').length;
+                const overdueInternal = (window.tasks || []).filter(task =>
+                    isInternalTask(task) &&
+                    task.agent === emp.name &&
+                    getInternalTaskState(task, window.currentDateFilter) === 'متأخرة'
+                ).length;
+                const taskRate = reportPercent(completedInternal, internalTasks.length);
+                const hasRecordedWork = empTasks.some(task => !isInternalTask(task) || (task.activityLog || []).length > 0);
 
-                let statusBadge = (totalOps > 0) ? '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-bold">نشط اليوم</span>' : '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[10px] font-bold">لم يسجل أعمال</span>';
+                let statusBadge = hasRecordedWork ? '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-bold">نشط اليوم</span>' : '<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full text-[10px] font-bold">لم يسجل أعمال</span>';
 
                 return `
                     <tr class="text-center hover:bg-slate-50">
@@ -5427,12 +5497,15 @@
                             <div>${emp.name}</div>
                             <div class="text-[10px] text-slate-500 font-normal">${emp.shift}</div>
                         </td>
+                        <td class="p-3 font-extrabold text-sky-600">${newClients}</td>
                         <td class="p-3 font-extrabold text-slate-800">${calls}</td>
                         <td class="p-3 font-extrabold text-emerald-600">${wa}</td>
                         <td class="p-3 font-extrabold text-purple-600">${meet}</td>
                         <td class="p-3 font-extrabold text-amber-600">${nabdi}</td>
                         <td class="p-3 font-extrabold text-emerald-600">${both}</td>
-                        <td class="p-3 font-black text-brand-600">${rate}%</td>
+                        <td class="p-3 font-black text-violet-700">${completedInternal}/${internalTasks.length}</td>
+                        <td class="p-3 font-black ${overdueInternal ? 'text-rose-600' : 'text-slate-500'}">${overdueInternal}</td>
+                        <td class="p-3 font-black text-brand-600">${taskRate}%</td>
                         <td class="p-3">${statusBadge}</td>
                     </tr>
                 `;
@@ -5512,6 +5585,8 @@
 
         const REPORT_TITLES = {
             SHIFT_AGENT: 'تقرير أداء فريق خدمة العملاء',
+            FOLLOW_UPS: 'تقرير المتابعات والعملاء الجدد',
+            INTERNAL_TASKS: 'تقرير مهام المشرفين ونسب الإنجاز',
             FUNNEL_STAGES: 'تقرير رحلة العملاء وتحول المبيعات',
             BANK_COMMISSIONS: 'تقرير الحسابات والعمولات والمستندات',
             ENTITIES_GEO: 'تقرير توزيع المنشآت والمدن',
@@ -5609,6 +5684,7 @@
             const whatsapp = tasks.filter(function(task) { return task.category === 'إرسال واتساب'; }).length;
             const meetings = tasks.filter(isMeetingAction).length;
             const signedContracts = tasks.filter(isSignedContractAction).length;
+            const interestedClients = clients.filter(function(client) { return client.stage === 'عميل مهتم'; }).length;
             const employeeMap = new Map();
 
             (window.employees || []).forEach(function(employee) {
@@ -5628,13 +5704,16 @@
                 const employeeCalls = employeeAnswered + employeeUnanswered;
                 const employeeMeetings = employeeTasks.filter(isMeetingAction).length;
                 const employeeContracts = employeeTasks.filter(isSignedContractAction).length;
-                const employeeLeads = clients.filter(function(client) { return client.addedBy === name; }).length;
+                const employeeNewClients = clients.filter(function(client) { return client.addedBy === name; }).length;
+                const employeeInterested = clients.filter(function(client) { return client.addedBy === name && client.stage === 'عميل مهتم'; }).length;
+                const employeeInternalTasks = employeeTasks.filter(isInternalTask);
+                const employeeCompletedTasks = employeeInternalTasks.filter(function(task) { return getInternalTaskState(task) === 'مكتملة'; }).length;
                 const responseRate = reportPercent(employeeAnswered, employeeCalls);
                 const score = Math.round(
                     (responseRate * 0.5) +
                     (Math.min(employeeContracts / 5, 1) * 25) +
                     (Math.min(employeeMeetings / 10, 1) * 15) +
-                    (Math.min(employeeLeads / 10, 1) * 10)
+                    (Math.min(employeeInterested / 10, 1) * 10)
                 );
                 return {
                     name: name,
@@ -5642,9 +5721,13 @@
                     calls: employeeCalls,
                     answered: employeeAnswered,
                     responseRate: responseRate,
-                    leads: employeeLeads,
+                    newClients: employeeNewClients,
+                    interested: employeeInterested,
                     meetings: employeeMeetings,
                     contracts: employeeContracts,
+                    assignedTasks: employeeInternalTasks.length,
+                    completedTasks: employeeCompletedTasks,
+                    taskCompletionRate: reportPercent(employeeCompletedTasks, employeeInternalTasks.length),
                     score: score
                 };
             }).sort(function(a, b) { return b.score - a.score; });
@@ -5652,7 +5735,8 @@
             let html = '<div class="report-kpi-grid">' +
                 reportKpi('fa-phone', 'إجمالي المكالمات', totalCalls, '#5b21b6') +
                 reportKpi('fa-headset', 'المكالمات المجابة', answered, '#0b63ce') +
-                reportKpi('fa-user-group', 'العملاء المهتمون Leads', clients.length, '#6d28d9') +
+                reportKpi('fa-user-plus', 'العملاء الجدد', clients.length, '#0284c7') +
+                reportKpi('fa-user-group', 'العملاء المهتمون Leads', interestedClients, '#6d28d9') +
                 reportKpi('fa-file-signature', 'العقود الموقعة', signedContracts, '#075cb9') +
                 reportKpi('fa-comment-dots', 'رسائل واتساب', whatsapp, '#059669') +
                 reportKpi('fa-calendar-check', 'عدد الاجتماعات', meetings, '#2563eb') +
@@ -5678,34 +5762,191 @@
             html += reportSection('نتائج المكالمات', callsVisual);
 
             html += reportSection('أداء فريق خدمة العملاء', reportTable(
-                ['الترتيب', 'الموظف', 'المكالمات', 'المجابة', 'نسبة الرد', 'Leads', 'اجتماعات', 'عقود', 'الأداء'],
+                ['الترتيب', 'الموظف', 'المكالمات', 'المجابة', 'نسبة الرد', 'عملاء جدد', 'مهتمون', 'اجتماعات', 'عقود', 'إنجاز المهام', 'الأداء'],
                 performance.map(function(row, index) {
-                    return [index + 1, row.name, row.calls, row.answered, row.responseRate + '%', row.leads, row.meetings, row.contracts, row.score + '%'];
+                    return [index + 1, row.name, row.calls, row.answered, row.responseRate + '%', row.newClients, row.interested, row.meetings, row.contracts, row.completedTasks + '/' + row.assignedTasks + ' (' + row.taskCompletionRate + '%)', row.score + '%'];
                 })
             ));
 
             const best = performance[0] || { name: '-', score: 0 };
             const mostCalls = performance.slice().sort(function(a, b) { return b.calls - a.calls; })[0] || { name: '-', calls: 0 };
-            const mostLeads = performance.slice().sort(function(a, b) { return b.leads - a.leads; })[0] || { name: '-', leads: 0 };
+            const mostNewClients = performance.slice().sort(function(a, b) { return b.newClients - a.newClients; })[0] || { name: '-', newClients: 0 };
             const mostContracts = performance.slice().sort(function(a, b) { return b.contracts - a.contracts; })[0] || { name: '-', contracts: 0 };
             html += reportSection('أبرز المؤشرات', reportHighlights([
                 { icon: 'fa-trophy', label: 'أفضل مؤشر أداء', name: best.name, value: best.score + '%' },
                 { icon: 'fa-headset', label: 'أعلى عدد مكالمات', name: mostCalls.name, value: mostCalls.calls },
-                { icon: 'fa-users', label: 'أعلى Leads', name: mostLeads.name, value: mostLeads.leads },
+                { icon: 'fa-user-plus', label: 'أعلى تسجيل عملاء جدد', name: mostNewClients.name, value: mostNewClients.newClients },
                 { icon: 'fa-file-circle-check', label: 'أعلى عقود موقعة', name: mostContracts.name, value: mostContracts.contracts }
             ]));
-            html += '<div class="report-note">مؤشر الأداء = 50% من نسبة الرد + 25% من العقود + 15% من الاجتماعات + 10% من العملاء المحتملين.</div>';
+            html += '<div class="report-note">مؤشر الأداء = 50% من نسبة الرد + 25% من العقود الموقعة + 15% من الاجتماعات المنعقدة + 10% من العملاء المهتمين فعليًا. العملاء الجدد يظهرون كمؤشر مستقل ولا يُحتسبون مكالمات.</div>';
+            return html;
+        }
+
+        function buildReportFollowUpEntries(sourceTasks, allClients) {
+            const latestByClient = new Map();
+            (sourceTasks || []).forEach(function(task) {
+                if (!task || task.deletedAt || isInternalTask(task) || isClientRegistrationTask(task)) return;
+                if (task.affectsFollowUp === false || (task.relatedTaskId && task.affectsFunnel === false)) return;
+
+                const matchedClient = (allClients || []).find(function(client) { return window.taskMatchesClient(task, client); });
+                const normalizedCustomer = String(task.customer || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+                const normalizedPhone = String(task.phone || '').replace(/\D/g, '');
+                const clientKey = task.clientId || matchedClient?.id || (normalizedCustomer + '|' + normalizedPhone);
+                if (!clientKey) return;
+
+                const previous = latestByClient.get(clientKey);
+                if (!previous || getSmartFollowUpTaskTimestamp(task) > getSmartFollowUpTaskTimestamp(previous.task)) {
+                    latestByClient.set(clientKey, { task: task, client: matchedClient || null });
+                }
+            });
+
+            return Array.from(latestByClient.values()).flatMap(function(item) {
+                const task = item.task;
+                const unanswered = isUnansweredPhoneAction(task);
+                const hasScheduledFollowUp = /^\d{4}-\d{2}-\d{2}$/.test(task.nextFollowUpDate || '');
+                const stillOpen = Boolean(task.status && task.status !== 'مكتمل');
+                if (!unanswered && !hasScheduledFollowUp && !stillOpen) return [];
+                return [{
+                    task: task,
+                    client: item.client,
+                    dueDate: hasScheduledFollowUp ? task.nextFollowUpDate : window.getTaskDateString(task),
+                    dueTime: hasScheduledFollowUp ? (task.nextFollowUpTime || '') : '',
+                    kind: unanswered ? 'UNANSWERED' : 'FOLLOW_UP'
+                }];
+            }).sort(function(a, b) {
+                const dateCompare = String(a.dueDate || '').localeCompare(String(b.dueDate || ''));
+                return dateCompare || String(a.dueTime || '').localeCompare(String(b.dueTime || ''));
+            });
+        }
+
+        function buildFollowUpsInfographic(start, end, shift, agent, clientsInPeriod) {
+            const today = window.getLocalDateString();
+            const sourceTasks = (window.tasks || []).filter(function(task) {
+                return !task.deletedAt &&
+                    (shift === 'ALL' || task.shift === shift) &&
+                    (agent === 'ALL' || task.agent === agent);
+            });
+            const allEntries = buildReportFollowUpEntries(sourceTasks, window.clients || []);
+            const entries = allEntries.filter(function(entry) {
+                return (!start || entry.dueDate >= start) && (!end || entry.dueDate <= end);
+            });
+            const todayEntries = entries.filter(function(entry) { return entry.dueDate === today; });
+            const overdueEntries = entries.filter(function(entry) { return entry.dueDate && entry.dueDate < today; });
+            const unansweredEntries = entries.filter(function(entry) { return entry.kind === 'UNANSWERED'; });
+            const upcomingEntries = entries.filter(function(entry) { return entry.dueDate && entry.dueDate > today; });
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-user-plus', 'العملاء الجدد', clientsInPeriod.length, '#0284c7') +
+                reportKpi('fa-list-check', 'إجمالي المتابعات', entries.length, '#5b21b6') +
+                reportKpi('fa-sun', 'مطلوب اليوم', todayEntries.length, '#d97706') +
+                reportKpi('fa-clock-rotate-left', 'متابعات متأخرة', overdueEntries.length, '#dc2626') +
+                reportKpi('fa-phone-slash', 'مكالمات لم يرد', unansweredEntries.length, '#e11d48') +
+                reportKpi('fa-calendar-days', 'متابعات قادمة', upcomingEntries.length, '#059669') +
+            '</div>';
+
+            const employeeNames = Array.from(new Set((window.employees || []).map(function(employee) { return employee.name; }).concat(entries.map(function(entry) { return entry.task.agent; })))).filter(Boolean);
+            html += reportSection('توزيع المتابعات على الموظفين', reportTable(
+                ['الموظف', 'إجمالي المتابعات', 'مطلوب اليوم', 'متأخر', 'لم يرد', 'قادم'],
+                employeeNames.map(function(name) {
+                    const owned = entries.filter(function(entry) { return entry.task.agent === name; });
+                    return [
+                        name,
+                        owned.length,
+                        owned.filter(function(entry) { return entry.dueDate === today; }).length,
+                        owned.filter(function(entry) { return entry.dueDate && entry.dueDate < today; }).length,
+                        owned.filter(function(entry) { return entry.kind === 'UNANSWERED'; }).length,
+                        owned.filter(function(entry) { return entry.dueDate && entry.dueDate > today; }).length
+                    ];
+                })
+            ));
+
+            html += reportSection('سجل المتابعات المستحقة خلال الفترة', reportTable(
+                ['الموعد', 'الموظف', 'العميل', 'التصنيف', 'آخر إجراء', 'الحالة', 'الأولوية', 'التفاصيل'],
+                entries.map(function(entry) {
+                    const task = entry.task;
+                    const timeText = entry.dueTime ? ' — ' + entry.dueTime : '';
+                    const classification = entry.kind === 'UNANSWERED'
+                        ? 'لم يرد'
+                        : (entry.dueDate < today ? 'متأخر' : (entry.dueDate === today ? 'مطلوب اليوم' : 'قادم'));
+                    return [
+                        reportDateText(entry.dueDate) + timeText,
+                        task.agent || '-',
+                        task.customer || entry.client?.name || '-',
+                        classification,
+                        getTaskDisplayCategory(task) || '-',
+                        task.status || '-',
+                        task.priority || 'عادية',
+                        task.notes || '-'
+                    ];
+                })
+            ), 'report-page-break');
+            html += '<div class="report-note">تعتمد المتابعة على آخر إجراء صالح لكل عميل، ولا يلغي إجراء واتساب الإضافي موعد المتابعة المسجل على المكالمة الأساسية.</div>';
+            return html;
+        }
+
+        function buildInternalTasksInfographic(tasks) {
+            const today = window.getLocalDateString();
+            const internalTasks = (tasks || []).filter(isInternalTask);
+            const newTasks = internalTasks.filter(function(task) { return getInternalTaskState(task, today) === 'جديدة'; });
+            const activeTasks = internalTasks.filter(function(task) { return getInternalTaskState(task, today) === 'جاري التنفيذ'; });
+            const overdueTasks = internalTasks.filter(function(task) { return getInternalTaskState(task, today) === 'متأخرة'; });
+            const completedTasks = internalTasks.filter(function(task) { return getInternalTaskState(task, today) === 'مكتملة'; });
+            const completionRate = reportPercent(completedTasks.length, internalTasks.length);
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-list-check', 'إجمالي المهام', internalTasks.length, '#5b21b6') +
+                reportKpi('fa-bell', 'مهام جديدة', newTasks.length, '#0284c7') +
+                reportKpi('fa-spinner', 'جاري التنفيذ', activeTasks.length, '#d97706') +
+                reportKpi('fa-clock-rotate-left', 'مهام متأخرة', overdueTasks.length, '#dc2626') +
+                reportKpi('fa-circle-check', 'مهام مكتملة', completedTasks.length, '#059669') +
+                reportKpi('fa-percent', 'نسبة الإنجاز', completionRate + '%', '#2563eb') +
+            '</div>';
+
+            const employees = Array.from(new Set(internalTasks.map(function(task) { return task.agent; }).filter(Boolean)));
+            html += reportSection('إنجاز المهام حسب الموظف', reportTable(
+                ['الموظف', 'إجمالي المهام', 'جديدة', 'جاري التنفيذ', 'متأخرة', 'مكتملة', 'نسبة الإنجاز'],
+                employees.map(function(name) {
+                    const owned = internalTasks.filter(function(task) { return task.agent === name; });
+                    const done = owned.filter(function(task) { return getInternalTaskState(task, today) === 'مكتملة'; }).length;
+                    return [
+                        name,
+                        owned.length,
+                        owned.filter(function(task) { return getInternalTaskState(task, today) === 'جديدة'; }).length,
+                        owned.filter(function(task) { return getInternalTaskState(task, today) === 'جاري التنفيذ'; }).length,
+                        owned.filter(function(task) { return getInternalTaskState(task, today) === 'متأخرة'; }).length,
+                        done,
+                        reportPercent(done, owned.length) + '%'
+                    ];
+                })
+            ));
+
+            html += reportSection('تفاصيل المهام ونتائج الموظفين', reportTable(
+                ['تاريخ التسليم', 'الأولوية', 'الموظف', 'المهمة', 'المشرف', 'الحالة', 'آخر تحديث', 'النتيجة النهائية'],
+                internalTasks.map(function(task) {
+                    const activityLog = Array.isArray(task.activityLog) ? task.activityLog : [];
+                    const lastAction = activityLog[activityLog.length - 1];
+                    return [
+                        reportDateText(window.getTaskDateString(task)),
+                        task.priority || 'عادية',
+                        task.agent || '-',
+                        task.title || task.notes || '-',
+                        task.assignedBy || 'المدير العام',
+                        getInternalTaskState(task, today),
+                        lastAction ? ((lastAction.type || 'تحديث') + ': ' + (lastAction.comment || '-')) : 'لا يوجد تحديث',
+                        task.finalResult || '-'
+                    ];
+                })
+            ), 'report-page-break');
             return html;
         }
 
         function buildSupportInfographic(start, end, agent) {
             let projects = [];
             try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
-            const startTime = start ? new Date(start + 'T00:00:00').getTime() : 0;
-            const endTime = end ? new Date(end + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER;
             projects = projects.filter(function(p) {
-                const stamp = new Date(p.sentAt || p.createdAt || 0).getTime();
-                const dateMatch = !stamp || (stamp >= startTime && stamp <= endTime);
+                const stamp = p.sentAt || p.createdAt || 0;
+                const projectDate = stamp ? window.getLocalDateString(stamp) : '';
+                const dateMatch = !projectDate || ((!start || projectDate >= start) && (!end || projectDate <= end));
                 const agentMatch = agent === 'ALL' || p.receivedBy === agent || p.completedBy === agent || (p.tasks || []).some(function(t) { return t.agent === agent; });
                 return dateMatch && agentMatch;
             });
@@ -5829,14 +6070,19 @@
                 const meetings = tasks.filter(isMeetingAction).length;
                 const contracts = tasks.filter(isContractAction).length;
                 const completed = tasks.filter(function(task) { return task.status === 'مكتمل'; }).length;
+                const newClients = tasks.filter(isClientRegistrationTask).length;
+                const internalTasks = tasks.filter(isInternalTask);
+                const completedInternalTasks = internalTasks.filter(function(task) { return getInternalTaskState(task) === 'مكتملة'; }).length;
                 const statuses = countReportItems(tasks, function(task) { return task.status || 'غير محدد'; });
                 html += '<div class="report-kpi-grid">' +
                     reportKpi('fa-list-check', 'إجمالي الأنشطة', tasks.length, '#5b21b6') +
+                    reportKpi('fa-user-plus', 'العملاء الجدد', newClients, '#0284c7') +
                     reportKpi('fa-phone', 'المكالمات', calls, '#0b63ce') +
                     reportKpi('fa-comment-dots', 'واتساب', whatsapp, '#059669') +
                     reportKpi('fa-calendar-check', 'الاجتماعات', meetings, '#2563eb') +
                     reportKpi('fa-file-signature', 'العقود', contracts, '#6d28d9') +
                     reportKpi('fa-circle-check', 'الأنشطة المكتملة', completed, '#047857') +
+                    reportKpi('fa-user-check', 'إنجاز مهام المشرف', completedInternalTasks + '/' + internalTasks.length, '#7c3aed') +
                 '</div>';
                 html += reportSection('توزيع الأنشطة حسب الحالة', reportBars(statuses));
                 html += reportSection('سجل الأنشطة والمتابعات', reportTable(
@@ -5866,22 +6112,28 @@
             if (!area) return;
 
             const tasks = (window.tasks || []).filter(function(task) {
-                return (!start || task.date >= start) &&
-                    (!end || task.date <= end) &&
+                const taskDate = window.getTaskDateString(task);
+                return !task.deletedAt &&
+                    (!start || taskDate >= start) &&
+                    (!end || taskDate <= end) &&
                     (shift === 'ALL' || task.shift === shift) &&
                     (agent === 'ALL' || task.agent === agent);
             });
-            const startTime = start ? new Date(start + 'T00:00:00').getTime() : 0;
-            const endTime = end ? new Date(end + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER;
             const clients = (window.clients || []).filter(function(client) {
                 const createdAt = Number(client.createdAt) || 0;
-                return (!createdAt || (createdAt >= startTime && createdAt <= endTime)) &&
+                const createdDate = createdAt ? window.getLocalDateString(createdAt) : '';
+                return !client.deletedAt &&
+                    (!createdDate || ((!start || createdDate >= start) && (!end || createdDate <= end))) &&
                     (agent === 'ALL' || client.addedBy === agent);
             });
 
             let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent);
             content += reportType === 'SHIFT_AGENT'
                 ? buildShiftInfographic(tasks, clients, shift, agent)
+                : reportType === 'FOLLOW_UPS'
+                    ? buildFollowUpsInfographic(start, end, shift, agent, clients)
+                    : reportType === 'INTERNAL_TASKS'
+                        ? buildInternalTasksInfographic(tasks)
                 : reportType === 'SUPPORT_PERFORMANCE'
                     ? buildSupportInfographic(start, end, agent)
                     : buildStandardInfographic(reportType, tasks, clients);
