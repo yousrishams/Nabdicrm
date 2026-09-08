@@ -2137,7 +2137,10 @@
             for (const collectionName of ['employees', 'tasks', 'clients', 'supportProjects']) {
                 try {
                     const snapshot = await getDocs(collection(db, 'artifacts', archiveAppId, 'public', 'data', collectionName));
-                    archivedCloudData[collectionName] = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                    archivedCloudData[collectionName] = snapshot.docs.map(docSnap => {
+                        const data = docSnap.data();
+                        return { ...data, id: data.id || docSnap.id, cloudDocumentId: docSnap.id };
+                    });
                     refreshedAnyCollection = true;
                 } catch (error) {
                     // عند انتهاء الحصة قد يفشل الأرشيف مؤقتاً؛ ابدأ المستمعات
@@ -2169,7 +2172,7 @@
         function decodeFirestoreDocument(documentData) {
             const id = String(documentData?.name || '').split('/').pop();
             const fields = Object.fromEntries(Object.entries(documentData?.fields || {}).map(([key, value]) => [key, decodeFirestoreValue(value)]));
-            return { id, ...fields };
+            return { ...fields, id: fields.id || id, cloudDocumentId: id };
         }
 
         async function fetchCollectionThroughRest(workspaceId, collectionName) {
@@ -2817,7 +2820,12 @@
             onSnapshot(tasksColRef, (snapshot) => {
                 const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
                 let taskList = [];
-                snapshot.forEach(docSnap => { const data=docSnap.data(); if(!data.deletedAt&&!deletedTaskIds.has(docSnap.id)) taskList.push({ id: docSnap.id, ...data }); });
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (!data.deletedAt && !deletedTaskIds.has(docSnap.id)) {
+                        taskList.push({ ...data, id: data.id || docSnap.id, cloudDocumentId: docSnap.id });
+                    }
+                });
                 taskList = mergeCloudRecords(archivedCloudData.tasks, taskList)
                     .filter(task => !task.deletedAt && !deletedTaskIds.has(task.id));
                 window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -3088,11 +3096,17 @@
             taskData.createdAt = taskData.createdAt || Date.now();
             const taskEmployee=window.findEmployeeByName(taskData.agent);
             taskData.agentId=taskData.agentId||taskEmployee?.id||'';
+            const existingStoredTask = typeof window.findTaskByRecordId === 'function'
+                ? window.findTaskByRecordId(taskData.id)
+                : (window.tasks || []).find(task => task.id === taskData.id);
+            const isEditingOwnAction = Boolean(existingStoredTask && window.currentUserRole === 'agent' &&
+                window.sameEmployee(existingStoredTask.agent, window.currentLoggedInAgent));
 
             if (taskData.customer && taskData.taskType !== 'internal') {
                 let matchedClient = (window.clients || []).find(c => window.taskMatchesClient(taskData, c));
 
                 if (matchedClient && window.currentUserRole === 'agent' &&
+                    !isEditingOwnAction &&
                     typeof window.canCurrentUserActOnClient === 'function' &&
                     !window.canCurrentUserActOnClient(matchedClient)) {
                     throw new Error(`هذا العميل تابع للموظف ${matchedClient.addedBy || 'المسؤول عنه'} ولا يمكن تسجيل إجراء عليه من حسابك.`);
@@ -3160,24 +3174,27 @@
         };
 
         window.deleteTaskFromCloud = async function(taskId, options = {}) {
+            const task = typeof window.findTaskByRecordId === 'function' ? window.findTaskByRecordId(taskId) : null;
+            const recordId = task ? window.getTaskRecordId(task) : String(taskId || '').trim();
+            if (!recordId) throw new Error('تعذر تحديد رقم الإجراء المطلوب حذفه.');
             const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
-            deletedTaskIds.add(taskId);
+            deletedTaskIds.add(recordId);
             localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
-            window.tasks = window.tasks.filter(t => t.id !== taskId);
+            window.tasks = window.tasks.filter(t => window.getTaskRecordId(t) !== recordId);
             window.saveLocalBackup();
             if (!options.preserveClientProfile) renderApp();
 
             if (window.dbUser) {
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', task?.cloudDocumentId || recordId);
                 try {
                     await setDoc(docRef, {
-                        id: taskId,
+                        id: recordId,
                         deletedAt: new Date().toISOString(),
                         updatedAt: Date.now(),
                         deletedBy: window.currentLoggedInAgent || 'المدير العام'
                     }, {merge:true});
                 } catch(error) {
-                    if(window.showToast) window.showToast('تعذر تثبيت حذف المهمة في Firebase. راجع صلاحيات الكتابة.','error');
+                    throw new Error('تعذر تثبيت حذف الإجراء في قاعدة البيانات. حاول مرة أخرى.');
                 }
             }
         };
@@ -3748,6 +3765,16 @@
             if (window.currentUserRole !== 'agent') return false;
             const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
             return window.clientBelongsToEmployee(client, loggedEmployee);
+        };
+
+        window.getTaskRecordId = function(task) {
+            return String(task?.id || task?.cloudDocumentId || '').trim();
+        };
+
+        window.findTaskByRecordId = function(taskId) {
+            const key = String(taskId || '').trim();
+            if (!key) return null;
+            return (window.tasks || []).find(task => window.getTaskRecordId(task) === key) || null;
         };
 
         function rejectUnauthorizedClientAction(client) {
@@ -4492,6 +4519,7 @@
 
             container.innerHTML = clientTasks.map((t) => {
                 const isEditableAction = !isClientRegistrationTask(t);
+                const taskRecordId = window.getTaskRecordId(t);
                 let iconClass = "fa-phone bg-blue-500 text-white";
                 if (isClientRegistrationTask(t)) iconClass = "fa-user-plus bg-emerald-600 text-white";
                 else if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
@@ -4528,13 +4556,13 @@
                                 <span>القناة: ${t.channel || 'هاتف'} | الأولوية: ${t.priority || 'عادية'}</span>
                                 <span class="text-emerald-600">الحالة: ${t.status}</span>
                             </div>
-                            ${isEditableAction ? `
+                            ${isEditableAction && taskRecordId ? `
                                 <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                                    <button type="button" onclick="editTaskFromClientTimeline('${t.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer">
+                                    <button type="button" onclick="editTaskFromClientTimeline('${taskRecordId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer">
                                         <i class="fa-solid fa-pen-to-square"></i>
                                         <span>تعديل الإجراء</span>
                                     </button>
-                                    <button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer">
+                                    <button type="button" onclick="confirmDeleteTask('${taskRecordId}')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer">
                                         <i class="fa-solid fa-trash-can"></i>
                                         <span>حذف الإجراء</span>
                                     </button>
@@ -4924,11 +4952,14 @@
         function closeDepartmentTaskModal(){document.getElementById('departmentTaskModal').classList.add('hidden');}
         async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',agent:assignee,date:due,time:window.getEgyptTimeString(),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'قيد المعالجة',title,notes:(title+(notes?' — '+notes:''))});closeDepartmentTaskModal();showToast('تم إسناد المهمة إلى '+assignee+' وستظهر في حسابه');}
 
-        function openAddTaskModal(clientIdToPreselect = null) {
+        function openAddTaskModal(clientIdToPreselect = null, options = {}) {
             const modal = document.getElementById('addTaskModal');
             const form = document.getElementById('taskForm');
             const preselectedClient = clientIdToPreselect ? (window.clients || []).find(c => c.id === clientIdToPreselect) : null;
-            if (preselectedClient && rejectUnauthorizedClientAction(preselectedClient)) return;
+            const editingTask = options.editingTask || null;
+            const editingOwnAction = editingTask && window.currentUserRole === 'agent' &&
+                window.sameEmployee(editingTask.agent, window.currentLoggedInAgent);
+            if (preselectedClient && !editingOwnAction && rejectUnauthorizedClientAction(preselectedClient)) return false;
             renderClientSelectInTaskForm();
 
             const loggedEmp = (window.employees || []).find(e => e.name === window.currentLoggedInAgent);
@@ -4966,6 +4997,7 @@
             }
 
             modal.classList.remove('hidden');
+            return true;
         }
 
         function closeAddTaskModal() {
@@ -4975,6 +5007,7 @@
         async function handleSaveTask(e) {
             e.preventDefault();
             const taskId = document.getElementById('taskId').value;
+            const existingTask = taskId ? window.findTaskByRecordId(taskId) : null;
             const taskDate = document.getElementById('formDate').value || window.currentDateFilter;
             const shift = document.getElementById('formShift').value;
             const agent = document.getElementById('formAgent').value;
@@ -5004,7 +5037,8 @@
                     document.getElementById('formClientSelect').focus();
                     return;
                 }
-                const allowedClient = getClientsAvailableToCurrentUser().some(client => client.id === selectedClientId);
+                const editingOwnAction = existingTask && window.sameEmployee(existingTask.agent, window.currentLoggedInAgent);
+                const allowedClient = editingOwnAction || getClientsAvailableToCurrentUser().some(client => client.id === selectedClientId);
                 if (!allowedClient) {
                     showToast('هذا العميل غير تابع لحسابك. يمكنك تنفيذ الإجراءات على عملائك فقط.', 'error');
                     return;
@@ -5023,8 +5057,6 @@
             }
 
             const currentTimeStr = window.getEgyptTimeString();
-            const existingTask = taskId ? (window.tasks || []).find(task => task.id === taskId) : null;
-
             const taskData = {
                 ...(existingTask || {}),
                 id: taskId || null,
@@ -5082,22 +5114,29 @@
         }
 
         function editTask(id) {
-            const t = window.tasks.find(item => item.id === id);
-            if (!t) return;
+            const t = window.findTaskByRecordId(id);
+            if (!t) {
+                showToast('تعذر العثور على الإجراء. أغلق رحلة العميل وافتحها مرة أخرى.', 'error');
+                return false;
+            }
 
             const taskClient = (window.clients || []).find(client => window.taskMatchesClient(t, client));
             if (window.currentUserRole === 'agent') {
                 if (!window.sameEmployee(t.agent, window.currentLoggedInAgent)) {
                     showToast('يمكنك تعديل الإجراءات المسجلة باسمك فقط.', 'error');
-                    return;
+                    return false;
                 }
-                if (!taskClient || rejectUnauthorizedClientAction(taskClient)) return;
+            }
+            if (!taskClient) {
+                showToast('تعذر ربط الإجراء بالعميل. أعد فتح سجل العميل وحاول مرة أخرى.', 'error');
+                return false;
             }
 
-            openAddTaskModal(taskClient?.id || null);
+            const opened = openAddTaskModal(taskClient.id, { editingTask: t });
+            if (!opened) return false;
             setTimeout(() => {
                 document.getElementById('modalTitle').innerText = 'تعديل عمل / معاملة';
-                document.getElementById('taskId').value = t.id;
+                document.getElementById('taskId').value = window.getTaskRecordId(t);
                 document.getElementById('formDate').value = t.date || window.currentDateFilter;
                 document.getElementById('formShift').value = t.shift || 'شفت صباحي';
                 document.getElementById('formAgent').value = t.agent;
@@ -5118,26 +5157,35 @@
                 document.getElementById('formNextFollowUpTime').value = t.nextFollowUpTime || '';
                 syncWhatsappAdditionalOption();
             }, 50);
+            return true;
         }
 
         async function confirmDeleteTask(id) {
-            const task = (window.tasks || []).find(item => item.id === id);
+            const task = window.findTaskByRecordId(id);
+            if (!task) {
+                showToast('تعذر العثور على الإجراء المطلوب حذفه. أغلق رحلة العميل وافتحها مرة أخرى.', 'error');
+                return false;
+            }
             const taskClient = task ? (window.clients || []).find(client => window.taskMatchesClient(task, client)) : null;
             if (window.currentUserRole === 'agent') {
-                if (!task || !window.sameEmployee(task.agent, window.currentLoggedInAgent)) {
+                if (!window.sameEmployee(task.agent, window.currentLoggedInAgent)) {
                     showToast('يمكنك حذف الإجراءات المسجلة باسمك فقط.', 'error');
-                    return;
+                    return false;
                 }
-                if (!taskClient || rejectUnauthorizedClientAction(taskClient)) return;
             }
             if (confirm("هل تريد حذف هذا الإجراء بشكل نهائي؟")) {
                 const activeClientId = window.activeProfileClientId;
-                await window.deleteTaskFromCloud(id, { preserveClientProfile: Boolean(activeClientId) });
-                if (activeClientId) {
-                    renderClientTimelineUI(activeClientId);
+                try {
+                    await window.deleteTaskFromCloud(window.getTaskRecordId(task), { preserveClientProfile: Boolean(activeClientId) });
+                    if (activeClientId) renderClientTimelineUI(activeClientId);
+                    showToast("تم حذف الإجراء بنجاح", "info");
+                    return true;
+                } catch (error) {
+                    showToast(error.message || 'تعذر حذف الإجراء، حاول مرة أخرى.', 'error');
+                    return false;
                 }
-                showToast("تم حذف الإجراء بنجاح", "info");
             }
+            return false;
         }
 
         function toggleLoginInputs() {
