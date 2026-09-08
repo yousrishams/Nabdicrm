@@ -5705,14 +5705,281 @@
             return window.formatEgyptDate(value, { day: 'numeric', month: 'long', year: 'numeric' }) || value;
         }
 
+        window.currentReportContext = null;
+        window.currentReportDrilldownPhones = [];
+
+        function getReportTaskRows(items) {
+            return (items || []).map(function(task) {
+                return [
+                    reportDateText(window.getTaskDateString(task)) + (task.time ? ' — ' + task.time : ''),
+                    task.agent || '-',
+                    task.customer || '-',
+                    task.phone || '-',
+                    getTaskDisplayCategory(task) || task.title || '-',
+                    task.status || '-',
+                    task.notes || task.finalResult || '-',
+                    task.nextFollowUpDate ? reportDateText(task.nextFollowUpDate) + (task.nextFollowUpTime ? ' — ' + task.nextFollowUpTime : '') : '-'
+                ];
+            });
+        }
+
+        function getReportClientRows(items, includeReason) {
+            return (items || []).map(function(signal) {
+                const item = signal.item || signal;
+                const client = item.client || item;
+                const latest = item.latestAction || null;
+                const dueDate = signal.dueDate || item.scheduledAction?.nextFollowUpDate || latest?.nextFollowUpDate || '';
+                const base = [
+                    client.name || '-',
+                    client.phone || '-',
+                    normalizeReportCity(client.city) || 'غير محدد',
+                    client.addedBy || item.registrationTask?.agent || 'المدير العام',
+                    client.stage || '-',
+                    latest ? getTaskDisplayCategory(latest) : 'لا يوجد',
+                    dueDate ? reportDateText(dueDate) : '-',
+                    client.statusNote || latest?.clientStatusNote || '-'
+                ];
+                if (includeReason) base.splice(5, 0, signal.attentionReason || signal.followUpState || '-');
+                return base;
+            });
+        }
+
+        function getReportDrilldownData(label) {
+            const context = window.currentReportContext || {};
+            const reportType = context.reportType || '';
+            const today = window.getLocalDateString();
+            const clientHeaders = ['العميل / المنشأة', 'الهاتف', 'المدينة', 'الموظف المسؤول', 'المرحلة الحالية', 'آخر إجراء', 'المتابعة القادمة', 'إفادة العميل'];
+            const attentionHeaders = ['العميل / المنشأة', 'الهاتف', 'المدينة', 'الموظف المسؤول', 'المرحلة الحالية', 'سبب الاستدعاء', 'آخر إجراء', 'المتابعة القادمة', 'إفادة العميل'];
+            const taskHeaders = ['التاريخ والوقت', 'الموظف', 'العميل', 'الهاتف', 'الإجراء', 'الحالة', 'التفاصيل', 'المتابعة القادمة'];
+            const detailsFor = function(clients) {
+                return getNewClientReportDetails(clients || [], context.sourceTasks || []);
+            };
+            const signalsFor = function(clients) {
+                return detailsFor(clients).map(function(item) { return getReportClientSignals(item, today); });
+            };
+            const clientResult = function(signals, title, includeReason) {
+                return {
+                    title: title || label,
+                    headers: includeReason ? attentionHeaders : clientHeaders,
+                    rows: getReportClientRows(signals, includeReason),
+                    phones: signals.map(function(signal) { return (signal.item?.client || signal.client || signal).phone || ''; })
+                };
+            };
+            const taskResult = function(tasks, title) {
+                return {
+                    title: title || label,
+                    headers: taskHeaders,
+                    rows: getReportTaskRows(tasks),
+                    phones: tasks.map(function(task) { return task.phone || ''; })
+                };
+            };
+
+            if (reportType === 'ATTENTION_REQUIRED') {
+                let signals = signalsFor(context.allScopedClients || []).filter(function(signal) { return Boolean(signal.attentionReason); });
+                if (label === 'متابعات متأخرة') signals = signals.filter(function(row) { return row.dueDate && row.dueDate < today; });
+                else if (label === 'مطلوب اليوم') signals = signals.filter(function(row) { return row.dueDate === today; });
+                else if (label === 'لم يرد') signals = signals.filter(function(row) { return row.item.latestAction && isUnansweredPhoneAction(row.item.latestAction); });
+                else if (label === 'لم يبدأ التواصل') signals = signals.filter(function(row) { return !row.contacted; });
+                else if (label === 'تصعيد للمدير') signals = signals.filter(function(row) { return row.attentionPriority === 6; });
+                else if (label === 'إجراء بدون موعد') signals = signals.filter(function(row) { return row.followUpState === 'قيد المعالجة دون موعد'; });
+                return clientResult(signals, label, true);
+            }
+
+            if (reportType === 'CITY_STATUS') {
+                let signals = signalsFor(context.clients || []);
+                if (label === 'عملاء الرياض') signals = signals.filter(function(row) { return row.city === 'الرياض'; });
+                else if (label === 'عملاء جدة') signals = signals.filter(function(row) { return row.city === 'جدة'; });
+                else if (label === 'وصلوا لمرحلة مهتم') signals = signals.filter(function(row) { return row.interested; });
+                else if (label === 'جهات مفعلة') signals = signals.filter(function(row) { return row.activated; });
+                else if (label === 'تحتاج متابعة') signals = signals.filter(function(row) { return row.attentionReason; });
+                return clientResult(signals, label, label === 'تحتاج متابعة');
+            }
+
+            if (reportType === 'CITY_CONVERSION') {
+                let signals = signalsFor(context.clients || []);
+                const groups = getCityReportGroups(signals);
+                if (label === 'عملاء مهتمون') signals = signals.filter(function(row) { return row.interested; });
+                else if (label === 'جهات مفعلة' || label === 'معدل التفعيل') signals = signals.filter(function(row) { return row.activated; });
+                else if (label === 'أكبر مدينة') signals = groups[0]?.signals || [];
+                else if (label === 'أفضل تحويل') {
+                    const best = groups.slice().sort(function(a, b) {
+                        const aRate = reportPercent(a.signals.filter(function(row) { return row.activated; }).length, a.signals.length);
+                        const bRate = reportPercent(b.signals.filter(function(row) { return row.activated; }).length, b.signals.length);
+                        return bRate - aRate;
+                    })[0];
+                    signals = best?.signals || [];
+                }
+                return clientResult(signals, label, false);
+            }
+
+            if (reportType === 'NEW_CLIENTS' || reportType === 'NEW_CLIENT_FOLLOWUPS') {
+                let details = detailsFor(context.clients || []);
+                if (label === 'مسجلون في الشفت الصباحي') details = details.filter(function(item) { return item.registrationTask?.shift === 'شفت صباحي'; });
+                else if (label === 'مسجلون في الشفت المسائي') details = details.filter(function(item) { return item.registrationTask?.shift === 'شفت مسائي'; });
+                else if (label === 'رقم وطني مسجل') details = details.filter(function(item) { return item.client.nationalId; });
+                else if (label === 'لم يبدأ التواصل') details = details.filter(function(item) { return item.actions.length === 0; });
+                else if (label === 'تم التواصل') details = details.filter(function(item) { return item.actions.length > 0; });
+                else if (label === 'لم يرد') details = details.filter(function(item) { return item.latestAction && isUnansweredPhoneAction(item.latestAction); });
+                else if (label === 'لديهم متابعة قادمة') details = details.filter(function(item) { return item.scheduledAction?.nextFollowUpDate; });
+                else if (label === 'وصلوا لمرحلة متقدمة') details = details.filter(function(item) {
+                    return ['عقد اجتماع', 'إرسال العقد', 'توقيع العقد', 'تفعيل الجهة', 'الحصول على البيانات', 'إرسال البيانات إلى الدعم الفني', 'إرفاق رابط Google Drive بالبيانات'].includes(item.client.stage);
+                });
+                return clientResult(details, label, false);
+            }
+
+            if (reportType === 'FOLLOW_UPS') {
+                const matchingClients = context.allScopedClients || [];
+                const sourceTasks = (context.sourceTasks || []).filter(function(task) {
+                    return reportTaskMatchesClientFilters(task, context.city || 'ALL', context.stage || 'ALL');
+                });
+                let entries = buildReportFollowUpEntries(sourceTasks, matchingClients).filter(function(entry) {
+                    return (!context.start || entry.dueDate >= context.start) && (!context.end || entry.dueDate <= context.end);
+                });
+                if (label === 'مطلوب اليوم') entries = entries.filter(function(entry) { return entry.dueDate === today; });
+                else if (label === 'متابعات متأخرة') entries = entries.filter(function(entry) { return entry.dueDate && entry.dueDate < today; });
+                else if (label === 'مكالمات لم يرد') entries = entries.filter(function(entry) { return entry.kind === 'UNANSWERED'; });
+                else if (label === 'متابعات قادمة') entries = entries.filter(function(entry) { return entry.dueDate && entry.dueDate > today; });
+                else if (label.startsWith('العملاء الجدد')) return clientResult(detailsFor(context.clients || []), label, false);
+                const tasks = entries.map(function(entry) {
+                    return Object.assign({}, entry.task, { nextFollowUpDate: entry.dueDate, nextFollowUpTime: entry.dueTime });
+                });
+                return taskResult(tasks, label);
+            }
+
+            if (reportType === 'INTERNAL_TASKS') {
+                let tasks = (context.periodTasks || []).filter(isInternalTask);
+                if (label === 'مهام جديدة') tasks = tasks.filter(function(task) { return getInternalTaskState(task, today) === 'جديدة'; });
+                else if (label === 'جاري التنفيذ') tasks = tasks.filter(function(task) { return getInternalTaskState(task, today) === 'جاري التنفيذ'; });
+                else if (label === 'مهام متأخرة') tasks = tasks.filter(function(task) { return getInternalTaskState(task, today) === 'متأخرة'; });
+                else if (label === 'مهام مكتملة' || label === 'نسبة الإنجاز') tasks = tasks.filter(function(task) { return getInternalTaskState(task, today) === 'مكتملة'; });
+                return taskResult(tasks, label);
+            }
+
+            if (reportType === 'SUPPORT_PERFORMANCE') {
+                let projects = [];
+                try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
+                projects = projects.filter(function(project) {
+                    const stamp = project.sentAt || project.createdAt || 0;
+                    const date = stamp ? window.getLocalDateString(stamp) : '';
+                    return (!date || ((!context.start || date >= context.start) && (!context.end || date <= context.end))) &&
+                        (context.agent === 'ALL' || project.receivedBy === context.agent || project.completedBy === context.agent || (project.tasks || []).some(function(task) { return task.agent === context.agent; }));
+                });
+                if (label === 'بانتظار رابط البيانات') projects = projects.filter(function(project) { return ['بانتظار رابط البيانات', 'بانتظار الاستلام'].includes(project.handoffStatus); });
+                else if (label === 'الرابط جاهز للاستلام') projects = projects.filter(function(project) { return project.handoffStatus === 'تم إرسال رابط البيانات'; });
+                else if (label === 'جاري التنفيذ') projects = projects.filter(function(project) { return project.handoffStatus === 'تم الاستلام'; });
+                else if (label === 'تم الرفع بنجاح' || label === 'متوسط التنفيذ') projects = projects.filter(function(project) { return project.handoffStatus === 'تم الرفع بنجاح'; });
+                return {
+                    title: label,
+                    headers: ['العميل', 'خدمات العملاء', 'حالة الملف', 'مستلم الدعم', 'وقت الاستلام', 'من أنهى', 'وقت الإنهاء'],
+                    rows: projects.map(function(project) { return [project.clientName || '-', project.sender || '-', project.handoffStatus || '-', project.receivedBy || '-', project.receivedAt ? window.formatEgyptDateTime(project.receivedAt) : '-', project.completedBy || '-', project.completedAt ? window.formatEgyptDateTime(project.completedAt) : '-']; }),
+                    phones: projects.map(function(project) { return findReportClientForTask({ customer: project.clientName }, window.clients || [])?.phone || ''; })
+                };
+            }
+
+            if (reportType === 'FUNNEL_STAGES' || reportType === 'BANK_COMMISSIONS' || reportType === 'ENTITIES_GEO') {
+                let clients = context.clients || [];
+                if (label === 'العملاء المهتمون') clients = clients.filter(function(client) { return client.stage === 'عميل مهتم'; });
+                else if (label === 'اجتماعات تمت') clients = clients.filter(function(client) { return client.stage === 'عقد اجتماع'; });
+                else if (label === 'التعاقد وإرسال العقد') clients = clients.filter(function(client) { return ['الاتفاق على التعاقد', 'إرسال العقد'].includes(client.stage); });
+                else if (label === 'توقيع العقد') clients = clients.filter(function(client) { return client.stage === 'توقيع العقد'; });
+                else if (label === 'جهات مفعلة') clients = clients.filter(function(client) { return client.stage === 'تفعيل الجهة'; });
+                else if (label === 'حساب بنكي مسجل') clients = clients.filter(function(client) { return client.accountNumber; });
+                else if (label === 'آيبان مسجل') clients = clients.filter(function(client) { return client.iban; });
+                else if (label === 'عمولة محددة') clients = clients.filter(function(client) { return client.commission; });
+                else if (label === 'جهات بها مستندات' || label === 'إجمالي المرفقات') clients = clients.filter(function(client) { return client.docs && Object.keys(client.docs).length > 0; });
+                else if (label === 'المدينة الأعلى') {
+                    const top = countReportItems(clients, function(client) { return normalizeReportCity(client.city) || 'غير محدد'; })[0];
+                    clients = clients.filter(function(client) { return (normalizeReportCity(client.city) || 'غير محدد') === top?.label; });
+                } else if (label === 'النوع الأعلى') {
+                    const top = countReportItems(clients, function(client) { return client.entityType || 'غير محدد'; })[0];
+                    clients = clients.filter(function(client) { return (client.entityType || 'غير محدد') === top?.label; });
+                }
+                return clientResult(detailsFor(clients), label, false);
+            }
+
+            if (reportType === 'SHIFT_AGENT') {
+                if (label === 'العملاء الجدد') return clientResult(detailsFor(context.clients || []), label, false);
+                if (label === 'العملاء المهتمون Leads') return clientResult(detailsFor((context.clients || []).filter(function(client) { return client.stage === 'عميل مهتم'; })), label, false);
+                let tasks = context.tasks || [];
+                if (label === 'إجمالي المكالمات') tasks = tasks.filter(isPhoneAction);
+                else if (label === 'المكالمات المجابة') tasks = tasks.filter(isAnsweredPhoneAction);
+                else if (label === 'العقود الموقعة') tasks = tasks.filter(isSignedContractAction);
+                else if (label === 'رسائل واتساب') tasks = tasks.filter(function(task) { return task.category === 'إرسال واتساب'; });
+                else if (label === 'عدد الاجتماعات') tasks = tasks.filter(isMeetingAction);
+                return taskResult(tasks, label);
+            }
+
+            let tasks = context.tasks || [];
+            if (label === 'العملاء الجدد') tasks = tasks.filter(isClientRegistrationTask);
+            else if (label === 'المكالمات') tasks = tasks.filter(isPhoneAction);
+            else if (label === 'واتساب') tasks = tasks.filter(function(task) { return task.category === 'إرسال واتساب'; });
+            else if (label === 'الاجتماعات') tasks = tasks.filter(isMeetingAction);
+            else if (label === 'العقود') tasks = tasks.filter(isContractAction);
+            else if (label === 'الأنشطة المكتملة') tasks = tasks.filter(function(task) { return task.status === 'مكتمل'; });
+            else if (label === 'إنجاز مهام المشرف') tasks = (context.periodTasks || []).filter(isInternalTask);
+            return taskResult(tasks, label);
+        }
+
+        function reportDrilldownTable(headers, rows) {
+            const headerHtml = headers.map(function(header) { return '<th>' + escapeHtml(header) + '</th>'; }).join('');
+            const bodyHtml = rows.length ? rows.map(function(row) {
+                return '<tr>' + row.map(function(cell, index) {
+                    const value = String(cell ?? '-');
+                    const isPhoneColumn = headers[index] === 'الهاتف';
+                    const digits = value.replace(/\D/g, '');
+                    const display = isPhoneColumn && digits.length >= 7
+                        ? '<a class="text-blue-700 underline font-black" dir="ltr" href="tel:' + digits + '">' + escapeHtml(value) + '</a>'
+                        : escapeHtml(value);
+                    return '<td class="' + (index === 0 ? 'report-strong' : '') + '">' + display + '</td>';
+                }).join('') + '</tr>';
+            }).join('') : '<tr><td colspan="' + headers.length + '"><div class="report-empty">لا توجد نتائج داخل هذا الاستدعاء وفق الفلاتر الحالية.</div></td></tr>';
+            return '<div class="report-table-wrap"><table class="report-table"><thead><tr>' + headerHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
+        }
+
+        function openReportKpiDetails(label) {
+            const panel = document.getElementById('reportDrilldownPanel');
+            if (!panel) return;
+            const data = getReportDrilldownData(label);
+            const phones = Array.from(new Set((data.phones || []).map(function(phone) { return String(phone || '').trim(); }).filter(Boolean)));
+            window.currentReportDrilldownPhones = phones;
+            panel.innerHTML = '<div class="flex flex-wrap items-center justify-between gap-3 mb-4">' +
+                '<div><div class="text-xs font-black text-indigo-700 mb-1"><i class="fa-solid fa-bolt ml-1"></i>استدعاء مباشر</div><h2 class="text-xl font-black text-slate-900">' + escapeHtml(data.title || label) + '</h2><p class="text-sm font-bold text-slate-500 mt-1">ظهر ' + data.rows.length + ' نتيجة حسب الفترة والفلاتر المختارة.</p></div>' +
+                '<div class="flex flex-wrap gap-2">' +
+                    '<button type="button" onclick="copyCurrentReportPhones()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black cursor-pointer"><i class="fa-solid fa-copy ml-1"></i>نسخ أرقام العملاء (' + phones.length + ')</button>' +
+                    '<button type="button" onclick="closeReportDrilldown()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-black cursor-pointer"><i class="fa-solid fa-xmark ml-1"></i>إغلاق النتائج</button>' +
+                '</div>' +
+            '</div>' + reportDrilldownTable(data.headers || [], data.rows || []);
+            panel.classList.remove('hidden');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeReportDrilldown() {
+            const panel = document.getElementById('reportDrilldownPanel');
+            if (panel) panel.classList.add('hidden');
+        }
+
+        async function copyCurrentReportPhones() {
+            const phones = window.currentReportDrilldownPhones || [];
+            if (!phones.length) {
+                showToast('لا توجد أرقام عملاء داخل النتائج الحالية.', 'error');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(phones.join('\n'));
+                showToast('تم نسخ ' + phones.length + ' رقم عميل.', 'success');
+            } catch (error) {
+                showToast('تعذر النسخ التلقائي. يمكنك نسخ الأرقام من الجدول.', 'error');
+            }
+        }
+
         function reportKpi(icon, label, value, accent, action) {
-            const tag = action ? 'button' : 'div';
-            const actionAttributes = action ? ' type="button" class="report-kpi report-kpi-action" onclick="' + action + '" title="اضغط لعرض التفاصيل"' : ' class="report-kpi"';
-            return '<' + tag + actionAttributes + ' style="--report-accent:' + accent + '">' +
+            const resolvedAction = action || "openReportKpiDetails(decodeURIComponent('" + encodeURIComponent(label) + "'))";
+            const actionAttributes = ' type="button" class="report-kpi report-kpi-action" onclick="' + resolvedAction + '" title="اضغط لاستدعاء النتائج"';
+            return '<button' + actionAttributes + ' style="--report-accent:' + accent + '">' +
                 '<div class="report-kpi-icon"><i class="fa-solid ' + icon + '"></i></div>' +
                 '<span class="report-kpi-label">' + escapeHtml(label) + '</span>' +
                 '<strong class="report-kpi-value">' + escapeHtml(value) + '</strong>' +
-            '</' + tag + '>';
+            '</button>';
         }
 
         function selectReportType(reportType) {
@@ -6096,7 +6363,7 @@
             }).length;
 
             let html = '<div class="report-kpi-grid">' +
-                reportKpi('fa-user-plus', 'العملاء الجدد خلال الفترة', details.length, '#0284c7', "selectReportType('NEW_CLIENTS')") +
+                reportKpi('fa-user-plus', 'العملاء الجدد خلال الفترة', details.length, '#0284c7') +
                 reportKpi('fa-hourglass-start', 'لم يبدأ التواصل', notContacted, '#d97706') +
                 reportKpi('fa-headset', 'تم التواصل', contacted, '#5b21b6') +
                 reportKpi('fa-phone-slash', 'لم يرد', unanswered, '#e11d48') +
@@ -6189,7 +6456,7 @@
             }).length;
 
             let html = '<div class="report-kpi-grid">' +
-                reportKpi('fa-user-plus', 'العملاء الجدد — اضغط للتفاصيل', clientsInPeriod.length, '#0284c7', "selectReportType('NEW_CLIENTS')") +
+                reportKpi('fa-user-plus', 'العملاء الجدد — اضغط للتفاصيل', clientsInPeriod.length, '#0284c7') +
                 reportKpi('fa-list-check', 'إجمالي المتابعات', entries.length, '#5b21b6') +
                 reportKpi('fa-sun', 'مطلوب اليوم', todayEntries.length, '#d97706') +
                 reportKpi('fa-clock-rotate-left', 'متابعات متأخرة', overdueEntries.length, '#dc2626') +
@@ -6482,12 +6749,12 @@
             const attention = signals.filter(function(signal) { return signal.attentionReason; }).length;
 
             let html = '<div class="report-kpi-grid">' +
-                reportKpi('fa-users', 'كل العملاء بالفترة', signals.length, '#5b21b6', "setReportCityFilter('ALL')") +
-                reportKpi('fa-location-dot', 'عملاء الرياض', riyadh, '#0b63ce', "setReportCityFilter('الرياض')") +
-                reportKpi('fa-location-dot', 'عملاء جدة', jeddah, '#0891b2', "setReportCityFilter('جدة')") +
+                reportKpi('fa-users', 'كل العملاء بالفترة', signals.length, '#5b21b6') +
+                reportKpi('fa-location-dot', 'عملاء الرياض', riyadh, '#0b63ce') +
+                reportKpi('fa-location-dot', 'عملاء جدة', jeddah, '#0891b2') +
                 reportKpi('fa-user-check', 'وصلوا لمرحلة مهتم', interested, '#7c3aed') +
                 reportKpi('fa-circle-check', 'جهات مفعلة', activated, '#059669') +
-                reportKpi('fa-triangle-exclamation', 'تحتاج متابعة', attention, '#e11d48', "selectReportType('ATTENTION_REQUIRED')") +
+                reportKpi('fa-triangle-exclamation', 'تحتاج متابعة', attention, '#e11d48') +
             '</div>';
 
             html += reportSection('ملخص كل مدينة وحالة عملائها', reportTable(
@@ -6798,7 +7065,23 @@
             });
             const sourceTasks = getReportSourceTasks(shift, agent);
 
+            window.currentReportContext = {
+                reportType: reportType,
+                start: start,
+                end: end,
+                shift: shift,
+                agent: agent,
+                city: city,
+                stage: stage,
+                tasks: tasks,
+                periodTasks: periodTasks,
+                clients: clients,
+                allScopedClients: allScopedClients,
+                sourceTasks: sourceTasks
+            };
+
             let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, city, stage);
+            content += '<section id="reportDrilldownPanel" class="hidden mb-6 rounded-3xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-lg scroll-mt-4"></section>';
             if (reportType === 'SHIFT_AGENT') {
                 content += buildShiftInfographic(tasks, clients, shift, agent);
             } else if (reportType === 'NEW_CLIENTS') {
