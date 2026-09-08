@@ -1820,7 +1820,7 @@
             </div>
 
             <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs">
-                <span id="profInteractionCountText" class="font-bold text-slate-600">إجمالي المتابعات المسجلة: 0</span>
+                <span id="profInteractionCountText" class="font-bold text-slate-600">إجمالي الإجراءات والمتابعات: 0</span>
                 <div class="flex gap-2">
                     <button id="profSendSupportBtn" type="button" onclick="openSupportHandoffForm(window.activeProfileClientId)" class="hidden px-4 py-2 bg-violet-700 text-white rounded-xl font-black cursor-pointer"><i class="fa-solid fa-paper-plane ml-1"></i>تجهيز وإرسال للدعم الفني</button>
                     <button type="button" onclick="closeClientProfileModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
@@ -2986,6 +2986,10 @@
         window.deleteClientFromCloud = async function(clientId) {
             const target = (window.clients || []).find(c => c.id === clientId);
             if (!target) return;
+            if (typeof window.canCurrentUserActOnClient === 'function' && !window.canCurrentUserActOnClient(target)) {
+                if (window.showToast) window.showToast(`هذا العميل تابع للموظف ${target.addedBy || 'المسؤول عنه'} ولا يمكن حذفه من حسابك.`, 'error');
+                return;
+            }
             const ids = Array.from(new Set([clientId, ...(target._duplicateIds || [])].filter(Boolean)));
             const warning = ids.length > 1 ? `هذا العميل لديه ${ids.length} سجلات مكررة. سيتم حذفها كلها نهائيًا. هل تريد المتابعة؟` : `هل تريد حذف العميل (${target.name}) نهائيًا؟`;
             if (!confirm(warning)) return;
@@ -3087,6 +3091,12 @@
 
             if (taskData.customer && taskData.taskType !== 'internal') {
                 let matchedClient = (window.clients || []).find(c => window.taskMatchesClient(taskData, c));
+
+                if (matchedClient && window.currentUserRole === 'agent' &&
+                    typeof window.canCurrentUserActOnClient === 'function' &&
+                    !window.canCurrentUserActOnClient(matchedClient)) {
+                    throw new Error(`هذا العميل تابع للموظف ${matchedClient.addedBy || 'المسؤول عنه'} ولا يمكن تسجيل إجراء عليه من حسابك.`);
+                }
 
                 const stageForTask = window.getStageForTaskCategory(
                     taskData.category,
@@ -3721,23 +3731,29 @@
             const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
             if (!loggedEmployee) return [];
 
-            const isSupervisor = window.getEmployeeAccessLevel(loggedEmployee) === 'supervisor';
-            const department = window.getEmployeeDepartment(loggedEmployee);
-            const permittedEmployees = isSupervisor
-                ? (window.employees || []).filter(employee => window.getEmployeeDepartment(employee) === department)
-                : [loggedEmployee];
-            const permittedNames = new Set(permittedEmployees.map(employee => employee.name));
-            const permittedIds = new Set(permittedEmployees.map(employee => employee.id).filter(Boolean));
+            // ملكية العميل تحدد فقط بالموظف الذي سجله، وليس بمن نفذ إجراءً
+            // قديماً عليه. بهذا لا يمنح الخطأ السابق صلاحية دائمة لموظف آخر.
+            return clients.filter(client => window.clientBelongsToEmployee(client, loggedEmployee));
+        }
 
-            return clients.filter(client => {
-                const ownedDirectly = permittedNames.has(client.addedBy) || (client.addedById && permittedIds.has(client.addedById));
-                if (ownedDirectly) return true;
-                return (window.tasks || []).some(task =>
-                    !isInternalTask(task) &&
-                    permittedNames.has(task.agent) &&
-                    window.taskMatchesClient(task, client)
-                );
-            });
+        window.clientBelongsToEmployee = function(client, employee) {
+            if (!client || !employee) return false;
+            if (client.addedById && employee.id && client.addedById === employee.id) return true;
+            return window.sameEmployee(client.addedBy, employee.name, client.addedById || '', employee.id || '');
+        };
+
+        window.canCurrentUserActOnClient = function(client) {
+            if (!client || client.deletedAt) return false;
+            if (window.currentUserRole === 'manager') return true;
+            if (window.currentUserRole !== 'agent') return false;
+            const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
+            return window.clientBelongsToEmployee(client, loggedEmployee);
+        };
+
+        function rejectUnauthorizedClientAction(client) {
+            if (window.canCurrentUserActOnClient(client)) return false;
+            showToast(`هذا العميل تابع للموظف ${client?.addedBy || 'المسؤول عنه'}؛ لا يمكن تسجيل أو تعديل إجراء عليه من حسابك.`, 'error');
+            return true;
         }
 
         function renderClientSelectInTaskForm() {
@@ -3798,6 +3814,7 @@
         function openClientFinancialEdit(clientId) {
             const client = (window.clients || []).find(item => item.id === clientId);
             if (!client) return;
+            if (rejectUnauthorizedClientAction(client)) return;
             openAddClientModal(client);
             setTimeout(scrollClientFinancialsIntoView, 80);
         }
@@ -3926,6 +3943,7 @@
         }
 
         function openAddClientModal(prefillData = null) {
+            if (prefillData && rejectUnauthorizedClientAction(prefillData)) return;
             populateFunnelDropdowns();
             const modal = document.getElementById('addClientModal');
             const form = document.getElementById('clientForm');
@@ -4209,6 +4227,7 @@
                 const colors = window.getStageColorClasses(c.stage);
                 const hasFinancials = c.accountNumber || c.iban || c.commission;
                 const docCount = c.docs ? Object.keys(c.docs).length : 0;
+                const canModifyClient = window.canCurrentUserActOnClient(c);
 
                 return `
                     <tr class="hover:bg-indigo-50/30 transition-colors align-top">
@@ -4269,19 +4288,21 @@
                                     <i class="fa-solid fa-clock-rotate-left"></i>
                                     <span>الرحلة والعقد</span>
                                 </button>
-                                <button onclick="openAddTaskModal('${c.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2 py-1 rounded-lg flex items-center gap-1 shadow-2xs cursor-pointer" title="تسجيل إجراء جديد">
-                                    <i class="fa-solid fa-plus"></i>
-                                    <span>إجراء</span>
-                                </button>
-                                <button onclick="openAddClientModal(window.clients.find(item=>item.id==='${c.id}'))" class="bg-slate-100 text-slate-700 hover:bg-slate-200 p-1 rounded-lg border border-slate-200 cursor-pointer" title="تعديل البيانات والعمولة">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button onclick="openClientFinancialEdit('${c.id}')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 p-1 rounded-lg border border-emerald-200 cursor-pointer" title="إضافة أو تعديل الحساب والآيبان مباشرة">
-                                    <i class="fa-solid fa-building-columns"></i>
-                                </button>
-                                <button onclick="deleteClientFromCloud('${c.id}')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-1 rounded-lg border border-rose-200 cursor-pointer" title="حذف">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
+                                ${canModifyClient ? `
+                                    <button onclick="openAddTaskModal('${c.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2 py-1 rounded-lg flex items-center gap-1 shadow-2xs cursor-pointer" title="تسجيل إجراء جديد">
+                                        <i class="fa-solid fa-plus"></i>
+                                        <span>إجراء</span>
+                                    </button>
+                                    <button onclick="openAddClientModal(window.clients.find(item=>item.id==='${c.id}'))" class="bg-slate-100 text-slate-700 hover:bg-slate-200 p-1 rounded-lg border border-slate-200 cursor-pointer" title="تعديل البيانات والعمولة">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button onclick="openClientFinancialEdit('${c.id}')" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 p-1 rounded-lg border border-emerald-200 cursor-pointer" title="إضافة أو تعديل الحساب والآيبان مباشرة">
+                                        <i class="fa-solid fa-building-columns"></i>
+                                    </button>
+                                    <button onclick="deleteClientFromCloud('${c.id}')" class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-1 rounded-lg border border-rose-200 cursor-pointer" title="حذف">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : `<span class="bg-slate-100 text-slate-500 border border-slate-200 px-2 py-1 rounded-lg text-[9px] font-bold" title="يمكن عرض بيانات العميل فقط"><i class="fa-solid fa-lock ml-1"></i>الإجراءات للمسؤول فقط</span>`}
                             </div>
                         </td>
                     </tr>
@@ -4313,6 +4334,7 @@
         function openClientProfileModal(clientId) {
             const client = (window.clients || []).find(c => c.id === clientId);
             if (!client) return;
+            const canModifyClient = window.canCurrentUserActOnClient(client);
 
             window.activeProfileClientId = clientId;
             populateFunnelDropdowns();
@@ -4321,7 +4343,11 @@
             document.getElementById('profClientSubtitle').innerText = `${client.entityType || 'منشأة'} - ${client.city || 'الرياض'} - ${client.phone}${client.nationalId ? ` | الهوية: ${client.nationalId}` : ''} | المسؤول: ${client.contactPerson || 'غير محدد'} | الموظف المضيف: ${client.addedBy || 'المدير العام'}`;
             
             const stageSelector = document.getElementById('profStageSelector');
-            if (stageSelector) stageSelector.value = window.normalizeFunnelStage(client.stage);
+            if (stageSelector) {
+                stageSelector.value = window.normalizeFunnelStage(client.stage);
+                stageSelector.disabled = !canModifyClient;
+                stageSelector.title = canModifyClient ? '' : `التعديل متاح للموظف ${client.addedBy || 'المسؤول عن العميل'} فقط`;
+            }
             const statusNoteBox = document.getElementById('profClientStatusNoteBox');
             if (statusNoteBox) {
                 statusNoteBox.classList.toggle('hidden', !client.statusNote);
@@ -4332,7 +4358,7 @@
             const sendSupportBtn = document.getElementById('profSendSupportBtn');
             if (sendSupportBtn) {
                 const emp = (window.employees || []).find(e => e.name === window.currentLoggedInAgent);
-                const allowedSender = window.currentUserRole === 'manager' || (window.getEmployeeDepartment && window.getEmployeeDepartment(emp) === 'خدمات العملاء');
+                const allowedSender = canModifyClient && (window.currentUserRole === 'manager' || (window.getEmployeeDepartment && window.getEmployeeDepartment(emp) === 'خدمات العملاء'));
                 const finalStage = window.normalizeFunnelStage(client.stage) === 'إرفاق رابط Google Drive بالبيانات';
                 sendSupportBtn.classList.toggle('hidden', !(allowedSender && finalStage));
             }
@@ -4343,7 +4369,7 @@
                     <div class="flex justify-between border-b border-emerald-100 pb-1"><span>رقم الحساب:</span> <b class="text-slate-900">${client.accountNumber || 'غير مسجل'}</b></div>
                     <div class="flex justify-between border-b border-emerald-100 pb-1"><span>رقم الآيبان IBAN:</span> <b class="text-slate-900 font-mono dir-ltr">${client.iban || 'غير مسجل'}</b></div>
                     <div class="flex justify-between text-indigo-950 font-black"><span>العمولة المتفق عليها:</span> <b class="text-emerald-700">${client.commission || 'غير محددة'}</b></div>
-                    <button type="button" onclick="closeClientProfileModal();openClientFinancialEdit('${client.id}')" class="w-full mt-2 bg-emerald-600 text-white rounded-xl px-3 py-2 text-[10px] font-black"><i class="fa-solid fa-pen ml-1"></i>تعديل الحساب والآيبان</button>
+                    ${canModifyClient ? `<button type="button" onclick="closeClientProfileModal();openClientFinancialEdit('${client.id}')" class="w-full mt-2 bg-emerald-600 text-white rounded-xl px-3 py-2 text-[10px] font-black"><i class="fa-solid fa-pen ml-1"></i>تعديل الحساب والآيبان</button>` : ''}
                 `;
             }
 
@@ -4406,6 +4432,7 @@
 
             const addFollowupBtn = document.getElementById('profBtnAddFollowup');
             if (addFollowupBtn) {
+                addFollowupBtn.classList.toggle('hidden', !canModifyClient);
                 addFollowupBtn.onclick = function() {
                     closeClientProfileModal();
                     openAddTaskModal(client.id);
@@ -4425,6 +4452,7 @@
             if (!window.activeProfileClientId) return;
             const client = (window.clients || []).find(c => c.id === window.activeProfileClientId);
             if (client) {
+                if (rejectUnauthorizedClientAction(client)) return;
                 client.stage = newStage;
                 window.saveClientToCloud(client);
                 showToast(`تم تحديث مرحلة (${client.name}) إلى: ${newStage}`);
@@ -4451,7 +4479,9 @@
             const emptyState = document.getElementById('timelineEmptyState');
             const countText = document.getElementById('profInteractionCountText');
 
-            if (countText) countText.innerText = `إجمالي المتابعات المسجلة: ${clientTasks.length}`;
+            const registrationCount = clientTasks.filter(isClientRegistrationTask).length;
+            const followUpCount = clientTasks.length - registrationCount;
+            if (countText) countText.innerText = `الإجراءات والمتابعات: ${followUpCount} | تسجيل جهة جديدة: ${registrationCount} | إجمالي سجل الرحلة: ${clientTasks.length}`;
 
             if (clientTasks.length === 0) {
                 container.innerHTML = '';
@@ -4803,6 +4833,9 @@
 
                 let matchedClient = t.taskType === 'internal' ? null : (window.clients || []).find(c => window.taskMatchesClient(t, c));
                 let clientIdForProfile = matchedClient ? matchedClient.id : null;
+                const canModifyClient = matchedClient ? window.canCurrentUserActOnClient(matchedClient) : false;
+                const canModifyTask = window.currentUserRole === 'manager' ||
+                    (window.sameEmployee(t.agent, window.currentLoggedInAgent) && canModifyClient);
 
                 return `
                     <tr class="hover:bg-slate-50/80 transition-colors">
@@ -4831,13 +4864,12 @@
                                         <i class="fa-solid fa-clock-rotate-left"></i>
                                         <span>رحلة العميل والعقد</span>
                                     </button>
-                                    <button type="button" onclick="openAddTaskModal('${clientIdForProfile}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer" title="تسجيل إجراء جديد">
+                                    ${canModifyClient ? `<button type="button" onclick="openAddTaskModal('${clientIdForProfile}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer" title="تسجيل إجراء جديد">
                                         <i class="fa-solid fa-plus"></i>
                                         <span>إجراء</span>
-                                    </button>
+                                    </button>` : ''}
                                 ` : ''}
-                                ${t.taskType === 'internal' ? `${t.status!=='مكتمل'?`<button type="button" onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-comment-dots ml-1"></i>إجراء / تعليق</button>`:''}<button type="button" onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black" ${t.status==='مكتمل'?'disabled':''}><i class="fa-solid fa-check ml-1"></i>${t.status==='مكتمل'?'مكتملة':'إنهاء المهمة'}</button>` : `<button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل"><i class="fa-solid fa-pen"></i></button>`}
-                                ${t.taskType === 'internal' ? '' : `<button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف"><i class="fa-solid fa-trash-can"></i></button>`}
+                                ${t.taskType === 'internal' ? `${t.status!=='مكتمل'?`<button type="button" onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-comment-dots ml-1"></i>إجراء / تعليق</button>`:''}<button type="button" onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black" ${t.status==='مكتمل'?'disabled':''}><i class="fa-solid fa-check ml-1"></i>${t.status==='مكتمل'?'مكتملة':'إنهاء المهمة'}</button>` : (canModifyTask ? `<button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل الإجراء"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف الإجراء"><i class="fa-solid fa-trash-can"></i></button>` : '')}
                             </div>
                         </td>
                     </tr>
@@ -4876,11 +4908,13 @@
         function openAddTaskModal(clientIdToPreselect = null) {
             const modal = document.getElementById('addTaskModal');
             const form = document.getElementById('taskForm');
+            const preselectedClient = clientIdToPreselect ? (window.clients || []).find(c => c.id === clientIdToPreselect) : null;
+            if (preselectedClient && rejectUnauthorizedClientAction(preselectedClient)) return;
             renderClientSelectInTaskForm();
 
             const loggedEmp = (window.employees || []).find(e => e.name === window.currentLoggedInAgent);
             let assignable = (window.employees || []).filter(e => window.getEmployeeDepartment(e) === 'خدمات العملاء');
-            if (window.currentUserRole === 'agent' && window.getEmployeeAccessLevel(loggedEmp) !== 'supervisor') assignable = loggedEmp ? [loggedEmp] : [];
+            if (window.currentUserRole === 'agent') assignable = loggedEmp ? [loggedEmp] : [];
             const agentSelect = document.getElementById('formAgent');
             if (agentSelect) agentSelect.innerHTML = assignable.map(e => `<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');
 
@@ -4941,7 +4975,11 @@
             const nextFollowUpDate = document.getElementById('formNextFollowUpDate').value;
             const nextFollowUpTime = document.getElementById('formNextFollowUpTime').value;
 
-            if (window.currentUserRole === 'agent' && !taskId) {
+            if (window.currentUserRole === 'agent') {
+                if (!window.sameEmployee(agent, window.currentLoggedInAgent)) {
+                    showToast('لا يمكن تسجيل الإجراء باسم موظف آخر.', 'error');
+                    return;
+                }
                 if (!selectedClientId) {
                     showToast('اختر العميل أولاً من قائمة العملاء التابعين لك.', 'error');
                     document.getElementById('formClientSelect').focus();
@@ -4949,7 +4987,7 @@
                 }
                 const allowedClient = getClientsAvailableToCurrentUser().some(client => client.id === selectedClientId);
                 if (!allowedClient) {
-                    showToast('هذا العميل غير تابع لحسابك أو لفريقك.', 'error');
+                    showToast('هذا العميل غير تابع لحسابك. يمكنك تنفيذ الإجراءات على عملائك فقط.', 'error');
                     return;
                 }
             }
@@ -5027,14 +5065,23 @@
             const t = window.tasks.find(item => item.id === id);
             if (!t) return;
 
-            openAddTaskModal();
+            const taskClient = (window.clients || []).find(client => window.taskMatchesClient(t, client));
+            if (window.currentUserRole === 'agent') {
+                if (!window.sameEmployee(t.agent, window.currentLoggedInAgent)) {
+                    showToast('يمكنك تعديل الإجراءات المسجلة باسمك فقط.', 'error');
+                    return;
+                }
+                if (!taskClient || rejectUnauthorizedClientAction(taskClient)) return;
+            }
+
+            openAddTaskModal(taskClient?.id || null);
             setTimeout(() => {
                 document.getElementById('modalTitle').innerText = 'تعديل عمل / معاملة';
                 document.getElementById('taskId').value = t.id;
                 document.getElementById('formDate').value = t.date || window.currentDateFilter;
                 document.getElementById('formShift').value = t.shift || 'شفت صباحي';
                 document.getElementById('formAgent').value = t.agent;
-                document.getElementById('formClientSelect').value = t.clientId || '';
+                document.getElementById('formClientSelect').value = t.clientId || taskClient?.id || '';
                 document.getElementById('formCustomer').value = t.customer;
                 document.getElementById('formPhone').value = t.phone || '';
                 document.getElementById('formEntityType').value = t.entityType || 'عيادة';
@@ -5054,6 +5101,15 @@
         }
 
         function confirmDeleteTask(id) {
+            const task = (window.tasks || []).find(item => item.id === id);
+            const taskClient = task ? (window.clients || []).find(client => window.taskMatchesClient(task, client)) : null;
+            if (window.currentUserRole === 'agent') {
+                if (!task || !window.sameEmployee(task.agent, window.currentLoggedInAgent)) {
+                    showToast('يمكنك حذف الإجراءات المسجلة باسمك فقط.', 'error');
+                    return;
+                }
+                if (!taskClient || rejectUnauthorizedClientAction(taskClient)) return;
+            }
             if (confirm("هل تريد حذف هذا الإجراء بشكل نهائي؟")) {
                 window.deleteTaskFromCloud(id);
                 showToast("تم حذف الإجراء بنجاح", "info");
