@@ -4463,6 +4463,7 @@
         function renderClientTimelineUI(clientId) {
             const client = (window.clients || []).find(c => c.id === clientId);
             if (!client) return;
+            const canModifyClient = window.canCurrentUserActOnClient(client);
 
             const stageBadge = document.getElementById('profStageBadge');
             if (stageBadge) {
@@ -4491,6 +4492,9 @@
             emptyState.classList.add('hidden');
 
             container.innerHTML = clientTasks.map((t) => {
+                const canModifyTask = !isClientRegistrationTask(t) &&
+                    (window.currentUserRole === 'manager' ||
+                        (canModifyClient && window.sameEmployee(t.agent, window.currentLoggedInAgent)));
                 let iconClass = "fa-phone bg-blue-500 text-white";
                 if (isClientRegistrationTask(t)) iconClass = "fa-user-plus bg-emerald-600 text-white";
                 else if (t.category === 'إرسال واتساب') iconClass = "fa-brands fa-whatsapp bg-emerald-500 text-white";
@@ -4527,10 +4531,27 @@
                                 <span>القناة: ${t.channel || 'هاتف'} | الأولوية: ${t.priority || 'عادية'}</span>
                                 <span class="text-emerald-600">الحالة: ${t.status}</span>
                             </div>
+                            ${canModifyTask ? `
+                                <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                                    <button type="button" onclick="editTaskFromClientTimeline('${t.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                        <span>تعديل الإجراء</span>
+                                    </button>
+                                    <button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5 cursor-pointer">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                        <span>حذف الإجراء</span>
+                                    </button>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function editTaskFromClientTimeline(taskId) {
+            closeClientProfileModal();
+            editTask(taskId);
         }
 
         function getSmartFollowUpTaskTimestamp(task) {
@@ -5100,7 +5121,7 @@
             }, 50);
         }
 
-        function confirmDeleteTask(id) {
+        async function confirmDeleteTask(id) {
             const task = (window.tasks || []).find(item => item.id === id);
             const taskClient = task ? (window.clients || []).find(client => window.taskMatchesClient(task, client)) : null;
             if (window.currentUserRole === 'agent') {
@@ -5111,7 +5132,11 @@
                 if (!taskClient || rejectUnauthorizedClientAction(taskClient)) return;
             }
             if (confirm("هل تريد حذف هذا الإجراء بشكل نهائي؟")) {
-                window.deleteTaskFromCloud(id);
+                const activeClientId = window.activeProfileClientId;
+                await window.deleteTaskFromCloud(id);
+                if (activeClientId && !document.getElementById('clientProfileModal')?.classList.contains('hidden')) {
+                    renderClientTimelineUI(activeClientId);
+                }
                 showToast("تم حذف الإجراء بنجاح", "info");
             }
         }
