@@ -1869,14 +1869,17 @@
             </div>
 
             <div class="p-4 bg-slate-100 border-b border-slate-200 space-y-3 no-print shrink-0 text-xs">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوبة:</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-8 gap-2.5">
+                    <div class="xl:col-span-2">
+                        <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوب:</label>
                         <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none">
                             <option value="SHIFT_AGENT">📊 تقرير أداء الشفتات والموظفين</option>
                             <option value="NEW_CLIENTS">🆕 تقرير العملاء الجدد</option>
                             <option value="NEW_CLIENT_FOLLOWUPS">🔎 تقرير متابعة العملاء الجدد</option>
                             <option value="FOLLOW_UPS">📅 تقرير جميع متابعات العملاء</option>
+                            <option value="CITY_STATUS">🏙️ تقرير المدن وحالات العملاء</option>
+                            <option value="CITY_CONVERSION">📈 تقرير التحويل والمبيعات حسب المدينة</option>
+                            <option value="ATTENTION_REQUIRED">🚨 تقرير العملاء المحتاجين تدخل</option>
                             <option value="INTERNAL_TASKS">✅ تقرير مهام المشرفين والإنجاز</option>
                             <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء وتحول الفانل</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
@@ -1908,6 +1911,20 @@
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">الموظف المسؤول:</label>
                         <select id="summaryAgentFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">المدينة:</label>
+                        <select id="summaryCityFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
+                            <option value="ALL">جميع المدن</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">مرحلة العميل:</label>
+                        <select id="summaryStageFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
+                            <option value="ALL">جميع المراحل</option>
                         </select>
                     </div>
                 </div>
@@ -5277,6 +5294,11 @@
             const agentSelector = document.getElementById('agentSelector');
             const formAgent = document.getElementById('formAgent');
             const summaryAgent = document.getElementById('summaryAgentFilter');
+            const summaryCity = document.getElementById('summaryCityFilter');
+            const summaryStage = document.getElementById('summaryStageFilter');
+            const selectedSummaryAgent = summaryAgent?.value || 'ALL';
+            const selectedSummaryCity = summaryCity?.value || 'ALL';
+            const selectedSummaryStage = summaryStage?.value || 'ALL';
 
             let optionsHtml = '<option value="ALL">جميع الموظفين (الكل)</option>';
             let formOptionsHtml = '';
@@ -5288,7 +5310,26 @@
 
             if (agentSelector) agentSelector.innerHTML = optionsHtml;
             if (formAgent) formAgent.innerHTML = formOptionsHtml;
-            if (summaryAgent) summaryAgent.innerHTML = optionsHtml;
+            if (summaryAgent) {
+                summaryAgent.innerHTML = optionsHtml;
+                summaryAgent.value = Array.from(summaryAgent.options).some(option => option.value === selectedSummaryAgent) ? selectedSummaryAgent : 'ALL';
+            }
+
+            if (summaryCity) {
+                const cities = Array.from(new Set((window.clients || [])
+                    .filter(client => client && !client.deletedAt)
+                    .map(client => normalizeReportCity(client.city))))
+                    .filter(Boolean)
+                    .sort((a, b) => a.localeCompare(b, 'ar'));
+                summaryCity.innerHTML = '<option value="ALL">جميع المدن</option>' + cities.map(city => `<option value="${escapeHtml(city)}">${escapeHtml(city)}</option>`).join('');
+                summaryCity.value = cities.includes(selectedSummaryCity) ? selectedSummaryCity : 'ALL';
+            }
+
+            if (summaryStage) {
+                const stages = window.FUNNEL_STAGES || [];
+                summaryStage.innerHTML = '<option value="ALL">جميع المراحل</option>' + stages.map(stage => `<option value="${escapeHtml(stage)}">${escapeHtml(stage)}</option>`).join('');
+                summaryStage.value = stages.includes(selectedSummaryStage) ? selectedSummaryStage : 'ALL';
+            }
 
             populateLoginEmployeeSelect();
         }
@@ -5644,6 +5685,9 @@
             NEW_CLIENTS: 'تقرير العملاء الجدد',
             NEW_CLIENT_FOLLOWUPS: 'تقرير متابعة العملاء الجدد ونتائجهم',
             FOLLOW_UPS: 'تقرير جميع متابعات العملاء',
+            CITY_STATUS: 'تقرير المدن وحالات العملاء',
+            CITY_CONVERSION: 'تقرير التحويل والمبيعات حسب المدينة',
+            ATTENTION_REQUIRED: 'تقرير العملاء المحتاجين تدخل',
             INTERNAL_TASKS: 'تقرير مهام المشرفين ونسب الإنجاز',
             FUNNEL_STAGES: 'تقرير رحلة العملاء وتحول المبيعات',
             BANK_COMMISSIONS: 'تقرير الحسابات والعمولات والمستندات',
@@ -5678,8 +5722,32 @@
             generateReportContent();
         }
 
-        function reportHeader(title, start, end, shift, agent) {
-            const filterText = (shift === 'ALL' ? 'كل الشفتات' : shift) + ' — ' + (agent === 'ALL' ? 'كل الموظفين' : agent);
+        function normalizeReportCity(value) {
+            const city = String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
+            const compact = city.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').toLowerCase();
+            if (compact === 'جده') return 'جدة';
+            if (compact === 'الرياض' || compact === 'رياض') return 'الرياض';
+            return city;
+        }
+
+        function setReportCityFilter(city) {
+            const select = document.getElementById('summaryCityFilter');
+            const normalizedCity = normalizeReportCity(city);
+            if (!select) return;
+            if (!Array.from(select.options).some(option => option.value === normalizedCity)) {
+                select.add(new Option(normalizedCity, normalizedCity));
+            }
+            select.value = normalizedCity;
+            generateReportContent();
+        }
+
+        function reportHeader(title, start, end, shift, agent, city, stage) {
+            const filterText = [
+                shift === 'ALL' ? 'كل الشفتات' : shift,
+                agent === 'ALL' ? 'كل الموظفين' : agent,
+                city === 'ALL' ? 'كل المدن' : city,
+                stage === 'ALL' ? 'كل المراحل' : stage
+            ].join(' — ');
             return '<header class="report-hero">' +
                 '<div class="report-brand"><i class="fa-solid fa-wave-square"></i> نبضي<small>NABDI</small></div>' +
                 '<div class="report-title-block">' +
@@ -6067,14 +6135,20 @@
             return html;
         }
 
-        function buildFollowUpsInfographic(start, end, shift, agent, clientsInPeriod) {
+        function buildFollowUpsInfographic(start, end, shift, agent, clientsInPeriod, city, stage) {
             const today = window.getLocalDateString();
             const sourceTasks = (window.tasks || []).filter(function(task) {
                 return !task.deletedAt &&
                     (shift === 'ALL' || task.shift === shift) &&
-                    (agent === 'ALL' || task.agent === agent);
+                    (agent === 'ALL' || task.agent === agent) &&
+                    reportTaskMatchesClientFilters(task, city || 'ALL', stage || 'ALL');
             });
-            const allEntries = buildReportFollowUpEntries(sourceTasks, window.clients || []);
+            const matchingClients = (window.clients || []).filter(function(client) {
+                return client && !client.deletedAt &&
+                    ((city || 'ALL') === 'ALL' || normalizeReportCity(client.city) === city) &&
+                    ((stage || 'ALL') === 'ALL' || client.stage === stage);
+            });
+            const allEntries = buildReportFollowUpEntries(sourceTasks, matchingClients);
             const entries = allEntries.filter(function(entry) {
                 return (!start || entry.dueDate >= start) && (!end || entry.dueDate <= end);
             });
@@ -6295,6 +6369,284 @@
             return html;
         }
 
+        function findReportClientForTask(task, clients) {
+            if (!task) return null;
+            const source = clients || window.clients || [];
+            return source.find(function(client) {
+                return client && !client.deletedAt && (
+                    (task.clientId && client.id && String(task.clientId) === String(client.id)) ||
+                    window.taskMatchesClient(task, client)
+                );
+            }) || null;
+        }
+
+        function reportTaskMatchesClientFilters(task, city, stage) {
+            if (city === 'ALL' && stage === 'ALL') return true;
+            if (isInternalTask(task)) return false;
+            const client = findReportClientForTask(task, window.clients || []);
+            if (!client) return false;
+            return (city === 'ALL' || normalizeReportCity(client.city) === city) &&
+                (stage === 'ALL' || client.stage === stage);
+        }
+
+        function getReportClientSignals(item, today) {
+            const client = item.client;
+            const latest = item.latestAction;
+            const scheduled = latest?.nextFollowUpDate ? latest : item.scheduledAction;
+            const dueDate = scheduled?.nextFollowUpDate || '';
+            const stage = client.stage || window.FUNNEL_STAGES?.[0] || '-';
+            const stageIndex = Math.max(0, (window.FUNNEL_STAGES || []).indexOf(stage));
+            const reached = function(targetStage) {
+                const targetIndex = (window.FUNNEL_STAGES || []).indexOf(targetStage);
+                return targetIndex >= 0 && stageIndex >= targetIndex;
+            };
+            const escalatedText = [stage, client.statusNote, latest?.clientStatusNote, latest?.notes].filter(Boolean).join(' ');
+            let followUpState = 'مغلق / لا توجد متابعة';
+            let attentionReason = '';
+            let attentionPriority = 0;
+
+            if (!item.actions.length) {
+                followUpState = 'لم يبدأ التواصل';
+                attentionReason = 'لم يبدأ التواصل بعد التسجيل';
+                attentionPriority = 3;
+            }
+            if (latest && isUnansweredPhoneAction(latest)) {
+                followUpState = 'لم يرد';
+                attentionReason = 'آخر مكالمة لم يتم الرد عليها';
+                attentionPriority = 4;
+            }
+            if (dueDate) {
+                if (dueDate < today) {
+                    followUpState = 'متابعة متأخرة';
+                    attentionReason = 'موعد المتابعة متأخر منذ ' + reportDateText(dueDate);
+                    attentionPriority = 5;
+                } else if (dueDate === today) {
+                    followUpState = 'مطلوب اليوم';
+                    attentionReason = 'موعد المتابعة اليوم';
+                    attentionPriority = 4;
+                } else {
+                    followUpState = 'متابعة قادمة';
+                }
+            } else if (latest && latest.status && latest.status !== 'مكتمل' && !attentionReason) {
+                followUpState = 'قيد المعالجة دون موعد';
+                attentionReason = 'إجراء مفتوح بدون موعد متابعة';
+                attentionPriority = 2;
+            }
+            if (escalatedText.includes('تصعيد للمدير')) {
+                followUpState = 'تصعيد للمدير';
+                attentionReason = 'الحالة تحتاج تدخل المدير';
+                attentionPriority = 6;
+            }
+
+            return {
+                item: item,
+                city: normalizeReportCity(client.city) || 'غير محدد',
+                stage: stage,
+                stageIndex: stageIndex,
+                reached: reached,
+                dueDate: dueDate,
+                followUpState: followUpState,
+                attentionReason: attentionReason,
+                attentionPriority: attentionPriority,
+                contacted: item.actions.length > 0,
+                interested: reached('عميل مهتم'),
+                meeting: reached('عقد اجتماع') || item.actions.some(isMeetingAction),
+                contractSent: reached('إرسال العقد') || item.actions.some(isSentContractAction) || item.actions.some(isSignedContractAction),
+                contractSigned: reached('توقيع العقد') || item.actions.some(isSignedContractAction),
+                activated: reached('تفعيل الجهة')
+            };
+        }
+
+        function getCityReportGroups(signals) {
+            const groups = new Map();
+            (signals || []).forEach(function(signal) {
+                if (!groups.has(signal.city)) groups.set(signal.city, []);
+                groups.get(signal.city).push(signal);
+            });
+            return Array.from(groups.entries()).map(function(entry) {
+                return { city: entry[0], signals: entry[1] };
+            }).sort(function(a, b) {
+                return b.signals.length - a.signals.length || a.city.localeCompare(b.city, 'ar');
+            });
+        }
+
+        function buildCityStatusInfographic(clients, sourceTasks) {
+            const today = window.getLocalDateString();
+            const details = getNewClientReportDetails(clients, sourceTasks);
+            const signals = details.map(function(item) { return getReportClientSignals(item, today); });
+            const groups = getCityReportGroups(signals);
+            const riyadh = signals.filter(function(signal) { return signal.city === 'الرياض'; }).length;
+            const jeddah = signals.filter(function(signal) { return signal.city === 'جدة'; }).length;
+            const interested = signals.filter(function(signal) { return signal.interested; }).length;
+            const activated = signals.filter(function(signal) { return signal.activated; }).length;
+            const attention = signals.filter(function(signal) { return signal.attentionReason; }).length;
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-users', 'كل العملاء بالفترة', signals.length, '#5b21b6', "setReportCityFilter('ALL')") +
+                reportKpi('fa-location-dot', 'عملاء الرياض', riyadh, '#0b63ce', "setReportCityFilter('الرياض')") +
+                reportKpi('fa-location-dot', 'عملاء جدة', jeddah, '#0891b2', "setReportCityFilter('جدة')") +
+                reportKpi('fa-user-check', 'وصلوا لمرحلة مهتم', interested, '#7c3aed') +
+                reportKpi('fa-circle-check', 'جهات مفعلة', activated, '#059669') +
+                reportKpi('fa-triangle-exclamation', 'تحتاج متابعة', attention, '#e11d48', "selectReportType('ATTENTION_REQUIRED')") +
+            '</div>';
+
+            html += reportSection('ملخص كل مدينة وحالة عملائها', reportTable(
+                ['المدينة', 'إجمالي العملاء', 'لم يبدأ التواصل', 'مهتمون', 'اجتماعات', 'عقود مرسلة', 'عقود موقعة', 'جهات مفعلة', 'تحتاج متابعة'],
+                groups.map(function(group) {
+                    const rows = group.signals;
+                    return [
+                        group.city,
+                        rows.length,
+                        rows.filter(function(row) { return !row.contacted; }).length,
+                        rows.filter(function(row) { return row.interested; }).length,
+                        rows.filter(function(row) { return row.meeting; }).length,
+                        rows.filter(function(row) { return row.contractSent; }).length,
+                        rows.filter(function(row) { return row.contractSigned; }).length,
+                        rows.filter(function(row) { return row.activated; }).length,
+                        rows.filter(function(row) { return row.attentionReason; }).length
+                    ];
+                })
+            ));
+
+            html += reportSection('توزيع العملاء حسب المدينة', reportBars(groups.map(function(group) {
+                return { label: group.city, count: group.signals.length };
+            })));
+
+            html += reportSection('تفاصيل العملاء وحالتهم الحالية', reportTable(
+                ['المدينة', 'العميل / المنشأة', 'الهاتف', 'الموظف', 'النوع والتخصص', 'المرحلة الحالية', 'آخر إجراء', 'حالة المتابعة', 'المتابعة القادمة', 'إفادة العميل'],
+                signals.map(function(signal) {
+                    const item = signal.item;
+                    const client = item.client;
+                    return [
+                        signal.city,
+                        client.name || '-',
+                        client.phone || '-',
+                        client.addedBy || item.registrationTask?.agent || 'المدير العام',
+                        [client.entityType, client.specialty].filter(Boolean).join(' — ') || '-',
+                        signal.stage,
+                        item.latestAction ? getTaskDisplayCategory(item.latestAction) : 'لا يوجد',
+                        signal.followUpState,
+                        signal.dueDate ? reportDateText(signal.dueDate) + (item.scheduledAction?.nextFollowUpTime ? ' — ' + item.scheduledAction.nextFollowUpTime : '') : '-',
+                        client.statusNote || item.latestAction?.clientStatusNote || '-'
+                    ];
+                })
+            ), 'report-page-break');
+            html += '<div class="report-note">اضغط بطاقة الرياض أو جدة لعرض عملاء المدينة فقط. هذا التقرير يعرض العملاء المسجلين خلال الفترة المحددة وحالتهم الحالية حتى الآن.</div>';
+            return html;
+        }
+
+        function buildCityConversionInfographic(clients, sourceTasks) {
+            const today = window.getLocalDateString();
+            const signals = getNewClientReportDetails(clients, sourceTasks).map(function(item) { return getReportClientSignals(item, today); });
+            const groups = getCityReportGroups(signals).map(function(group) {
+                const total = group.signals.length;
+                const contacted = group.signals.filter(function(row) { return row.contacted; }).length;
+                const interested = group.signals.filter(function(row) { return row.interested; }).length;
+                const meetings = group.signals.filter(function(row) { return row.meeting; }).length;
+                const sent = group.signals.filter(function(row) { return row.contractSent; }).length;
+                const signed = group.signals.filter(function(row) { return row.contractSigned; }).length;
+                const activated = group.signals.filter(function(row) { return row.activated; }).length;
+                return {
+                    city: group.city,
+                    total: total,
+                    contacted: contacted,
+                    interested: interested,
+                    meetings: meetings,
+                    sent: sent,
+                    signed: signed,
+                    activated: activated,
+                    contactRate: reportPercent(contacted, total),
+                    interestRate: reportPercent(interested, total),
+                    activationRate: reportPercent(activated, total)
+                };
+            });
+            const totalActivated = signals.filter(function(row) { return row.activated; }).length;
+            const totalInterested = signals.filter(function(row) { return row.interested; }).length;
+            const bestVolume = groups[0] || { city: '-', total: 0 };
+            const bestConversion = groups.slice().sort(function(a, b) {
+                return b.activationRate - a.activationRate || b.activated - a.activated;
+            })[0] || { city: '-', activationRate: 0 };
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-users', 'عملاء الفترة', signals.length, '#5b21b6') +
+                reportKpi('fa-user-check', 'عملاء مهتمون', totalInterested, '#7c3aed') +
+                reportKpi('fa-circle-check', 'جهات مفعلة', totalActivated, '#059669') +
+                reportKpi('fa-percent', 'معدل التفعيل', reportPercent(totalActivated, signals.length) + '%', '#0b63ce') +
+                reportKpi('fa-ranking-star', 'أكبر مدينة', bestVolume.city + ' (' + bestVolume.total + ')', '#d97706') +
+                reportKpi('fa-trophy', 'أفضل تحويل', bestConversion.city + ' (' + bestConversion.activationRate + '%)', '#047857') +
+            '</div>';
+
+            html += reportSection('مسار التحويل والمبيعات حسب المدينة', reportTable(
+                ['المدينة', 'العملاء', 'تم التواصل', 'مهتمون', 'اجتماعات', 'عقد مرسل', 'عقد موقع', 'تم التفعيل', 'نسبة التواصل', 'نسبة الاهتمام', 'نسبة التفعيل'],
+                groups.map(function(group) {
+                    return [group.city, group.total, group.contacted, group.interested, group.meetings, group.sent, group.signed, group.activated, group.contactRate + '%', group.interestRate + '%', group.activationRate + '%'];
+                })
+            ));
+            html += reportSection('حجم العملاء في المدن', reportBars(groups.map(function(group) {
+                return { label: group.city, count: group.total };
+            })));
+            html += reportSection('قراءة إدارية سريعة', reportHighlights([
+                { icon: 'fa-location-dot', label: 'أكبر قاعدة عملاء', name: bestVolume.city, value: bestVolume.total + ' عميل' },
+                { icon: 'fa-trophy', label: 'أفضل نسبة تفعيل', name: bestConversion.city, value: bestConversion.activationRate + '%' },
+                { icon: 'fa-user-check', label: 'الاهتمام من إجمالي العملاء', name: totalInterested + ' عميل', value: reportPercent(totalInterested, signals.length) + '%' },
+                { icon: 'fa-circle-check', label: 'التفعيل من إجمالي العملاء', name: totalActivated + ' جهة', value: reportPercent(totalActivated, signals.length) + '%' }
+            ]));
+            html += '<div class="report-note">النسب محسوبة على العملاء المسجلين خلال الفترة المحددة. وصول العميل إلى مرحلة متقدمة يُثبت مروره بالمراحل السابقة في مسار التحويل.</div>';
+            return html;
+        }
+
+        function buildAttentionRequiredInfographic(clients, sourceTasks) {
+            const today = window.getLocalDateString();
+            const signals = getNewClientReportDetails(clients, sourceTasks)
+                .map(function(item) { return getReportClientSignals(item, today); })
+                .filter(function(signal) { return Boolean(signal.attentionReason); })
+                .sort(function(a, b) {
+                    return b.attentionPriority - a.attentionPriority || String(a.dueDate || '9999-12-31').localeCompare(String(b.dueDate || '9999-12-31'));
+                });
+            const overdue = signals.filter(function(row) { return row.dueDate && row.dueDate < today; }).length;
+            const dueToday = signals.filter(function(row) { return row.dueDate === today; }).length;
+            const unanswered = signals.filter(function(row) { return row.item.latestAction && isUnansweredPhoneAction(row.item.latestAction); }).length;
+            const noContact = signals.filter(function(row) { return !row.contacted; }).length;
+            const escalated = signals.filter(function(row) { return row.attentionPriority === 6; }).length;
+            const withoutDate = signals.filter(function(row) { return row.followUpState === 'قيد المعالجة دون موعد'; }).length;
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-triangle-exclamation', 'إجمالي يحتاج تدخل', signals.length, '#e11d48') +
+                reportKpi('fa-clock-rotate-left', 'متابعات متأخرة', overdue, '#dc2626') +
+                reportKpi('fa-calendar-day', 'مطلوب اليوم', dueToday, '#d97706') +
+                reportKpi('fa-phone-slash', 'لم يرد', unanswered, '#be123c') +
+                reportKpi('fa-hourglass-start', 'لم يبدأ التواصل', noContact, '#7c3aed') +
+                reportKpi('fa-user-shield', 'تصعيد للمدير', escalated, '#991b1b') +
+                reportKpi('fa-calendar-xmark', 'إجراء بدون موعد', withoutDate, '#475569') +
+            '</div>';
+
+            html += reportSection('قائمة التدخل مرتبة حسب الأولوية', reportTable(
+                ['الأولوية', 'المدينة', 'العميل / المنشأة', 'الهاتف', 'الموظف', 'سبب التدخل', 'المرحلة الحالية', 'آخر إجراء', 'موعد المتابعة', 'إفادة العميل'],
+                signals.map(function(signal) {
+                    const item = signal.item;
+                    const client = item.client;
+                    const priority = signal.attentionPriority >= 6 ? 'عاجلة جدًا' : signal.attentionPriority >= 5 ? 'عاجلة' : signal.attentionPriority >= 4 ? 'مرتفعة' : signal.attentionPriority >= 3 ? 'متوسطة' : 'تحتاج تنظيم';
+                    return [
+                        priority,
+                        signal.city,
+                        client.name || '-',
+                        client.phone || '-',
+                        client.addedBy || item.registrationTask?.agent || 'المدير العام',
+                        signal.attentionReason,
+                        signal.stage,
+                        item.latestAction ? getTaskDisplayCategory(item.latestAction) : 'لا يوجد',
+                        signal.dueDate ? reportDateText(signal.dueDate) : 'غير محدد',
+                        client.statusNote || item.latestAction?.clientStatusNote || '-'
+                    ];
+                })
+            ), 'report-page-break');
+            html += reportSection('أسباب التدخل', reportBars(countReportItems(signals, function(signal) {
+                return signal.followUpState;
+            })));
+            html += '<div class="report-note">هذا تقرير رقابي لحظي: يعرض كل العملاء المطابقين لفلاتر الموظف والمدينة والمرحلة، حتى لو كان تاريخ تسجيلهم أقدم من الفترة المختارة.</div>';
+            return html;
+        }
+
         function buildStandardInfographic(reportType, tasks, clients) {
             let html = '';
             if (reportType === 'FUNNEL_STAGES') {
@@ -6417,10 +6769,12 @@
             const end = document.getElementById('summaryEndDate').value;
             const shift = document.getElementById('summaryShiftFilter').value;
             const agent = document.getElementById('summaryAgentFilter').value;
+            const city = document.getElementById('summaryCityFilter')?.value || 'ALL';
+            const stage = document.getElementById('summaryStageFilter')?.value || 'ALL';
             const area = document.getElementById('summaryContentArea');
             if (!area) return;
 
-            const tasks = (window.tasks || []).filter(function(task) {
+            const periodTasks = (window.tasks || []).filter(function(task) {
                 const taskDate = window.getTaskDateString(task);
                 return !task.deletedAt &&
                     (!start || taskDate >= start) &&
@@ -6428,28 +6782,44 @@
                     (shift === 'ALL' || task.shift === shift) &&
                     (agent === 'ALL' || task.agent === agent);
             });
-            const clients = (window.clients || []).filter(function(client) {
+            const allScopedClients = (window.clients || []).filter(function(client) {
+                return client && !client.deletedAt &&
+                    (agent === 'ALL' || client.addedBy === agent) &&
+                    (city === 'ALL' || normalizeReportCity(client.city) === city) &&
+                    (stage === 'ALL' || client.stage === stage);
+            });
+            const clients = allScopedClients.filter(function(client) {
                 const createdDate = getClientRegistrationDate(client);
                 const dateMatch = (!start && !end) || Boolean(createdDate && (!start || createdDate >= start) && (!end || createdDate <= end));
-                return !client.deletedAt &&
-                    dateMatch &&
-                    (agent === 'ALL' || client.addedBy === agent);
+                return dateMatch;
             });
+            const tasks = periodTasks.filter(function(task) {
+                return reportTaskMatchesClientFilters(task, city, stage);
+            });
+            const sourceTasks = getReportSourceTasks(shift, agent);
 
-            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent);
-            content += reportType === 'SHIFT_AGENT'
-                ? buildShiftInfographic(tasks, clients, shift, agent)
-                : reportType === 'NEW_CLIENTS'
-                    ? buildNewClientsInfographic(clients, start, end, shift, agent)
-                    : reportType === 'NEW_CLIENT_FOLLOWUPS'
-                        ? buildNewClientFollowUpsInfographic(clients, start, end, shift, agent)
-                : reportType === 'FOLLOW_UPS'
-                    ? buildFollowUpsInfographic(start, end, shift, agent, clients)
-                    : reportType === 'INTERNAL_TASKS'
-                        ? buildInternalTasksInfographic(tasks)
-                : reportType === 'SUPPORT_PERFORMANCE'
-                    ? buildSupportInfographic(start, end, agent)
-                    : buildStandardInfographic(reportType, tasks, clients);
+            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, city, stage);
+            if (reportType === 'SHIFT_AGENT') {
+                content += buildShiftInfographic(tasks, clients, shift, agent);
+            } else if (reportType === 'NEW_CLIENTS') {
+                content += buildNewClientsInfographic(clients, start, end, shift, agent);
+            } else if (reportType === 'NEW_CLIENT_FOLLOWUPS') {
+                content += buildNewClientFollowUpsInfographic(clients, start, end, shift, agent);
+            } else if (reportType === 'FOLLOW_UPS') {
+                content += buildFollowUpsInfographic(start, end, shift, agent, clients, city, stage);
+            } else if (reportType === 'CITY_STATUS') {
+                content += buildCityStatusInfographic(clients, sourceTasks);
+            } else if (reportType === 'CITY_CONVERSION') {
+                content += buildCityConversionInfographic(clients, sourceTasks);
+            } else if (reportType === 'ATTENTION_REQUIRED') {
+                content += buildAttentionRequiredInfographic(allScopedClients, sourceTasks);
+            } else if (reportType === 'INTERNAL_TASKS') {
+                content += buildInternalTasksInfographic(periodTasks);
+            } else if (reportType === 'SUPPORT_PERFORMANCE') {
+                content += buildSupportInfographic(start, end, agent);
+            } else {
+                content += buildStandardInfographic(reportType, tasks, clients);
+            }
             content += '<div class="report-note">تم إنشاء هذا التقرير من بيانات منصة نبضي بتاريخ ' + escapeHtml(window.formatEgyptDateTime()) + ' بتوقيت مصر.</div>';
             area.innerHTML = '<article class="report-sheet">' + content + '</article>';
         }
