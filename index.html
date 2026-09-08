@@ -345,15 +345,46 @@
             .report-split { grid-template-columns: 1fr; }
             .report-highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
-        @page { size: A4 portrait; margin: 8mm; }
+        @page { size: A4 landscape; margin: 10mm; }
         @media print {
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body * { visibility: hidden !important; }
-            #summaryContentArea, #summaryContentArea * { visibility: visible !important; }
+            html, body {
+                width: auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                background: #ffffff !important;
+            }
+            body > *:not(#dailySummaryModal) { display: none !important; }
+            #dailySummaryModal {
+                display: block !important;
+                position: static !important;
+                inset: auto !important;
+                width: auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                background: #ffffff !important;
+            }
+            #dailySummaryModal .print-container {
+                display: block !important;
+                width: auto !important;
+                max-width: none !important;
+                height: auto !important;
+                max-height: none !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
             #summaryContentArea {
-                position: absolute !important;
-                inset: 0 !important;
-                width: 100% !important;
+                display: block !important;
+                position: static !important;
+                inset: auto !important;
+                width: auto !important;
                 height: auto !important;
                 padding: 0 !important;
                 margin: 0 !important;
@@ -367,8 +398,61 @@
                 border-radius: 0 !important;
                 box-shadow: none !important;
             }
-            .report-section, .report-kpi-grid, .report-highlights { break-inside: avoid; page-break-inside: avoid; }
-            .report-table tr { break-inside: avoid; page-break-inside: avoid; }
+            .report-hero {
+                grid-template-columns: 140px 1fr 70px !important;
+                gap: 14px !important;
+                padding: 0 0 12px !important;
+                margin-bottom: 14px !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            .report-brand { font-size: 23px !important; }
+            .report-title { font-size: 22px !important; line-height: 1.25 !important; }
+            .report-subtitle { font-size: 14px !important; }
+            .report-period { font-size: 8.5pt !important; }
+            .report-medical-icon { width: 62px !important; height: 62px !important; font-size: 25px !important; }
+            .report-kpi-grid, .report-highlights {
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            .report-kpi { min-height: 104px !important; padding: 10px 7px 14px !important; }
+            .report-kpi-icon { width: 34px !important; height: 34px !important; margin-bottom: 5px !important; font-size: 14px !important; }
+            .report-kpi-label { min-height: 22px !important; font-size: 8pt !important; }
+            .report-kpi-value { font-size: 20pt !important; }
+            .report-section {
+                position: static !important;
+                padding: 10px !important;
+                margin-top: 14px !important;
+                border-radius: 10px !important;
+                break-inside: auto !important;
+                page-break-inside: auto !important;
+            }
+            .report-section-title {
+                position: static !important;
+                transform: none !important;
+                min-width: 0 !important;
+                margin: 0 0 10px !important;
+                padding: 7px 12px !important;
+                border-radius: 7px !important;
+                font-size: 12pt !important;
+                box-shadow: none !important;
+                break-after: avoid !important;
+                page-break-after: avoid !important;
+            }
+            .report-table-wrap { overflow: visible !important; }
+            .report-table { font-size: 8pt !important; table-layout: fixed !important; }
+            .report-table thead { display: table-header-group !important; }
+            .report-table tfoot { display: table-footer-group !important; }
+            .report-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+            .report-table th { padding: 6px 4px !important; border-radius: 0 !important; }
+            .report-table td {
+                padding: 5px 4px !important;
+                line-height: 1.35 !important;
+                overflow-wrap: anywhere !important;
+                word-break: normal !important;
+            }
+            .report-page-break { break-before: page !important; page-break-before: always !important; }
+            #reportDrilldownPanel, .report-drilldown-panel { display: none !important; }
             .no-print { display: none !important; }
         }
     </style>
@@ -5666,17 +5750,51 @@
             }
         }
 
+        const REPORT_VIEW_STATE_KEY = 'nabdi_report_view_state_v1';
+
+        function saveReportViewState() {
+            const state = {
+                reportType: document.getElementById('reportTypeSelect')?.value || 'SHIFT_AGENT',
+                start: document.getElementById('summaryStartDate')?.value || '',
+                end: document.getElementById('summaryEndDate')?.value || '',
+                shift: document.getElementById('summaryShiftFilter')?.value || 'ALL',
+                agent: document.getElementById('summaryAgentFilter')?.value || 'ALL',
+                city: document.getElementById('summaryCityFilter')?.value || 'ALL',
+                stage: document.getElementById('summaryStageFilter')?.value || 'ALL'
+            };
+            try { localStorage.setItem(REPORT_VIEW_STATE_KEY, JSON.stringify(state)); } catch (error) {}
+            return state;
+        }
+
+        function getSavedReportViewState() {
+            try { return JSON.parse(localStorage.getItem(REPORT_VIEW_STATE_KEY) || 'null'); } catch (error) { return null; }
+        }
+
+        function restoreReportSelectValue(id, value, fallback) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            const valid = Array.from(element.options || []).some(function(option) { return option.value === value; });
+            element.value = valid ? value : fallback;
+        }
+
         function openDailySummaryModal() {
             renderEmployeeSelects();
             const today = window.currentDateFilter || window.getLocalDateString();
             const monthStart = `${today.slice(0, 8)}01`;
-            document.getElementById('summaryStartDate').value = monthStart;
-            document.getElementById('summaryEndDate').value = today;
+            const saved = getSavedReportViewState();
+            document.getElementById('summaryStartDate').value = saved?.start || monthStart;
+            document.getElementById('summaryEndDate').value = saved?.end || today;
+            restoreReportSelectValue('reportTypeSelect', saved?.reportType || 'SHIFT_AGENT', 'SHIFT_AGENT');
+            restoreReportSelectValue('summaryShiftFilter', saved?.shift || 'ALL', 'ALL');
+            restoreReportSelectValue('summaryAgentFilter', saved?.agent || 'ALL', 'ALL');
+            restoreReportSelectValue('summaryCityFilter', saved?.city || 'ALL', 'ALL');
+            restoreReportSelectValue('summaryStageFilter', saved?.stage || 'ALL', 'ALL');
             generateReportContent();
             document.getElementById('dailySummaryModal').classList.remove('hidden');
         }
 
         function closeDailySummaryModal() {
+            saveReportViewState();
             document.getElementById('dailySummaryModal').classList.add('hidden');
         }
 
@@ -5936,16 +6054,17 @@
             return '<div class="report-table-wrap"><table class="report-table"><thead><tr>' + headerHtml + '</tr></thead><tbody>' + bodyHtml + '</tbody></table></div>';
         }
 
-        function openReportKpiDetails(label) {
+        function openReportKpiDetails(label, triggerElement) {
             const panel = document.getElementById('reportDrilldownPanel');
             if (!panel) return;
+            window.lastReportKpiTrigger = triggerElement || null;
             const data = getReportDrilldownData(label);
             const phones = Array.from(new Set((data.phones || []).map(function(phone) { return String(phone || '').trim(); }).filter(Boolean)));
             window.currentReportDrilldownPhones = phones;
             panel.innerHTML = '<div class="flex flex-wrap items-center justify-between gap-3 mb-4">' +
                 '<div><div class="text-xs font-black text-indigo-700 mb-1"><i class="fa-solid fa-bolt ml-1"></i>استدعاء مباشر</div><h2 class="text-xl font-black text-slate-900">' + escapeHtml(data.title || label) + '</h2><p class="text-sm font-bold text-slate-500 mt-1">ظهر ' + data.rows.length + ' نتيجة حسب الفترة والفلاتر المختارة.</p></div>' +
                 '<div class="flex flex-wrap gap-2">' +
-                    '<button type="button" onclick="copyCurrentReportPhones()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black cursor-pointer"><i class="fa-solid fa-copy ml-1"></i>نسخ أرقام العملاء (' + phones.length + ')</button>' +
+                    '<button type="button" onclick="copyCurrentReportPhones(this)" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black cursor-pointer"><i class="fa-solid fa-copy ml-1"></i>نسخ أرقام العملاء (' + phones.length + ')</button>' +
                     '<button type="button" onclick="closeReportDrilldown()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-black cursor-pointer"><i class="fa-solid fa-xmark ml-1"></i>إغلاق النتائج</button>' +
                 '</div>' +
             '</div>' + reportDrilldownTable(data.headers || [], data.rows || []);
@@ -5956,24 +6075,65 @@
         function closeReportDrilldown() {
             const panel = document.getElementById('reportDrilldownPanel');
             if (panel) panel.classList.add('hidden');
+            const trigger = window.lastReportKpiTrigger;
+            if (trigger && document.body.contains(trigger)) {
+                trigger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(function() { trigger.focus({ preventScroll: true }); }, 350);
+            }
         }
 
-        async function copyCurrentReportPhones() {
+        function fallbackCopyReportText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            textarea.style.pointerEvents = 'none';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+            let copied = false;
+            try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+            textarea.remove();
+            return copied;
+        }
+
+        async function copyCurrentReportPhones(button) {
             const phones = window.currentReportDrilldownPhones || [];
             if (!phones.length) {
                 showToast('لا توجد أرقام عملاء داخل النتائج الحالية.', 'error');
                 return;
             }
-            try {
-                await navigator.clipboard.writeText(phones.join('\n'));
+            const text = phones.join('\n');
+            let copied = false;
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    copied = true;
+                } catch (error) {}
+            }
+            if (!copied) copied = fallbackCopyReportText(text);
+            if (copied) {
                 showToast('تم نسخ ' + phones.length + ' رقم عميل.', 'success');
-            } catch (error) {
+                if (button) {
+                    const originalHtml = button.innerHTML;
+                    button.innerHTML = '<i class="fa-solid fa-circle-check ml-1"></i>تم نسخ ' + phones.length + ' رقم';
+                    button.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                    button.classList.add('bg-green-700');
+                    setTimeout(function() {
+                        button.innerHTML = originalHtml;
+                        button.classList.remove('bg-green-700');
+                        button.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                    }, 1800);
+                }
+            } else {
                 showToast('تعذر النسخ التلقائي. يمكنك نسخ الأرقام من الجدول.', 'error');
             }
         }
 
         function reportKpi(icon, label, value, accent, action) {
-            const resolvedAction = action || "openReportKpiDetails(decodeURIComponent('" + encodeURIComponent(label) + "'))";
+            const resolvedAction = action || "openReportKpiDetails(decodeURIComponent('" + encodeURIComponent(label) + "'), this)";
             const actionAttributes = ' type="button" class="report-kpi report-kpi-action" onclick="' + resolvedAction + '" title="اضغط لاستدعاء النتائج"';
             return '<button' + actionAttributes + ' style="--report-accent:' + accent + '">' +
                 '<div class="report-kpi-icon"><i class="fa-solid ' + icon + '"></i></div>' +
@@ -7079,9 +7239,10 @@
                 allScopedClients: allScopedClients,
                 sourceTasks: sourceTasks
             };
+            saveReportViewState();
 
             let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, city, stage);
-            content += '<section id="reportDrilldownPanel" class="hidden mb-6 rounded-3xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-lg scroll-mt-4"></section>';
+            content += '<section id="reportDrilldownPanel" class="report-drilldown-panel hidden mb-6 rounded-3xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-lg scroll-mt-4"></section>';
             if (reportType === 'SHIFT_AGENT') {
                 content += buildShiftInfographic(tasks, clients, shift, agent);
             } else if (reportType === 'NEW_CLIENTS') {
