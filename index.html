@@ -3159,13 +3159,13 @@
             return taskData;
         };
 
-        window.deleteTaskFromCloud = async function(taskId) {
+        window.deleteTaskFromCloud = async function(taskId, options = {}) {
             const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
             deletedTaskIds.add(taskId);
             localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
             window.tasks = window.tasks.filter(t => t.id !== taskId);
             window.saveLocalBackup();
-            renderApp();
+            if (!options.preserveClientProfile) renderApp();
 
             if (window.dbUser) {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'tasks', taskId);
@@ -4547,7 +4547,8 @@
         }
 
         function editTaskFromClientTimeline(taskId) {
-            closeClientProfileModal();
+            // يفتح نموذج التعديل فوق رحلة العميل، وعند الإغلاق يعود الموظف
+            // لنفس السجل بدلاً من الرجوع إلى الصفحة الرئيسية.
             editTask(taskId);
         }
 
@@ -5060,6 +5061,7 @@
             }
             showToast(whatsappSaved ? "تم حفظ المكالمة وواتساب كإجرائين مستقلين!" : "تم حفظ الإجراء والمتابعة بالسحابة بنجاح!");
             closeAddTaskModal();
+            if (window.activeProfileClientId) renderClientTimelineUI(window.activeProfileClientId);
             if (category === 'إرسال البيانات إلى الدعم الفني') {
                 window.syncSupportProjectsFromFunnel(false);
                 showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
@@ -5130,8 +5132,8 @@
             }
             if (confirm("هل تريد حذف هذا الإجراء بشكل نهائي؟")) {
                 const activeClientId = window.activeProfileClientId;
-                await window.deleteTaskFromCloud(id);
-                if (activeClientId && !document.getElementById('clientProfileModal')?.classList.contains('hidden')) {
+                await window.deleteTaskFromCloud(id, { preserveClientProfile: Boolean(activeClientId) });
+                if (activeClientId) {
                     renderClientTimelineUI(activeClientId);
                 }
                 showToast("تم حذف الإجراء بنجاح", "info");
