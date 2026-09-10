@@ -2076,6 +2076,7 @@
                         <label class="block font-bold text-slate-700 mb-1">نوع التقرير المطلوب:</label>
                         <select id="reportTypeSelect" onchange="generateReportContent()" class="w-full bg-white border border-purple-300 rounded-xl p-2 font-bold text-purple-900 focus:outline-none">
                             <option value="SHIFT_AGENT">📊 تقرير أداء الشفتات والموظفين</option>
+                            <option value="ATTENDANCE">🕒 تقرير الحضور والانصراف</option>
                             <option value="NEW_CLIENTS">🆕 تقرير العملاء الجدد</option>
                             <option value="NEW_CLIENT_FOLLOWUPS">🔎 تقرير متابعة العملاء الجدد</option>
                             <option value="FOLLOW_UPS">📅 تقرير جميع متابعات العملاء</option>
@@ -2116,14 +2117,14 @@
                         </select>
                     </div>
 
-                    <div>
+                    <div id="summaryCityFilterWrapper">
                         <label class="block font-bold text-slate-700 mb-1">المدينة:</label>
                         <select id="summaryCityFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                             <option value="ALL">جميع المدن</option>
                         </select>
                     </div>
 
-                    <div>
+                    <div id="summaryStageFilterWrapper">
                         <label class="block font-bold text-slate-700 mb-1">مرحلة العميل:</label>
                         <select id="summaryStageFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                             <option value="ALL">جميع المراحل</option>
@@ -6522,6 +6523,7 @@
 
         const REPORT_TITLES = {
             SHIFT_AGENT: 'تقرير أداء فريق خدمة العملاء',
+            ATTENDANCE: 'تقرير الحضور والانصراف وساعات العمل',
             NEW_CLIENTS: 'تقرير العملاء الجدد',
             NEW_CLIENT_FOLLOWUPS: 'تقرير متابعة العملاء الجدد ونتائجهم',
             FOLLOW_UPS: 'تقرير جميع متابعات العملاء',
@@ -6613,6 +6615,35 @@
                     phones: tasks.map(function(task) { return task.phone || ''; })
                 };
             };
+
+            if (reportType === 'ATTENDANCE') {
+                let records = context.attendanceRecords || [];
+                const todayRecords = records.filter(function(record) { return record.date === today; });
+                if (label === 'على رأس العمل الآن') records = todayRecords.filter(function(record) { return record.status === 'working'; });
+                else if (label === 'في استراحة الآن') records = todayRecords.filter(function(record) { return record.status === 'break'; });
+                else if (label === 'تم الانصراف') records = records.filter(function(record) { return record.status === 'checked_out'; });
+                const attendanceRows = records.map(function(record) {
+                    const metrics = getAttendanceMetrics(record);
+                    const firstCheckIn = record.checkInAt || record.sessions?.[0]?.checkInAt;
+                    const lastCheckOut = record.checkOutAt || [...(record.sessions || [])].reverse().find(function(item) { return item?.checkOutAt; })?.checkOutAt;
+                    return [
+                        record.employeeName || '-',
+                        reportDateText(record.date),
+                        record.shift || '-',
+                        firstCheckIn ? window.getEgyptTimeString(firstCheckIn) : '-',
+                        lastCheckOut ? window.getEgyptTimeString(lastCheckOut) : '-',
+                        formatAttendanceDuration(metrics.breakMs),
+                        formatAttendanceDuration(metrics.workMs),
+                        getAttendanceStatusInfo(record.status).label
+                    ];
+                });
+                return {
+                    title: label,
+                    headers: ['الموظف', 'التاريخ', 'الشفت', 'الحضور', 'الانصراف', 'الاستراحة', 'العمل الفعلي', 'الحالة'],
+                    rows: attendanceRows,
+                    phones: []
+                };
+            }
 
             if (reportType === 'ATTENTION_REQUIRED') {
                 let signals = signalsFor(context.allScopedClients || []).filter(function(signal) { return Boolean(signal.attentionReason); });
@@ -6993,6 +7024,94 @@
             const source = registrationTasks.length ? registrationTasks : relatedTasks;
             if (!source.length) return '';
             return source.map(function(task) { return window.getTaskDateString(task); }).filter(Boolean).sort()[0] || '';
+        }
+
+        function getAttendanceReportRecords(start, end, shift, agent) {
+            return (window.attendanceRecords || []).filter(function(record) {
+                return record && !record.deletedAt &&
+                    (!start || record.date >= start) &&
+                    (!end || record.date <= end) &&
+                    (shift === 'ALL' || record.shift === shift) &&
+                    (agent === 'ALL' || window.sameEmployee(record.employeeName, agent));
+            }).sort(function(a, b) {
+                return String(b.date || '').localeCompare(String(a.date || '')) || String(a.employeeName || '').localeCompare(String(b.employeeName || ''), 'ar');
+            });
+        }
+
+        function buildAttendanceInfographic(records) {
+            const today = window.getLocalDateString();
+            const uniqueEmployees = new Set(records.map(function(record) { return record.employeeId || window.normalizeEmployeeName(record.employeeName); }).filter(Boolean));
+            const workingNow = records.filter(function(record) { return record.date === today && record.status === 'working'; });
+            const breakNow = records.filter(function(record) { return record.date === today && record.status === 'break'; });
+            const checkedOut = records.filter(function(record) { return record.status === 'checked_out'; });
+            const totalMetrics = records.reduce(function(total, record) {
+                const metrics = getAttendanceMetrics(record);
+                total.workMs += metrics.workMs;
+                total.breakMs += metrics.breakMs;
+                total.sessions += Array.isArray(record.sessions) && record.sessions.length ? record.sessions.length : (record.checkInAt ? 1 : 0);
+                return total;
+            }, { workMs: 0, breakMs: 0, sessions: 0 });
+
+            let html = '<div class="report-kpi-grid">' +
+                reportKpi('fa-calendar-check', 'أيام الحضور', records.length, '#059669') +
+                reportKpi('fa-users', 'الموظفون المسجلون', uniqueEmployees.size, '#2563eb') +
+                reportKpi('fa-user-clock', 'على رأس العمل الآن', workingNow.length, '#0891b2') +
+                reportKpi('fa-mug-hot', 'في استراحة الآن', breakNow.length, '#d97706') +
+                reportKpi('fa-right-from-bracket', 'تم الانصراف', checkedOut.length, '#64748b') +
+                reportKpi('fa-business-time', 'إجمالي العمل الفعلي', formatAttendanceDuration(totalMetrics.workMs), '#6d28d9') +
+            '</div>';
+
+            const employeeSummary = Array.from(uniqueEmployees).map(function(employeeKey) {
+                const employeeRecords = records.filter(function(record) { return (record.employeeId || window.normalizeEmployeeName(record.employeeName)) === employeeKey; });
+                const totals = employeeRecords.reduce(function(sum, record) {
+                    const metrics = getAttendanceMetrics(record);
+                    sum.workMs += metrics.workMs;
+                    sum.breakMs += metrics.breakMs;
+                    return sum;
+                }, { workMs: 0, breakMs: 0 });
+                const latest = employeeRecords.slice().sort(function(a, b) { return Number(b.updatedAt || 0) - Number(a.updatedAt || 0); })[0] || {};
+                return [
+                    latest.employeeName || '-',
+                    latest.department || '-',
+                    latest.shift || '-',
+                    String(employeeRecords.length),
+                    formatAttendanceDuration(totals.workMs),
+                    formatAttendanceDuration(totals.breakMs),
+                    getAttendanceStatusInfo(latest.status).label
+                ];
+            }).sort(function(a, b) { return a[0].localeCompare(b[0], 'ar'); });
+
+            html += reportSection('ملخص حضور الموظفين خلال الفترة', reportTable(
+                ['الموظف', 'القسم', 'الشفت', 'أيام الحضور', 'إجمالي العمل', 'إجمالي الاستراحة', 'آخر حالة'],
+                employeeSummary
+            ));
+
+            const detailRows = records.map(function(record) {
+                const metrics = getAttendanceMetrics(record);
+                const firstCheckIn = record.checkInAt || record.sessions?.[0]?.checkInAt;
+                const lastCheckOut = record.checkOutAt || [...(record.sessions || [])].reverse().find(function(item) { return item?.checkOutAt; })?.checkOutAt;
+                return [
+                    record.employeeName || '-',
+                    reportDateText(record.date),
+                    record.shift || '-',
+                    firstCheckIn ? window.getEgyptTimeString(firstCheckIn) : '-',
+                    record.lastActivityAt ? window.getEgyptTimeString(record.lastActivityAt) : '-',
+                    `${Array.isArray(record.breaks) ? record.breaks.length : 0} — ${formatAttendanceDuration(metrics.breakMs)}`,
+                    lastCheckOut ? window.getEgyptTimeString(lastCheckOut) : '-',
+                    formatAttendanceDuration(metrics.workMs),
+                    getAttendanceStatusInfo(record.status).label
+                ];
+            });
+            html += reportSection('سجل الحضور والانصراف التفصيلي', reportTable(
+                ['الموظف', 'التاريخ', 'الشفت', 'الحضور', 'آخر نشاط', 'الاستراحات', 'الانصراف', 'العمل الفعلي', 'الحالة'],
+                detailRows
+            ));
+            html += reportSection('ملاحظات التقرير', reportHighlights([
+                { icon: 'fa-clock', label: 'إجمالي جلسات الدوام', name: String(totalMetrics.sessions), value: 'جلسة مسجلة' },
+                { icon: 'fa-stopwatch', label: 'متوسط العمل في يوم الحضور', name: records.length ? formatAttendanceDuration(totalMetrics.workMs / records.length) : '0 د', value: 'متوسط تقريبي' },
+                { icon: 'fa-location-dot', label: 'التوقيت المعتمد', name: 'توقيت مصر', value: 'Africa/Cairo' }
+            ]));
+            return html;
         }
 
         function buildShiftInfographic(tasks, clients, shift, agent) {
@@ -7922,6 +8041,9 @@
             const stage = document.getElementById('summaryStageFilter')?.value || 'ALL';
             const area = document.getElementById('summaryContentArea');
             if (!area) return;
+            const isAttendanceReport = reportType === 'ATTENDANCE';
+            document.getElementById('summaryCityFilterWrapper')?.classList.toggle('hidden', isAttendanceReport);
+            document.getElementById('summaryStageFilterWrapper')?.classList.toggle('hidden', isAttendanceReport);
 
             const periodTasks = (window.tasks || []).filter(function(task) {
                 const taskDate = window.getTaskDateString(task);
@@ -7946,6 +8068,7 @@
                 return reportTaskMatchesClientFilters(task, city, stage);
             });
             const sourceTasks = getReportSourceTasks(shift, agent);
+            const attendanceRecords = getAttendanceReportRecords(start, end, shift, agent);
 
             window.currentReportContext = {
                 reportType: reportType,
@@ -7959,13 +8082,16 @@
                 periodTasks: periodTasks,
                 clients: clients,
                 allScopedClients: allScopedClients,
-                sourceTasks: sourceTasks
+                sourceTasks: sourceTasks,
+                attendanceRecords: attendanceRecords
             };
             saveReportViewState();
 
-            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, city, stage);
+            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, isAttendanceReport ? 'ALL' : city, isAttendanceReport ? 'ALL' : stage);
             content += '<section id="reportDrilldownPanel" class="report-drilldown-panel hidden mb-6 rounded-3xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-lg scroll-mt-4"></section>';
-            if (reportType === 'SHIFT_AGENT') {
+            if (reportType === 'ATTENDANCE') {
+                content += buildAttendanceInfographic(attendanceRecords);
+            } else if (reportType === 'SHIFT_AGENT') {
                 content += buildShiftInfographic(tasks, clients, shift, agent);
             } else if (reportType === 'NEW_CLIENTS') {
                 content += buildNewClientsInfographic(clients, start, end, shift, agent);
