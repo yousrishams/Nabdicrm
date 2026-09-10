@@ -577,6 +577,18 @@
                     </div>
                     <button id="btnTaskNotifications" onclick="openTaskNotifications()" class="hidden relative bg-white border border-slate-200 text-slate-800 w-10 h-10 rounded-xl items-center justify-center shadow-sm cursor-pointer" title="إشعارات المهام"><i class="fa-solid fa-bell text-amber-500"></i><span class="task-notification-badge hidden absolute -top-1 -left-1 bg-rose-600 text-white min-w-5 h-5 px-1 rounded-full text-[9px] font-black items-center justify-center">0</span></button>
 
+                    <button id="btnEmployeeAttendance" onclick="openAttendancePunchModal()" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md items-center gap-2 border border-emerald-500 cursor-pointer" title="تسجيل الحضور والاستراحة والانصراف">
+                        <i id="employeeAttendanceIcon" class="fa-solid fa-fingerprint text-sm"></i>
+                        <span id="employeeAttendanceButtonText">تسجيل الحضور</span>
+                        <span id="employeeAttendanceStatusDot" class="w-2 h-2 rounded-full bg-white/70"></span>
+                    </button>
+
+                    <button id="btnManagerAttendance" onclick="openAttendanceManagerModal()" class="hidden bg-sky-700 hover:bg-sky-800 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-md items-center gap-2 border border-sky-600 cursor-pointer" title="متابعة حضور وانصراف الموظفين">
+                        <i class="fa-solid fa-clipboard-user text-sm"></i>
+                        <span>الحضور والانصراف</span>
+                        <span id="attendancePresentBadge" class="bg-white/20 px-1.5 py-0.5 rounded-md text-[10px]">0</span>
+                    </button>
+
                     <div class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200">
                         <i class="fa-regular fa-calendar text-brand-600"></i>
                         <input type="date" id="globalDatePicker" onchange="onDateFilterChanged(this.value)" 
@@ -1908,6 +1920,105 @@
         </div>
     </div>
 
+    <!-- MODAL: EMPLOYEE ATTENDANCE PUNCH -->
+    <div id="attendancePunchModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[115] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-emerald-100 overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-800 via-teal-700 to-sky-800 text-white p-5 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 grid place-items-center text-xl"><i class="fa-solid fa-fingerprint"></i></div>
+                    <div>
+                        <h3 class="font-black text-base">البصمة الإلكترونية</h3>
+                        <p class="text-[11px] text-emerald-100">الحضور والاستراحة والانصراف — توقيت مصر</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAttendancePunchModal()" class="text-white/80 hover:text-white text-xl cursor-pointer" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p id="attendanceEmployeeName" class="font-black text-slate-900 text-sm">الموظف</p>
+                            <p id="attendanceEmployeeShift" class="text-[11px] text-slate-500 font-bold mt-1">الشفت</p>
+                        </div>
+                        <span id="attendanceCurrentStatus" class="px-3 py-1.5 rounded-full bg-slate-200 text-slate-700 text-xs font-black">لم يبدأ الدوام</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mt-4 text-xs">
+                        <div class="bg-white border border-slate-200 rounded-xl p-3">
+                            <span class="text-slate-500 font-bold block">أول حضور</span>
+                            <b id="attendanceCheckInTime" class="text-slate-900 block mt-1">—</b>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl p-3">
+                            <span class="text-slate-500 font-bold block">آخر انصراف</span>
+                            <b id="attendanceCheckOutTime" class="text-slate-900 block mt-1">—</b>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl p-3">
+                            <span class="text-slate-500 font-bold block">وقت العمل الفعلي</span>
+                            <b id="attendanceWorkedDuration" class="text-emerald-700 block mt-1">0 د</b>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl p-3">
+                            <span class="text-slate-500 font-bold block">إجمالي الاستراحة</span>
+                            <b id="attendanceBreakDuration" class="text-amber-700 block mt-1">0 د</b>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="attendancePunchHelp" class="text-xs text-slate-600 font-bold text-center">اضغط تسجيل الحضور عند بداية الدوام.</p>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="attendanceCheckInBtn" type="button" onclick="checkInAttendance()" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 font-black text-xs cursor-pointer"><i class="fa-solid fa-fingerprint ml-1"></i>تسجيل الحضور</button>
+                    <button id="attendanceStartBreakBtn" type="button" onclick="startAttendanceBreak()" class="hidden bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-black text-xs cursor-pointer"><i class="fa-solid fa-mug-hot ml-1"></i>بدء استراحة</button>
+                    <button id="attendanceEndBreakBtn" type="button" onclick="endAttendanceBreak()" class="hidden bg-sky-600 hover:bg-sky-700 text-white rounded-xl py-3 font-black text-xs cursor-pointer"><i class="fa-solid fa-play ml-1"></i>إنهاء الاستراحة</button>
+                    <button id="attendanceCheckOutBtn" type="button" onclick="checkOutAttendance()" class="hidden bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-3 font-black text-xs cursor-pointer"><i class="fa-solid fa-right-from-bracket ml-1"></i>إنهاء الدوام</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MANAGER ATTENDANCE REGISTER -->
+    <div id="attendanceManagerModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[115] flex items-center justify-center p-0 sm:p-4 hidden">
+        <div class="bg-white rounded-none sm:rounded-3xl w-screen h-screen sm:h-[92vh] sm:max-w-6xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-r from-sky-900 via-indigo-900 to-slate-950 text-white p-4 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 grid place-items-center text-xl"><i class="fa-solid fa-clipboard-user"></i></div>
+                    <div>
+                        <h3 class="font-black text-base">سجل حضور وانصراف الموظفين</h3>
+                        <p class="text-[11px] text-sky-200">بداية الدوام والاستراحات والانصراف وآخر نشاط — توقيت مصر</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAttendanceManagerModal()" class="text-white/80 hover:text-white text-xl cursor-pointer" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="p-3 bg-slate-100 border-b border-slate-200 grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs shrink-0">
+                <label class="font-bold text-slate-700">من تاريخ<input id="attendanceFromDate" type="date" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"></label>
+                <label class="font-bold text-slate-700">إلى تاريخ<input id="attendanceToDate" type="date" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"></label>
+                <label class="font-bold text-slate-700">الموظف<select id="attendanceEmployeeFilter" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"><option value="ALL">جميع الموظفين</option></select></label>
+                <label class="font-bold text-slate-700">القسم<select id="attendanceDepartmentFilter" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"><option value="ALL">جميع الأقسام</option><option value="خدمات العملاء">خدمات العملاء</option><option value="الدعم الفني">الدعم الفني</option><option value="الإدارة">الإدارة</option></select></label>
+            </div>
+
+            <div class="p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 border-b border-slate-100 shrink-0">
+                <div class="rounded-2xl bg-emerald-50 border border-emerald-200 p-3"><span class="text-[10px] text-emerald-800 font-bold block">أيام الحضور</span><b id="attendanceDaysCount" class="text-xl text-emerald-700">0</b></div>
+                <div class="rounded-2xl bg-sky-50 border border-sky-200 p-3"><span class="text-[10px] text-sky-800 font-bold block">على رأس العمل الآن</span><b id="attendanceWorkingCount" class="text-xl text-sky-700">0</b></div>
+                <div class="rounded-2xl bg-amber-50 border border-amber-200 p-3"><span class="text-[10px] text-amber-800 font-bold block">في استراحة الآن</span><b id="attendanceBreakCount" class="text-xl text-amber-700">0</b></div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 p-3"><span class="text-[10px] text-slate-600 font-bold block">تم الانصراف</span><b id="attendanceCheckedOutCount" class="text-xl text-slate-800">0</b></div>
+                <div class="rounded-2xl bg-rose-50 border border-rose-200 p-3"><span class="text-[10px] text-rose-700 font-bold block">غائب اليوم</span><b id="attendanceAbsentCount" class="text-xl text-rose-700">0</b></div>
+            </div>
+
+            <div class="overflow-auto custom-scrollbar flex-1 min-h-0 p-3">
+                <table class="w-full min-w-[980px] text-right text-xs">
+                    <thead class="bg-slate-100 text-slate-700 sticky top-0 z-10"><tr><th class="p-3">الموظف</th><th class="p-3">التاريخ والشفت</th><th class="p-3">أول حضور</th><th class="p-3">آخر نشاط</th><th class="p-3">الاستراحات</th><th class="p-3">آخر انصراف</th><th class="p-3">وقت العمل الفعلي</th><th class="p-3">الحالة</th></tr></thead>
+                    <tbody id="attendanceManagerTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+                <div id="attendanceManagerEmpty" class="hidden text-center py-12 text-slate-400 font-bold text-xs"><i class="fa-solid fa-calendar-xmark text-3xl mb-2 block"></i>لا توجد سجلات حضور في الفترة المحددة.</div>
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs shrink-0">
+                <span id="attendanceManagerFooter" class="font-bold text-slate-600">السجلات محفوظة بالسحابة بتوقيت مصر.</span>
+                <button type="button" onclick="closeAttendanceManagerModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 5: DOCUMENT VIEWER -->
     <div id="documentViewerModal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[100] flex items-center justify-center p-3 sm:p-5 hidden">
         <div class="bg-white rounded-3xl max-w-6xl w-full h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
@@ -2091,6 +2202,7 @@
         const tasksColRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
         const clientsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'clients');
         const supportProjectsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'supportProjects');
+        const attendanceColRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
         const archivedCloudData = { employees: [], tasks: [], clients: [], supportProjects: [] };
         const archiveCacheKey = 'nabdi_archive_snapshot_v1';
         const archiveCacheTtlMs = 24 * 60 * 60 * 1000;
@@ -2584,6 +2696,8 @@
         };
         window.tasks = [];
         window.clients = [];
+        window.attendanceRecords = [];
+        window.attendanceCloudReady = false;
 
         window.specialtiesList = [
             "طب وجراحة العيون", "طب وجراحة الأسنان", "تقويم الأسنان", "زراعة الأسنان", "الجلدية والتجميل",
@@ -2641,6 +2755,15 @@
                             }))
                     );
                 }
+
+                const storedAttendance = localStorage.getItem('cs_nabdi_attendance');
+                if (storedAttendance) window.attendanceRecords = JSON.parse(storedAttendance);
+            } catch(e) {}
+        };
+
+        window.saveAttendanceLocalBackup = function() {
+            try {
+                localStorage.setItem('cs_nabdi_attendance', JSON.stringify(window.attendanceRecords || []));
             } catch(e) {}
         };
 
@@ -2649,6 +2772,7 @@
                 localStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
                 localStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
                 localStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
+                window.saveAttendanceLocalBackup();
             } catch(e) {}
         };
 
@@ -2824,6 +2948,27 @@
                 renderApp();
             });
 
+            onSnapshot(attendanceColRef, (snapshot) => {
+                const records = [];
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (!data.deletedAt) records.push({ id: docSnap.id, ...data });
+                });
+                window.attendanceRecords = records.sort((a, b) => {
+                    const dateCompare = String(b.date || '').localeCompare(String(a.date || ''));
+                    return dateCompare || Number(b.checkInAt || 0) - Number(a.checkInAt || 0);
+                });
+                window.attendanceCloudReady = true;
+                if (typeof window.saveAttendanceLocalBackup === 'function') window.saveAttendanceLocalBackup();
+                if (typeof window.renderAttendanceUI === 'function') window.renderAttendanceUI();
+                if (typeof window.renderAttendanceManager === 'function' && !document.getElementById('attendanceManagerModal')?.classList.contains('hidden')) {
+                    window.renderAttendanceManager();
+                }
+            }, (error) => {
+                window.attendanceCloudReady = false;
+                console.error('Attendance sync failed:', error);
+            });
+
             onSnapshot(tasksColRef, (snapshot) => {
                 const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
                 let taskList = [];
@@ -2889,6 +3034,23 @@
                 try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'supportProjects', project.id), project); } catch(e) { failures.push(project.id); }
             }
             if (failures.length) throw new Error('تعذر تثبيت تحديث ملفات الدعم في Firebase. راجع صلاحيات الكتابة.');
+        };
+
+        window.fetchAttendanceRecordFromCloud = async function(recordId) {
+            if (!window.dbUser || !recordId) return null;
+            const snapshot = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'attendance', recordId));
+            return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+        };
+
+        window.saveAttendanceRecordToCloud = async function(record) {
+            if (!record?.id) throw new Error('سجل الحضور غير مكتمل.');
+            if (window.currentUserRole !== 'agent' || String(record.employeeId || '') !== String(window.currentLoggedInEmployeeId || '')) {
+                throw new Error('لا يمكن تسجيل حضور موظف آخر.');
+            }
+            if (!window.dbUser) throw new Error('المزامنة السحابية غير متصلة الآن.');
+            const cleanRecord = JSON.parse(JSON.stringify(record));
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'attendance', record.id), cleanRecord, { merge: true });
+            return cleanRecord;
         };
 
         window.syncTasksToClients = function() {
@@ -5364,6 +5526,8 @@
             const btnAgentChangePin = document.getElementById('btnAgentChangePin');
             const btnTechnicalSupport = document.getElementById('btnTechnicalSupport');
             const btnCustomerAssignTask = document.getElementById('btnCustomerAssignTask');
+            const btnEmployeeAttendance = document.getElementById('btnEmployeeAttendance');
+            const btnManagerAttendance = document.getElementById('btnManagerAttendance');
 
             if (role === 'manager') {
                 nameSpan.innerText = 'المدير العام';
@@ -5373,6 +5537,8 @@
                 if (btnAgentChangePin) btnAgentChangePin.classList.add('hidden');
                 if (btnTechnicalSupport) { btnTechnicalSupport.classList.remove('hidden'); btnTechnicalSupport.classList.add('flex'); }
                 if (btnCustomerAssignTask) { btnCustomerAssignTask.classList.remove('hidden'); btnCustomerAssignTask.classList.add('flex'); }
+                if (btnEmployeeAttendance) { btnEmployeeAttendance.classList.add('hidden'); btnEmployeeAttendance.classList.remove('flex'); }
+                if (btnManagerAttendance) { btnManagerAttendance.classList.remove('hidden'); btnManagerAttendance.classList.add('flex'); }
                 window.currentAgent = 'ALL';
                 switchRole('manager');
             } else {
@@ -5393,6 +5559,8 @@
                     btnCustomerAssignTask.classList.toggle('hidden', !canAssignCustomer);
                     btnCustomerAssignTask.classList.toggle('flex', canAssignCustomer);
                 }
+                if (btnEmployeeAttendance) { btnEmployeeAttendance.classList.remove('hidden'); btnEmployeeAttendance.classList.add('flex'); }
+                if (btnManagerAttendance) { btnManagerAttendance.classList.add('hidden'); btnManagerAttendance.classList.remove('flex'); }
                 window.currentAgent = window.currentLoggedInAgent;
                 window.currentDateFilter = window.getLocalDateString();
                 window.agentDateMode = 'DAY';
@@ -5429,6 +5597,12 @@
             if (btnCustomerAssignTask) { btnCustomerAssignTask.classList.add('hidden'); btnCustomerAssignTask.classList.remove('flex'); }
             const btnTaskNotifications = document.getElementById('btnTaskNotifications');
             if (btnTaskNotifications) { btnTaskNotifications.classList.add('hidden'); btnTaskNotifications.classList.remove('flex'); }
+            const btnEmployeeAttendance = document.getElementById('btnEmployeeAttendance');
+            if (btnEmployeeAttendance) { btnEmployeeAttendance.classList.add('hidden'); btnEmployeeAttendance.classList.remove('flex'); }
+            const btnManagerAttendance = document.getElementById('btnManagerAttendance');
+            if (btnManagerAttendance) { btnManagerAttendance.classList.add('hidden'); btnManagerAttendance.classList.remove('flex'); }
+            closeAttendancePunchModal();
+            closeAttendanceManagerModal();
             showToast("تم تسجيل الخروج", "info");
         }
 
@@ -5736,6 +5910,368 @@
             emp.accessLevel = accessLevel; window.saveEmployeeToCloud(emp); showToast(`تم تحديث صلاحية ${emp.name} إلى ${window.getEmployeeJobTitle(emp)}`);
         }
 
+        function getAttendanceEmployee() {
+            return (window.employees || []).find(emp =>
+                (window.currentLoggedInEmployeeId && emp.id === window.currentLoggedInEmployeeId) ||
+                window.sameEmployee(emp.name, window.currentLoggedInAgent)
+            ) || null;
+        }
+
+        function getAttendanceRecordId(employee, date) {
+            const safeEmployeeId = String(employee?.id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            return `attendance_${safeEmployeeId}_${date}`;
+        }
+
+        function getEmployeeAttendanceRecord(employee = getAttendanceEmployee()) {
+            if (!employee) return null;
+            const employeeRecords = (window.attendanceRecords || []).filter(record =>
+                String(record.employeeId || '') === String(employee.id || '') ||
+                window.sameEmployee(record.employeeName, employee.name)
+            );
+            const openRecord = employeeRecords
+                .filter(record => record.status === 'working' || record.status === 'break')
+                .sort((a, b) => Number(b.updatedAt || b.checkInAt || 0) - Number(a.updatedAt || a.checkInAt || 0))[0];
+            if (openRecord) return openRecord;
+            const today = window.getLocalDateString();
+            return employeeRecords.find(record => record.date === today) || null;
+        }
+
+        function cloneAttendanceRecord(record) {
+            return record ? JSON.parse(JSON.stringify(record)) : null;
+        }
+
+        function upsertAttendanceRecordLocally(record) {
+            window.attendanceRecords = window.attendanceRecords || [];
+            const index = window.attendanceRecords.findIndex(item => item.id === record.id);
+            if (index >= 0) window.attendanceRecords[index] = record;
+            else window.attendanceRecords.unshift(record);
+            window.saveAttendanceLocalBackup();
+            window.renderAttendanceUI();
+        }
+
+        async function getFreshAttendanceRecord(employee) {
+            const localRecord = getEmployeeAttendanceRecord(employee);
+            const date = localRecord?.date || window.getLocalDateString();
+            const recordId = localRecord?.id || getAttendanceRecordId(employee, date);
+            if (typeof window.fetchAttendanceRecordFromCloud === 'function') {
+                try {
+                    const cloudRecord = await window.fetchAttendanceRecordFromCloud(recordId);
+                    if (cloudRecord) return cloneAttendanceRecord(cloudRecord);
+                } catch (error) {
+                    console.warn('Could not refresh attendance before update:', error);
+                }
+            }
+            return cloneAttendanceRecord(localRecord);
+        }
+
+        async function saveAttendanceAction(record, successMessage) {
+            if (window.attendanceActionBusy) return;
+            window.attendanceActionBusy = true;
+            document.querySelectorAll('#attendancePunchModal button').forEach(button => button.disabled = true);
+            try {
+                record.updatedAt = Date.now();
+                if (typeof window.saveAttendanceRecordToCloud !== 'function') throw new Error('خدمة الحضور لم تجهز بعد، حاول بعد لحظات.');
+                await window.saveAttendanceRecordToCloud(record);
+                upsertAttendanceRecordLocally(record);
+                showToast(successMessage);
+            } catch (error) {
+                showToast(error?.message || 'تعذر حفظ البصمة الإلكترونية.', 'error');
+            } finally {
+                window.attendanceActionBusy = false;
+                document.querySelectorAll('#attendancePunchModal button').forEach(button => button.disabled = false);
+                window.renderAttendanceUI();
+            }
+        }
+
+        async function checkInAttendance() {
+            if (window.currentUserRole !== 'agent') return;
+            const employee = getAttendanceEmployee();
+            if (!employee) return showToast('لم يتم العثور على حساب الموظف.', 'error');
+            const existing = await getFreshAttendanceRecord(employee);
+            if (existing && (existing.status === 'working' || existing.status === 'break')) {
+                showToast('الحضور مسجل بالفعل ولم يتم إنهاء الدوام.', 'info');
+                return;
+            }
+            const now = Date.now();
+            const today = window.getLocalDateString(now);
+            const sameDay = existing && existing.date === today;
+            const record = sameDay ? existing : {
+                id: getAttendanceRecordId(employee, today),
+                employeeId: employee.id,
+                employeeName: employee.name,
+                department: window.getEmployeeDepartment(employee),
+                shift: employee.shift || 'غير محدد',
+                date: today,
+                sessions: [],
+                breaks: [],
+                createdAt: now
+            };
+            record.employeeName = employee.name;
+            record.department = window.getEmployeeDepartment(employee);
+            record.shift = employee.shift || record.shift || 'غير محدد';
+            record.sessions = Array.isArray(record.sessions) ? record.sessions : [];
+            record.breaks = Array.isArray(record.breaks) ? record.breaks : [];
+            record.sessions.push({ checkInAt: now, checkOutAt: null });
+            record.checkInAt = record.checkInAt || now;
+            record.checkOutAt = null;
+            record.lastActivityAt = now;
+            record.status = 'working';
+            await saveAttendanceAction(record, 'تم تسجيل الحضور وبدء الدوام بتوقيت مصر');
+        }
+
+        async function startAttendanceBreak() {
+            const employee = getAttendanceEmployee();
+            if (!employee) return;
+            const record = await getFreshAttendanceRecord(employee);
+            if (!record || record.status !== 'working') return showToast('يجب تسجيل الحضور أولاً.', 'error');
+            const now = Date.now();
+            record.breaks = Array.isArray(record.breaks) ? record.breaks : [];
+            record.breaks.push({ startAt: now, endAt: null });
+            record.status = 'break';
+            record.lastActivityAt = now;
+            await saveAttendanceAction(record, 'تم تسجيل بداية الاستراحة');
+        }
+
+        async function endAttendanceBreak() {
+            const employee = getAttendanceEmployee();
+            if (!employee) return;
+            const record = await getFreshAttendanceRecord(employee);
+            if (!record || record.status !== 'break') return showToast('لا توجد استراحة مفتوحة.', 'error');
+            const now = Date.now();
+            record.breaks = Array.isArray(record.breaks) ? record.breaks : [];
+            const openBreak = [...record.breaks].reverse().find(item => item && !item.endAt);
+            if (openBreak) openBreak.endAt = now;
+            record.status = 'working';
+            record.lastActivityAt = now;
+            await saveAttendanceAction(record, 'تم إنهاء الاستراحة واستكمال الدوام');
+        }
+
+        async function checkOutAttendance() {
+            const employee = getAttendanceEmployee();
+            if (!employee) return;
+            const record = await getFreshAttendanceRecord(employee);
+            if (!record || !['working', 'break'].includes(record.status)) return showToast('لا يوجد دوام مفتوح لإنهائه.', 'error');
+            if (!confirm('تأكيد إنهاء الدوام وتسجيل الانصراف الآن؟')) return;
+            const now = Date.now();
+            record.breaks = Array.isArray(record.breaks) ? record.breaks : [];
+            const openBreak = [...record.breaks].reverse().find(item => item && !item.endAt);
+            if (openBreak) openBreak.endAt = now;
+            record.sessions = Array.isArray(record.sessions) ? record.sessions : [];
+            const openSession = [...record.sessions].reverse().find(item => item && !item.checkOutAt);
+            if (openSession) openSession.checkOutAt = now;
+            record.checkOutAt = now;
+            record.lastActivityAt = now;
+            record.status = 'checked_out';
+            await saveAttendanceAction(record, 'تم تسجيل الانصراف وإنهاء الدوام');
+        }
+
+        function getAttendanceMetrics(record, now = Date.now()) {
+            if (!record) return { workMs: 0, breakMs: 0 };
+            let sessions = Array.isArray(record.sessions) ? record.sessions : [];
+            if (!sessions.length && record.checkInAt) sessions = [{ checkInAt: record.checkInAt, checkOutAt: record.checkOutAt || null }];
+            const breaks = Array.isArray(record.breaks) ? record.breaks : [];
+            const sessionMs = sessions.reduce((total, session) => {
+                const start = Number(session?.checkInAt || 0);
+                const end = Number(session?.checkOutAt || (record.status === 'checked_out' ? record.checkOutAt : now));
+                return total + (start && end >= start ? end - start : 0);
+            }, 0);
+            const breakMs = breaks.reduce((total, item) => {
+                const start = Number(item?.startAt || 0);
+                const end = Number(item?.endAt || (record.status === 'break' ? now : start));
+                return total + (start && end >= start ? end - start : 0);
+            }, 0);
+            return { workMs: Math.max(0, sessionMs - breakMs), breakMs: Math.max(0, breakMs) };
+        }
+
+        function formatAttendanceDuration(milliseconds) {
+            const minutes = Math.max(0, Math.floor(Number(milliseconds || 0) / 60000));
+            const hours = Math.floor(minutes / 60);
+            const rest = minutes % 60;
+            return hours ? `${hours} س ${rest} د` : `${rest} د`;
+        }
+
+        function getAttendanceStatusInfo(status) {
+            if (status === 'working') return { label: 'على رأس العمل', className: 'bg-emerald-100 text-emerald-800 border border-emerald-200', button: 'على رأس العمل', buttonClass: 'bg-emerald-600 hover:bg-emerald-700', dot: 'bg-emerald-300' };
+            if (status === 'break') return { label: 'في استراحة', className: 'bg-amber-100 text-amber-800 border border-amber-200', button: 'في استراحة', buttonClass: 'bg-amber-500 hover:bg-amber-600', dot: 'bg-amber-200' };
+            if (status === 'checked_out') return { label: 'تم الانصراف', className: 'bg-slate-200 text-slate-700 border border-slate-300', button: 'انتهى الدوام', buttonClass: 'bg-slate-600 hover:bg-slate-700', dot: 'bg-slate-300' };
+            return { label: 'لم يبدأ الدوام', className: 'bg-rose-100 text-rose-700 border border-rose-200', button: 'تسجيل الحضور', buttonClass: 'bg-rose-600 hover:bg-rose-700', dot: 'bg-rose-200' };
+        }
+
+        window.renderAttendanceUI = function() {
+            const employee = getAttendanceEmployee();
+            const record = window.currentUserRole === 'agent' ? getEmployeeAttendanceRecord(employee) : null;
+            const status = record?.status || 'not_started';
+            const statusInfo = getAttendanceStatusInfo(status);
+            const metrics = getAttendanceMetrics(record);
+            const headerButton = document.getElementById('btnEmployeeAttendance');
+            const headerText = document.getElementById('employeeAttendanceButtonText');
+            const headerDot = document.getElementById('employeeAttendanceStatusDot');
+            const supportHeaderText = document.getElementById('supportAttendanceButtonText');
+            if (headerButton) {
+                ['bg-emerald-600','hover:bg-emerald-700','bg-amber-500','hover:bg-amber-600','bg-slate-600','hover:bg-slate-700','bg-rose-600','hover:bg-rose-700'].forEach(cls => headerButton.classList.remove(cls));
+                statusInfo.buttonClass.split(' ').forEach(cls => headerButton.classList.add(cls));
+            }
+            if (headerText) headerText.textContent = statusInfo.button;
+            if (supportHeaderText) supportHeaderText.textContent = statusInfo.button;
+            if (headerDot) {
+                headerDot.className = `w-2 h-2 rounded-full ${statusInfo.dot}`;
+                if (status === 'working') headerDot.classList.add('animate-pulse');
+            }
+
+            const name = document.getElementById('attendanceEmployeeName');
+            const shift = document.getElementById('attendanceEmployeeShift');
+            const currentStatus = document.getElementById('attendanceCurrentStatus');
+            if (name) name.textContent = employee?.name || 'الموظف';
+            if (shift) shift.textContent = `${employee ? window.getEmployeeJobTitle(employee) : ''} — ${employee?.shift || 'شفت غير محدد'} — ${window.formatEgyptDate(record?.date || window.getLocalDateString())}`;
+            if (currentStatus) { currentStatus.textContent = statusInfo.label; currentStatus.className = `px-3 py-1.5 rounded-full text-xs font-black ${statusInfo.className}`; }
+            const firstCheckIn = record?.checkInAt || record?.sessions?.[0]?.checkInAt;
+            const lastCheckOut = record?.checkOutAt || [...(record?.sessions || [])].reverse().find(item => item?.checkOutAt)?.checkOutAt;
+            const checkInText = document.getElementById('attendanceCheckInTime');
+            const checkOutText = document.getElementById('attendanceCheckOutTime');
+            if (checkInText) checkInText.textContent = firstCheckIn ? window.getEgyptTimeString(firstCheckIn) : '—';
+            if (checkOutText) checkOutText.textContent = lastCheckOut ? window.getEgyptTimeString(lastCheckOut) : '—';
+            const workDuration = document.getElementById('attendanceWorkedDuration');
+            const breakDuration = document.getElementById('attendanceBreakDuration');
+            if (workDuration) workDuration.textContent = formatAttendanceDuration(metrics.workMs);
+            if (breakDuration) breakDuration.textContent = formatAttendanceDuration(metrics.breakMs);
+
+            const help = document.getElementById('attendancePunchHelp');
+            if (help) help.textContent = status === 'working' ? 'أنت على رأس العمل الآن. سجل الاستراحة أو الانصراف عند الحاجة.' : status === 'break' ? 'الاستراحة محسوبة الآن. اضغط إنهاء الاستراحة عند العودة.' : status === 'checked_out' ? 'تم إنهاء الدوام. يمكنك تسجيل حضور جديد إذا بدأت فترة عمل أخرى اليوم.' : 'اضغط تسجيل الحضور عند بداية الدوام.';
+            const checkInButton = document.getElementById('attendanceCheckInBtn');
+            const startBreakButton = document.getElementById('attendanceStartBreakBtn');
+            const endBreakButton = document.getElementById('attendanceEndBreakBtn');
+            const checkOutButton = document.getElementById('attendanceCheckOutBtn');
+            if (checkInButton) { checkInButton.classList.toggle('hidden', status === 'working' || status === 'break'); checkInButton.innerHTML = status === 'checked_out' ? '<i class="fa-solid fa-fingerprint ml-1"></i>تسجيل حضور جديد' : '<i class="fa-solid fa-fingerprint ml-1"></i>تسجيل الحضور'; }
+            if (startBreakButton) startBreakButton.classList.toggle('hidden', status !== 'working');
+            if (endBreakButton) endBreakButton.classList.toggle('hidden', status !== 'break');
+            if (checkOutButton) checkOutButton.classList.toggle('hidden', !['working','break'].includes(status));
+
+            const today = window.getLocalDateString();
+            const presentIds = new Set((window.attendanceRecords || []).filter(item => item.date === today && item.checkInAt).map(item => item.employeeId || item.employeeName));
+            const managerBadge = document.getElementById('attendancePresentBadge');
+            if (managerBadge) managerBadge.textContent = presentIds.size;
+        };
+
+        function openAttendancePunchModal() {
+            if (window.currentUserRole !== 'agent') return showToast('البصمة الإلكترونية مخصصة لحسابات الموظفين.', 'error');
+            window.renderAttendanceUI();
+            document.getElementById('attendancePunchModal').classList.remove('hidden');
+        }
+
+        function closeAttendancePunchModal() {
+            document.getElementById('attendancePunchModal').classList.add('hidden');
+        }
+
+        function populateAttendanceEmployeeFilter() {
+            const select = document.getElementById('attendanceEmployeeFilter');
+            if (!select) return;
+            const current = select.value || 'ALL';
+            select.innerHTML = '<option value="ALL">جميع الموظفين</option>' + (window.employees || []).map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(emp.name)} — ${escapeHtml(window.getEmployeeJobTitle(emp))}</option>`).join('');
+            select.value = [...select.options].some(option => option.value === current) ? current : 'ALL';
+        }
+
+        function openAttendanceManagerModal() {
+            if (window.currentUserRole !== 'manager') return showToast('سجل الحضور متاح للمدير فقط.', 'error');
+            const today = window.getLocalDateString();
+            const from = document.getElementById('attendanceFromDate');
+            const to = document.getElementById('attendanceToDate');
+            if (from && !from.value) from.value = today;
+            if (to && !to.value) to.value = today;
+            populateAttendanceEmployeeFilter();
+            renderAttendanceManager();
+            document.getElementById('attendanceManagerModal').classList.remove('hidden');
+        }
+
+        function closeAttendanceManagerModal() {
+            document.getElementById('attendanceManagerModal').classList.add('hidden');
+        }
+
+        window.renderAttendanceManager = function() {
+            const body = document.getElementById('attendanceManagerTableBody');
+            if (!body) return;
+            const today = window.getLocalDateString();
+            const from = document.getElementById('attendanceFromDate')?.value || today;
+            const to = document.getElementById('attendanceToDate')?.value || today;
+            const employeeId = document.getElementById('attendanceEmployeeFilter')?.value || 'ALL';
+            const department = document.getElementById('attendanceDepartmentFilter')?.value || 'ALL';
+            const eligibleEmployees = (window.employees || []).filter(emp =>
+                (employeeId === 'ALL' || emp.id === employeeId) &&
+                (department === 'ALL' || window.getEmployeeDepartment(emp) === department)
+            );
+            const eligibleIds = new Set(eligibleEmployees.map(emp => emp.id));
+            const eligibleNames = new Set(eligibleEmployees.map(emp => window.normalizeEmployeeName(emp.name)));
+            const filtered = (window.attendanceRecords || []).filter(record =>
+                record.date >= from && record.date <= to &&
+                (eligibleIds.has(record.employeeId) || eligibleNames.has(window.normalizeEmployeeName(record.employeeName)))
+            ).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(a.employeeName || '').localeCompare(String(b.employeeName || ''), 'ar'));
+            const todayRecords = filtered.filter(record => record.date === today);
+            const attendedToday = new Set(todayRecords.map(record => record.employeeId || window.normalizeEmployeeName(record.employeeName)));
+            const showAbsence = from === today && to === today;
+            const absentEmployees = showAbsence ? eligibleEmployees.filter(emp => !attendedToday.has(emp.id) && !attendedToday.has(window.normalizeEmployeeName(emp.name))) : [];
+
+            document.getElementById('attendanceDaysCount').textContent = filtered.length;
+            document.getElementById('attendanceWorkingCount').textContent = todayRecords.filter(record => record.status === 'working').length;
+            document.getElementById('attendanceBreakCount').textContent = todayRecords.filter(record => record.status === 'break').length;
+            document.getElementById('attendanceCheckedOutCount').textContent = filtered.filter(record => record.status === 'checked_out').length;
+            document.getElementById('attendanceAbsentCount').textContent = showAbsence ? absentEmployees.length : '—';
+
+            const recordRows = filtered.map(record => {
+                const metrics = getAttendanceMetrics(record);
+                const statusInfo = getAttendanceStatusInfo(record.status);
+                const breakCount = Array.isArray(record.breaks) ? record.breaks.length : 0;
+                const lastCheckOut = record.checkOutAt || [...(record.sessions || [])].reverse().find(item => item?.checkOutAt)?.checkOutAt;
+                return `<tr class="hover:bg-sky-50/40 align-top">
+                    <td class="p-3"><b class="text-slate-900">${escapeHtml(record.employeeName || '-')}</b><span class="block text-[10px] text-slate-500 mt-1">${escapeHtml(record.department || '-')}</span></td>
+                    <td class="p-3"><b>${escapeHtml(window.formatEgyptDate(record.date) || record.date || '-')}</b><span class="block text-[10px] text-slate-500 mt-1">${escapeHtml(record.shift || '-')}</span></td>
+                    <td class="p-3 font-black text-emerald-700">${record.checkInAt ? escapeHtml(window.getEgyptTimeString(record.checkInAt)) : '—'}</td>
+                    <td class="p-3">${record.lastActivityAt ? escapeHtml(window.getEgyptTimeString(record.lastActivityAt)) : '—'}</td>
+                    <td class="p-3"><b>${breakCount}</b> استراحة<span class="block text-[10px] text-amber-700 mt-1">${formatAttendanceDuration(metrics.breakMs)}</span></td>
+                    <td class="p-3 font-black text-rose-700">${lastCheckOut ? escapeHtml(window.getEgyptTimeString(lastCheckOut)) : '—'}</td>
+                    <td class="p-3 font-black text-sky-800">${formatAttendanceDuration(metrics.workMs)}</td>
+                    <td class="p-3"><span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black ${statusInfo.className}">${statusInfo.label}</span></td>
+                </tr>`;
+            });
+            const absentRows = absentEmployees.map(emp => `<tr class="bg-rose-50/40">
+                <td class="p-3"><b class="text-slate-900">${escapeHtml(emp.name)}</b><span class="block text-[10px] text-slate-500 mt-1">${escapeHtml(window.getEmployeeDepartment(emp))}</span></td>
+                <td class="p-3"><b>${escapeHtml(window.formatEgyptDate(today))}</b><span class="block text-[10px] text-slate-500 mt-1">${escapeHtml(emp.shift || '-')}</span></td>
+                <td class="p-3 text-slate-400">—</td><td class="p-3 text-slate-400">—</td><td class="p-3 text-slate-400">—</td><td class="p-3 text-slate-400">—</td><td class="p-3 text-slate-400">0 د</td>
+                <td class="p-3"><span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200">غائب اليوم</span></td>
+            </tr>`);
+            const rows = [...recordRows, ...absentRows];
+            body.innerHTML = rows.join('');
+            document.getElementById('attendanceManagerEmpty').classList.toggle('hidden', rows.length > 0);
+            document.getElementById('attendanceManagerFooter').textContent = `النتائج: ${filtered.length} سجل حضور${showAbsence ? ` — الغائبون اليوم: ${absentEmployees.length}` : ''} — جميع الأوقات بتوقيت مصر.`;
+            window.renderAttendanceUI();
+        };
+
+        window.recordAttendanceActivity = async function() {
+            if (window.currentUserRole !== 'agent' || window.attendanceActivityBusy) return;
+            const employee = getAttendanceEmployee();
+            const record = getEmployeeAttendanceRecord(employee);
+            if (!record || record.status !== 'working') return;
+            const now = Date.now();
+            if (now - Number(record.lastActivityAt || 0) < 5 * 60 * 1000) return;
+            window.attendanceActivityBusy = true;
+            try {
+                const next = cloneAttendanceRecord(record);
+                next.lastActivityAt = now;
+                next.updatedAt = now;
+                await window.saveAttendanceRecordToCloud(next);
+                upsertAttendanceRecordLocally(next);
+            } catch (error) {
+                console.warn('Attendance activity heartbeat failed:', error);
+            } finally {
+                window.attendanceActivityBusy = false;
+            }
+        };
+
+        ['click', 'keydown'].forEach(eventName => document.addEventListener(eventName, () => window.recordAttendanceActivity(), { passive: true }));
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) window.recordAttendanceActivity(); });
+        setInterval(() => {
+            if (window.currentUserRole) window.renderAttendanceUI();
+            if (!document.getElementById('attendanceManagerModal')?.classList.contains('hidden')) window.renderAttendanceManager();
+        }, 60000);
+
         function onAgentChanged() {
             window.currentAgent = document.getElementById('agentSelector').value;
             renderAgentTasks();
@@ -5746,6 +6282,7 @@
             if (window.currentUserRole === 'manager') {
                 renderManagerDashboard();
             }
+            if (window.renderAttendanceUI) window.renderAttendanceUI();
         }
 
         function renderManagerDashboard() {
@@ -7714,6 +8251,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-user-gear text-emerald-300 ml-1"></i><span id="supportLoggedUserName">موظف الدعم</span></span>
                     <button onclick="openTaskNotifications()" class="relative bg-white/10 border border-white/15 w-10 h-10 rounded-xl flex items-center justify-center"><i class="fa-solid fa-bell text-amber-300"></i><span class="task-notification-badge hidden absolute -top-1 -left-1 bg-rose-600 text-white min-w-5 h-5 px-1 rounded-full text-[9px] font-black items-center justify-center">0</span></button>
+                    <button onclick="openAttendancePunchModal()" class="bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-fingerprint ml-1"></i><span id="supportAttendanceButtonText">البصمة</span></button>
                     <select id="supportScopeFilter" onchange="renderTechnicalSupport()" class="bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-black"><option value="ALL">الشغل النشط</option><option value="MINE">مهامي فقط</option><option value="UNASSIGNED">غير موزع</option><option value="COMPLETED">أرشيف المكتمل</option></select>
                     <button id="btnSupportAssignTask" onclick="openDepartmentTaskModal('الدعم الفني')" class="hidden bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-plus ml-1"></i>إسناد مهمة لفريق الدعم</button>
                     <button onclick="openSelfChangePasswordModal()" class="bg-violet-700 hover:bg-violet-800 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-key ml-1"></i>تغيير الباسورد</button>
