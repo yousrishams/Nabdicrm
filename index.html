@@ -605,7 +605,7 @@
                         <button id="btnRoleManager" onclick="switchRole('manager')" 
                                 class="px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer">
                             <i class="fa-solid fa-chart-pie"></i>
-                            <span>لوحة المدير والتقارير</span>
+                            <span>لوحة الإشراف والتقارير</span>
                         </button>
                     </div>
 
@@ -892,7 +892,7 @@
                         </div>
 
                         <div>
-                            <span class="bg-white/20 text-purple-200 border border-white/20 text-xs px-3 py-1 rounded-full font-bold">لوحة المتابعة المباشرة والتقارير الشاملة</span>
+                            <span id="managerScopeBadge" class="bg-white/20 text-purple-200 border border-white/20 text-xs px-3 py-1 rounded-full font-bold">لوحة المتابعة المباشرة والتقارير الشاملة</span>
                             <h2 class="text-2xl font-black mt-2">متابعة الأداء والتقارير والعمولات والبيانات المالية</h2>
                             <p class="text-purple-200 text-xs mt-1">إدارة شاملة لرحلة العملائ، بيانات الحسابات، الآيبان، العمولات المبرمة، واستخراج التقارير قبل الطباعة.</p>
                         </div>
@@ -1886,7 +1886,7 @@
                             <label class="block font-bold text-slate-700 mb-1">الصلاحية الوظيفية</label>
                             <select id="newEmployeeAccessLevel" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none">
                                 <option value="employee">موظف</option>
-                                <option value="supervisor">مشرف القسم — صلاحيات المدير كاملة</option>
+                                <option value="supervisor">مشرف القسم — تقارير ومتابعة الفريق</option>
                             </select>
                         </div>
                         <div>
@@ -1989,10 +1989,11 @@
                 <button type="button" onclick="closeAttendanceManagerModal()" class="text-white/80 hover:text-white text-xl cursor-pointer" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="p-3 bg-slate-100 border-b border-slate-200 grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs shrink-0">
+            <div class="p-3 bg-slate-100 border-b border-slate-200 grid grid-cols-2 lg:grid-cols-5 gap-2 text-xs shrink-0">
                 <label class="font-bold text-slate-700">من تاريخ<input id="attendanceFromDate" type="date" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"></label>
                 <label class="font-bold text-slate-700">إلى تاريخ<input id="attendanceToDate" type="date" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"></label>
                 <label class="font-bold text-slate-700">الموظف<select id="attendanceEmployeeFilter" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"><option value="ALL">جميع الموظفين</option></select></label>
+                <label class="font-bold text-slate-700">الشفت<select id="attendanceShiftFilter" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"><option value="ALL">جميع الشفتات</option><option value="شفت صباحي">شفت صباحي</option><option value="شفت مسائي">شفت مسائي</option></select></label>
                 <label class="font-bold text-slate-700">القسم<select id="attendanceDepartmentFilter" onchange="renderAttendanceManager()" class="mt-1 w-full bg-white border border-slate-300 rounded-xl p-2 font-bold"><option value="ALL">جميع الأقسام</option><option value="خدمات العملاء">خدمات المبيعات / العملاء</option><option value="الدعم الفني">الدعم الفني</option><option value="الإدارة">الإدارة</option></select></label>
             </div>
 
@@ -2454,6 +2455,7 @@
         window.currentUserRole = null; 
         window.currentLoggedInAgent = null; 
         window.currentAgent = 'ALL';
+        window.currentWorkspaceRole = 'agent';
         window.currentDateFilter = window.getLocalDateString();
         window.agentDateMode = 'DAY';
         window.agentDateRangeStart = window.currentDateFilter;
@@ -2640,8 +2642,8 @@
         window.getEmployeeAccessLevel = function(emp) { return emp && (emp.accessLevel === 'supervisor' || emp.isSupervisor === true) ? 'supervisor' : 'employee'; };
         window.getEmployeeJobTitle = function(emp) {
             const department = window.getEmployeeDepartment(emp), supervisor = window.getEmployeeAccessLevel(emp) === 'supervisor';
-            if (department === 'الدعم الفني') return supervisor ? 'مشرف الدعم الفني — صلاحية مدير' : 'موظف دعم فني';
-            if (department === 'خدمات العملاء') return supervisor ? 'مشرف خدمات المبيعات — صلاحية مدير' : 'موظف خدمات مبيعات';
+            if (department === 'الدعم الفني') return supervisor ? 'مشرف الدعم الفني — تقارير الفريق' : 'موظف دعم فني';
+            if (department === 'خدمات العملاء') return supervisor ? 'مشرف خدمات المبيعات — تقارير الفريق' : 'موظف خدمات مبيعات';
             return supervisor ? 'مدير إداري' : 'موظف إدارة';
         };
         window.normalizeEmployeeName = function(value) {
@@ -2651,15 +2653,36 @@
             const key=window.normalizeEmployeeName(name);
             return (window.employees||[]).find(e=>window.normalizeEmployeeName(e.name)===key);
         };
-        window.isFullAccessSupervisor = function(emp) {
+        window.isReportingSupervisor = function(emp) {
             if (!emp || window.getEmployeeAccessLevel(emp) !== 'supervisor') return false;
             const department = window.getEmployeeDepartment(emp);
             return department === 'خدمات العملاء' || department === 'الدعم الفني';
         };
         window.hasManagerPermissions = function() {
+            return window.currentUserRole === 'manager';
+        };
+        window.canAccessReportsDashboard = function() {
             if (window.currentUserRole === 'manager') return true;
             if (window.currentUserRole !== 'agent') return false;
-            return window.isFullAccessSupervisor(window.findEmployeeByName(window.currentLoggedInAgent));
+            return window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent));
+        };
+        window.getCurrentSupervisorTeam = function() {
+            if (window.currentUserRole !== 'agent') return window.employees || [];
+            const supervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+            if (!window.isReportingSupervisor(supervisor)) return supervisor ? [supervisor] : [];
+            const department = window.getEmployeeDepartment(supervisor);
+            return (window.employees || []).filter(emp =>
+                window.getEmployeeDepartment(emp) === department
+            );
+        };
+        window.isEmployeeAllowedInSupervisorReports = function(employeeName) {
+            if (window.currentUserRole !== 'agent') return true;
+            const supervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+            if (!window.isReportingSupervisor(supervisor)) return window.sameEmployee(employeeName, supervisor?.name);
+            return window.getCurrentSupervisorTeam().some(emp => window.sameEmployee(employeeName, emp.name));
+        };
+        window.isEmployeeWorkspace = function() {
+            return window.currentUserRole === 'agent' && window.currentWorkspaceRole === 'agent';
         };
         window.sameEmployee = function(firstName, secondName, firstId='', secondId='') {
             if(firstId&&secondId&&firstId===secondId) return true;
@@ -3253,6 +3276,10 @@
         };
 
         window.deleteEmployeeFromCloud = async function(empId) {
+            if (!(window.hasManagerPermissions && window.hasManagerPermissions())) {
+                if (window.showToast) window.showToast('إدارة الموظفين متاحة للمدير العام فقط.', 'error');
+                return;
+            }
             window.employees = window.employees.filter(e => e.id !== empId);
             window.saveLocalBackup();
             renderEmployeeSelects();
@@ -3922,16 +3949,20 @@
             showToast(`تم تجهيز المستند: ${file.name}. اضغط حفظ لإتمام الرفع.`, 'info');
         }
 
-        function getClientsAvailableToCurrentUser() {
+        function getOwnedClientsForCurrentEmployee() {
             const clients = (window.clients || []).filter(client => client && !client.deletedAt);
-            if (window.hasManagerPermissions && window.hasManagerPermissions()) return clients;
-
             const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
             if (!loggedEmployee) return [];
 
             // ملكية العميل تحدد فقط بالموظف الذي سجله، وليس بمن نفذ إجراءً
             // قديماً عليه. بهذا لا يمنح الخطأ السابق صلاحية دائمة لموظف آخر.
             return clients.filter(client => window.clientBelongsToEmployee(client, loggedEmployee));
+        }
+
+        function getClientsAvailableToCurrentUser() {
+            const clients = (window.clients || []).filter(client => client && !client.deletedAt);
+            if (window.hasManagerPermissions && window.hasManagerPermissions() && !(window.isEmployeeWorkspace && window.isEmployeeWorkspace())) return clients;
+            return getOwnedClientsForCurrentEmployee();
         }
 
         window.clientBelongsToEmployee = function(client, employee) {
@@ -4403,7 +4434,7 @@
             const directoryMode = window.clientDirectoryMode || 'directory';
             const isEmployeeLookup = directoryMode === 'directory' && window.currentUserRole === 'agent' && !(window.hasManagerPermissions && window.hasManagerPermissions());
             const directoryClients = directoryMode === 'mine' && window.currentUserRole === 'agent'
-                ? getClientsAvailableToCurrentUser()
+                ? getOwnedClientsForCurrentEmployee()
                 : (window.clients || []).filter(client => client && !client.deletedAt);
 
             const filtered = directoryClients.filter(c => {
@@ -4543,9 +4574,9 @@
         }
 
         function configureClientDirectoryView(mode = 'directory') {
-            const isAgent = window.currentUserRole === 'agent' && !(window.hasManagerPermissions && window.hasManagerPermissions());
-            const isEmployeeLookup = mode === 'directory' && isAgent;
-            const isPersonal = mode === 'mine' && isAgent;
+            const isLoggedEmployee = window.currentUserRole === 'agent';
+            const isEmployeeLookup = mode === 'directory' && isLoggedEmployee && !(window.hasManagerPermissions && window.hasManagerPermissions());
+            const isPersonal = mode === 'mine' && isLoggedEmployee;
             window.clientDirectoryMode = isPersonal ? 'mine' : 'directory';
 
             const title = document.getElementById('clientDirectoryTitle');
@@ -4820,7 +4851,7 @@
         }
 
         function getSmartFollowUpScopeTasks() {
-            const activeAgent = (window.currentUserRole === 'agent' && !(window.hasManagerPermissions && window.hasManagerPermissions())) ? window.currentLoggedInAgent : window.currentAgent;
+            const activeAgent = (window.isEmployeeWorkspace && window.isEmployeeWorkspace()) ? window.currentLoggedInAgent : window.currentAgent;
             const activeEmployee = activeAgent === 'ALL' ? null : window.findEmployeeByName(activeAgent);
             return (window.tasks || []).filter(task => {
                 if (!task || task.deletedAt) return false;
@@ -5053,7 +5084,7 @@
             const searchVal = document.getElementById('agentSearchInput') ? document.getElementById('agentSearchInput').value.trim().toLowerCase() : '';
 
             let allTasks = window.tasks || [];
-            let activeAgent = (window.currentUserRole === 'agent' && !(window.hasManagerPermissions && window.hasManagerPermissions())) ? window.currentLoggedInAgent : window.currentAgent;
+            let activeAgent = (window.isEmployeeWorkspace && window.isEmployeeWorkspace()) ? window.currentLoggedInAgent : window.currentAgent;
             const activeEmployee=(activeAgent==='ALL')?null:window.findEmployeeByName(activeAgent);
             const employeeMatch=t=>activeAgent==='ALL'||window.sameEmployee(t.agent,activeAgent,t.agentId||'',activeEmployee?.id||window.currentLoggedInEmployeeId||'');
             const periodTasks = allTasks.filter(t => employeeMatch(t) && taskMatchesAgentDateFilter(t));
@@ -5557,27 +5588,27 @@
                 const loggedEmployee = resolvedEmployee;
                 const isTechnicalSupport = window.getEmployeeDepartment && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
                 const isSupervisor = window.getEmployeeAccessLevel && window.getEmployeeAccessLevel(loggedEmployee) === 'supervisor';
-                const hasFullAccess = window.isFullAccessSupervisor && window.isFullAccessSupervisor(loggedEmployee);
-                nameSpan.innerText = hasFullAccess ? `المشرف: ${agentName} — صلاحية مدير` : `الموظف: ${agentName}`;
-                roleSwitcher.classList.toggle('hidden', !hasFullAccess);
-                btnManageEmp.classList.toggle('hidden', !hasFullAccess);
-                agentSelectorWrapper.classList.toggle('hidden', !hasFullAccess);
+                const hasReportingAccess = window.isReportingSupervisor && window.isReportingSupervisor(loggedEmployee);
+                nameSpan.innerText = hasReportingAccess ? `المشرف: ${agentName} — تقارير الفريق` : `الموظف: ${agentName}`;
+                roleSwitcher.classList.toggle('hidden', !hasReportingAccess);
+                btnManageEmp.classList.add('hidden');
+                agentSelectorWrapper.classList.add('hidden');
                 if (btnAgentChangePin) btnAgentChangePin.classList.remove('hidden');
                 if (btnTechnicalSupport) {
-                    btnTechnicalSupport.classList.toggle('hidden', !(isTechnicalSupport || hasFullAccess));
-                    btnTechnicalSupport.classList.toggle('flex', isTechnicalSupport || hasFullAccess);
+                    btnTechnicalSupport.classList.toggle('hidden', !isTechnicalSupport);
+                    btnTechnicalSupport.classList.toggle('flex', isTechnicalSupport);
                 }
                 if (btnCustomerAssignTask) {
-                    const canAssignCustomer = hasFullAccess || (!isTechnicalSupport && isSupervisor);
+                    const canAssignCustomer = !isTechnicalSupport && isSupervisor;
                     btnCustomerAssignTask.classList.toggle('hidden', !canAssignCustomer);
                     btnCustomerAssignTask.classList.toggle('flex', canAssignCustomer);
                 }
                 if (btnEmployeeAttendance) { btnEmployeeAttendance.classList.remove('hidden'); btnEmployeeAttendance.classList.add('flex'); }
                 if (btnManagerAttendance) {
-                    btnManagerAttendance.classList.toggle('hidden', !hasFullAccess);
-                    btnManagerAttendance.classList.toggle('flex', hasFullAccess);
+                    btnManagerAttendance.classList.toggle('hidden', !hasReportingAccess);
+                    btnManagerAttendance.classList.toggle('flex', hasReportingAccess);
                 }
-                window.currentAgent = hasFullAccess ? 'ALL' : window.currentLoggedInAgent;
+                window.currentAgent = hasReportingAccess ? 'ALL' : window.currentLoggedInAgent;
                 window.currentDateFilter = window.getLocalDateString();
                 window.agentDateMode = 'DAY';
                 window.agentDateRangeStart = window.currentDateFilter;
@@ -5585,8 +5616,8 @@
                 const datePicker = document.getElementById('globalDatePicker');
                 if (datePicker) datePicker.value = window.currentDateFilter;
                 syncAgentDateControls();
-                switchRole(hasFullAccess ? 'manager' : 'agent');
-                if (isTechnicalSupport && !hasFullAccess) setTimeout(() => window.openTechnicalSupportWorkspace && window.openTechnicalSupportWorkspace(), 100);
+                switchRole(hasReportingAccess ? 'manager' : 'agent');
+                if (isTechnicalSupport && !hasReportingAccess) setTimeout(() => window.openTechnicalSupportWorkspace && window.openTechnicalSupportWorkspace(), 100);
             }
 
             renderApp();
@@ -5646,21 +5677,31 @@
         }
 
         function switchRole(role) {
-            if (role === 'manager' && !(window.hasManagerPermissions && window.hasManagerPermissions())) {
+            if (role === 'manager' && !(window.canAccessReportsDashboard && window.canAccessReportsDashboard())) {
                 showToast('لوحة المدير متاحة للمدير ولمشرفي المبيعات والدعم فقط.', 'error');
                 return;
             }
+            window.currentWorkspaceRole = role;
             const btnAgent = document.getElementById('btnRoleAgent');
             const btnManager = document.getElementById('btnRoleManager');
             const agentView = document.getElementById('agentView');
             const managerView = document.getElementById('managerView');
+            const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
+            const agentSelector = document.getElementById('agentSelector');
 
             if (role === 'agent') {
+                if (window.currentUserRole === 'agent') {
+                    window.currentAgent = window.currentLoggedInAgent;
+                    if (agentSelector && Array.from(agentSelector.options).some(option => option.value === window.currentLoggedInAgent)) agentSelector.value = window.currentLoggedInAgent;
+                    if (agentSelectorWrapper) agentSelectorWrapper.classList.add('hidden');
+                }
                 if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-white text-brand-600 shadow-sm cursor-pointer";
                 if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
                 agentView.classList.remove('hidden');
                 managerView.classList.add('hidden');
+                renderAgentTasks();
             } else {
+                if (window.currentUserRole === 'agent') window.currentAgent = 'ALL';
                 if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-white text-brand-600 shadow-sm cursor-pointer";
                 if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
                 agentView.classList.add('hidden');
@@ -5774,13 +5815,16 @@
             if (agentSelector) agentSelector.innerHTML = optionsHtml;
             if (formAgent) formAgent.innerHTML = formOptionsHtml;
             if (summaryAgent) {
-                summaryAgent.innerHTML = optionsHtml;
+                const summaryEmployees = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
+                    ? window.getCurrentSupervisorTeam()
+                    : (window.employees || []);
+                summaryAgent.innerHTML = '<option value="ALL">جميع موظفي النطاق</option>' + summaryEmployees.map(emp => `<option value="${escapeHtml(emp.name)}">${escapeHtml(emp.name)} (${escapeHtml(emp.shift || '')})</option>`).join('');
                 summaryAgent.value = Array.from(summaryAgent.options).some(option => option.value === selectedSummaryAgent) ? selectedSummaryAgent : 'ALL';
             }
 
             if (summaryCity) {
                 const cities = Array.from(new Set((window.clients || [])
-                    .filter(client => client && !client.deletedAt)
+                    .filter(client => client && !client.deletedAt && window.isEmployeeAllowedInSupervisorReports(client.addedBy))
                     .map(client => normalizeReportCity(client.city))))
                     .filter(Boolean)
                     .sort((a, b) => a.localeCompare(b, 'ar'));
@@ -5798,6 +5842,10 @@
         }
 
         function openEmployeeModal() {
+            if (!(window.hasManagerPermissions && window.hasManagerPermissions())) {
+                showToast('إدارة الموظفين متاحة للمدير العام فقط.', 'error');
+                return;
+            }
             renderEmployeeListUI();
             document.getElementById('manageEmployeesModal').classList.remove('hidden');
         }
@@ -5881,7 +5929,7 @@
                     </select>
                     <select onchange="updateEmployeeAccessLevel('${emp.id}',this.value)" class="border border-slate-200 rounded-lg p-1.5 text-[10px] font-bold bg-slate-50">
                         <option value="employee" ${window.getEmployeeAccessLevel(emp)==='employee'?'selected':''}>موظف</option>
-                        <option value="supervisor" ${window.getEmployeeAccessLevel(emp)==='supervisor'?'selected':''}>مشرف — صلاحيات مدير كاملة</option>
+                        <option value="supervisor" ${window.getEmployeeAccessLevel(emp)==='supervisor'?'selected':''}>مشرف — تقارير ومتابعة الفريق</option>
                     </select>
                     <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
                         <i class="fa-solid fa-trash-can"></i>
@@ -5891,6 +5939,10 @@
         }
 
         function addNewEmployee() {
+            if (!(window.hasManagerPermissions && window.hasManagerPermissions())) {
+                showToast('إضافة الموظفين متاحة للمدير العام فقط.', 'error');
+                return;
+            }
             const nameInput = document.getElementById('newEmployeeName');
             const shiftSelect = document.getElementById('newEmployeeShift');
             const departmentSelect = document.getElementById('newEmployeeDepartment');
@@ -5919,6 +5971,7 @@
         }
 
         function updateEmployeeDepartment(empId, department) {
+            if (!(window.hasManagerPermissions && window.hasManagerPermissions())) return showToast('إدارة الموظفين متاحة للمدير العام فقط.', 'error');
             const emp = (window.employees || []).find(e => e.id === empId);
             if (!emp) return;
             emp.department = department;
@@ -5926,6 +5979,7 @@
             showToast(`تم تحويل ${emp.name} إلى قسم ${department}`);
         }
         function updateEmployeeAccessLevel(empId, accessLevel) {
+            if (!(window.hasManagerPermissions && window.hasManagerPermissions())) return showToast('إدارة الموظفين متاحة للمدير العام فقط.', 'error');
             const emp = (window.employees || []).find(e => e.id === empId); if (!emp) return;
             emp.accessLevel = accessLevel; window.saveEmployeeToCloud(emp); showToast(`تم تحديث صلاحية ${emp.name} إلى ${window.getEmployeeJobTitle(emp)}`);
         }
@@ -6186,18 +6240,32 @@
             const select = document.getElementById('attendanceEmployeeFilter');
             if (!select) return;
             const current = select.value || 'ALL';
-            select.innerHTML = '<option value="ALL">جميع الموظفين</option>' + (window.employees || []).map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(emp.name)} — ${escapeHtml(window.getEmployeeJobTitle(emp))}</option>`).join('');
+            const availableEmployees = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
+                ? window.getCurrentSupervisorTeam()
+                : (window.employees || []);
+            select.innerHTML = '<option value="ALL">جميع موظفي النطاق</option>' + availableEmployees.map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(emp.name)} — ${escapeHtml(window.getEmployeeJobTitle(emp))}</option>`).join('');
             select.value = [...select.options].some(option => option.value === current) ? current : 'ALL';
         }
 
         function openAttendanceManagerModal() {
-            if (!(window.hasManagerPermissions && window.hasManagerPermissions())) return showToast('سجل الحضور متاح للمدير والمشرفين المخولين فقط.', 'error');
+            if (!(window.canAccessReportsDashboard && window.canAccessReportsDashboard())) return showToast('سجل الحضور متاح للمدير والمشرفين المخولين فقط.', 'error');
             const today = window.getLocalDateString();
             const from = document.getElementById('attendanceFromDate');
             const to = document.getElementById('attendanceToDate');
             if (from && !from.value) from.value = today;
             if (to && !to.value) to.value = today;
             populateAttendanceEmployeeFilter();
+            const loggedSupervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+            const isSupervisorAccount = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedSupervisor);
+            const shiftFilter = document.getElementById('attendanceShiftFilter');
+            const departmentFilter = document.getElementById('attendanceDepartmentFilter');
+            if (isSupervisorAccount) {
+                if (shiftFilter) shiftFilter.value = 'ALL';
+                if (departmentFilter) departmentFilter.value = window.getEmployeeDepartment(loggedSupervisor) || 'ALL';
+            } else {
+                if (shiftFilter) shiftFilter.value = 'ALL';
+                if (departmentFilter) departmentFilter.value = 'ALL';
+            }
             renderAttendanceManager();
             document.getElementById('attendanceManagerModal').classList.remove('hidden');
         }
@@ -6213,9 +6281,15 @@
             const from = document.getElementById('attendanceFromDate')?.value || today;
             const to = document.getElementById('attendanceToDate')?.value || today;
             const employeeId = document.getElementById('attendanceEmployeeFilter')?.value || 'ALL';
+            const shift = document.getElementById('attendanceShiftFilter')?.value || 'ALL';
             const department = document.getElementById('attendanceDepartmentFilter')?.value || 'ALL';
+            const supervisorTeamIds = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
+                ? new Set(window.getCurrentSupervisorTeam().map(emp => emp.id))
+                : null;
             const eligibleEmployees = (window.employees || []).filter(emp =>
+                (!supervisorTeamIds || supervisorTeamIds.has(emp.id)) &&
                 (employeeId === 'ALL' || emp.id === employeeId) &&
+                (shift === 'ALL' || emp.shift === shift) &&
                 (department === 'ALL' || window.getEmployeeDepartment(emp) === department)
             );
             const eligibleIds = new Set(eligibleEmployees.map(emp => emp.id));
@@ -6299,14 +6373,25 @@
 
         function renderApp() {
             renderAgentTasks();
-            if (window.hasManagerPermissions && window.hasManagerPermissions()) {
+            if (window.canAccessReportsDashboard && window.canAccessReportsDashboard()) {
                 renderManagerDashboard();
             }
             if (window.renderAttendanceUI) window.renderAttendanceUI();
         }
 
         function renderManagerDashboard() {
-            const dayTasks = getFilteredDateTasks();
+            const supervisorTeam = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
+                ? window.getCurrentSupervisorTeam()
+                : null;
+            const supervisorTeamNames = supervisorTeam ? new Set(supervisorTeam.map(emp => window.normalizeEmployeeName(emp.name))) : null;
+            const managerScopeBadge = document.getElementById('managerScopeBadge');
+            if (managerScopeBadge) {
+                const loggedSupervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+                managerScopeBadge.textContent = supervisorTeam
+                    ? `نطاق الإشراف: ${window.getEmployeeDepartment(loggedSupervisor)} — جميع الشفتات — ${supervisorTeam.length} موظف`
+                    : 'لوحة المتابعة المباشرة والتقارير الشاملة';
+            }
+            const dayTasks = getFilteredDateTasks().filter(task => !supervisorTeamNames || supervisorTeamNames.has(window.normalizeEmployeeName(task.agent)));
 
             const answeredCalls = dayTasks.filter(isAnsweredPhoneAction).length;
             const unansweredCalls = dayTasks.filter(isUnansweredPhoneAction).length;
@@ -6320,6 +6405,7 @@
             const completedInternalDayTasks = internalDayTasks.filter(task => getInternalTaskState(task, window.currentDateFilter) === 'مكتملة').length;
             const overdueInternalTasks = (window.tasks || []).filter(task =>
                 isInternalTask(task) &&
+                (!supervisorTeamNames || supervisorTeamNames.has(window.normalizeEmployeeName(task.agent))) &&
                 getInternalTaskState(task, window.currentDateFilter) === 'متأخرة'
             ).length;
 
@@ -6330,7 +6416,9 @@
             if (document.getElementById('mgrMeetingsCount')) document.getElementById('mgrMeetingsCount').innerText = meetingsCount;
             if (document.getElementById('mgrNabdiContracts')) document.getElementById('mgrNabdiContracts').innerText = nabdiContracts;
             if (document.getElementById('mgrBothContracts')) document.getElementById('mgrBothContracts').innerText = bothContracts;
-            if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = window.clients.length;
+            if (document.getElementById('mgrTotalClientsCount')) document.getElementById('mgrTotalClientsCount').innerText = supervisorTeamNames
+                ? (window.clients || []).filter(client => supervisorTeamNames.has(window.normalizeEmployeeName(client.addedBy))).length
+                : window.clients.length;
             if (document.getElementById('mgrNewClientsCount')) document.getElementById('mgrNewClientsCount').innerText = newClientsCount;
             if (document.getElementById('mgrInternalTasksCount')) document.getElementById('mgrInternalTasksCount').innerText = internalDayTasks.length;
             if (document.getElementById('mgrInternalTasksDone')) document.getElementById('mgrInternalTasksDone').innerText = completedInternalDayTasks;
@@ -6357,8 +6445,9 @@
             const eveBoth = eveTasks.filter(isSignedContractAction).length;
             const eveCallsTotal = eveAns + eveUnans;
 
-            const mornEmps = (window.employees || []).filter(e => e.shift === 'شفت صباحي').length;
-            const eveEmps = (window.employees || []).filter(e => e.shift === 'شفت مسائي').length;
+            const dashboardEmployees = supervisorTeam || (window.employees || []);
+            const mornEmps = dashboardEmployees.filter(e => e.shift === 'شفت صباحي').length;
+            const eveEmps = dashboardEmployees.filter(e => e.shift === 'شفت مسائي').length;
 
             if (document.getElementById('shiftMornEmpCount')) document.getElementById('shiftMornEmpCount').innerText = `${mornEmps} موظفين`;
             if (document.getElementById('shiftMornCalls')) document.getElementById('shiftMornCalls').innerText = mornCallsTotal;
@@ -6388,7 +6477,9 @@
             const tbody = document.getElementById('mgrTeamSummaryBody');
             if (!tbody) return;
 
-            const emps = window.employees || [];
+            const emps = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
+                ? window.getCurrentSupervisorTeam()
+                : (window.employees || []);
             if (emps.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="11" class="text-center p-4 text-slate-400 font-bold">لا يوجد موظفين مسجلين.</td></tr>';
                 return;
@@ -6520,14 +6611,20 @@
         }
 
         function openDailySummaryModal() {
+            if (!(window.canAccessReportsDashboard && window.canAccessReportsDashboard())) {
+                showToast('مركز التقارير متاح للمدير والمشرفين فقط.', 'error');
+                return;
+            }
             renderEmployeeSelects();
             const today = window.currentDateFilter || window.getLocalDateString();
             const monthStart = `${today.slice(0, 8)}01`;
             const saved = getSavedReportViewState();
+            const loggedSupervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+            const isSupervisorReport = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedSupervisor);
             document.getElementById('summaryStartDate').value = saved?.start || monthStart;
             document.getElementById('summaryEndDate').value = saved?.end || today;
             restoreReportSelectValue('reportTypeSelect', saved?.reportType || 'SHIFT_AGENT', 'SHIFT_AGENT');
-            restoreReportSelectValue('summaryShiftFilter', saved?.shift || 'ALL', 'ALL');
+            restoreReportSelectValue('summaryShiftFilter', isSupervisorReport ? 'ALL' : (saved?.shift || 'ALL'), 'ALL');
             restoreReportSelectValue('summaryAgentFilter', saved?.agent || 'ALL', 'ALL');
             restoreReportSelectValue('summaryCityFilter', saved?.city || 'ALL', 'ALL');
             restoreReportSelectValue('summaryStageFilter', saved?.stage || 'ALL', 'ALL');
@@ -6751,7 +6848,9 @@
                 projects = projects.filter(function(project) {
                     const stamp = project.sentAt || project.createdAt || 0;
                     const date = stamp ? window.getLocalDateString(stamp) : '';
+                    const supervisorScopeMatch = window.currentUserRole !== 'agent' || [project.sender, project.receivedBy, project.completedBy].concat((project.tasks || []).map(function(task) { return task.agent; })).some(window.isEmployeeAllowedInSupervisorReports);
                     return (!date || ((!context.start || date >= context.start) && (!context.end || date <= context.end))) &&
+                        supervisorScopeMatch &&
                         (context.agent === 'ALL' || project.receivedBy === context.agent || project.completedBy === context.agent || (project.tasks || []).some(function(task) { return task.agent === context.agent; }));
                 });
                 if (label === 'بانتظار رابط البيانات') projects = projects.filter(function(project) { return ['بانتظار رابط البيانات', 'بانتظار الاستلام'].includes(project.handoffStatus); });
@@ -6943,7 +7042,7 @@
         function reportHeader(title, start, end, shift, agent, city, stage) {
             const filterText = [
                 shift === 'ALL' ? 'كل الشفتات' : shift,
-                agent === 'ALL' ? 'كل الموظفين' : agent,
+                agent === 'ALL' ? (window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent)) ? 'فريق المشرف' : 'كل الموظفين') : agent,
                 city === 'ALL' ? 'كل المدن' : city,
                 stage === 'ALL' ? 'كل المراحل' : stage
             ].join(' — ');
@@ -7048,6 +7147,7 @@
         function getAttendanceReportRecords(start, end, shift, agent) {
             return (window.attendanceRecords || []).filter(function(record) {
                 return record && !record.deletedAt &&
+                    window.isEmployeeAllowedInSupervisorReports(record.employeeName) &&
                     (!start || record.date >= start) &&
                     (!end || record.date <= end) &&
                     (shift === 'ALL' || record.shift === shift) &&
@@ -7308,6 +7408,7 @@
         function getReportSourceTasks(shift, agent) {
             return (window.tasks || []).filter(function(task) {
                 return task && !task.deletedAt &&
+                    window.isEmployeeAllowedInSupervisorReports(task.agent) &&
                     (shift === 'ALL' || task.shift === shift) &&
                     (agent === 'ALL' || task.agent === agent);
             });
@@ -7618,7 +7719,8 @@
                 const projectDate = stamp ? window.getLocalDateString(stamp) : '';
                 const dateMatch = !projectDate || ((!start || projectDate >= start) && (!end || projectDate <= end));
                 const agentMatch = agent === 'ALL' || p.receivedBy === agent || p.completedBy === agent || (p.tasks || []).some(function(t) { return t.agent === agent; });
-                return dateMatch && agentMatch;
+                const supervisorScopeMatch = window.currentUserRole !== 'agent' || [p.sender, p.receivedBy, p.completedBy].concat((p.tasks || []).map(function(task) { return task.agent; })).some(window.isEmployeeAllowedInSupervisorReports);
+                return dateMatch && agentMatch && supervisorScopeMatch;
             });
             const waitingLink = projects.filter(function(p) { return ['بانتظار رابط البيانات','بانتظار الاستلام'].includes(p.handoffStatus); }).length;
             const linkSent = projects.filter(function(p) { return p.handoffStatus === 'تم إرسال رابط البيانات'; }).length;
@@ -8067,6 +8169,7 @@
             const periodTasks = (window.tasks || []).filter(function(task) {
                 const taskDate = window.getTaskDateString(task);
                 return !task.deletedAt &&
+                    window.isEmployeeAllowedInSupervisorReports(task.agent) &&
                     (!start || taskDate >= start) &&
                     (!end || taskDate <= end) &&
                     (shift === 'ALL' || task.shift === shift) &&
@@ -8074,6 +8177,7 @@
             });
             const allScopedClients = (window.clients || []).filter(function(client) {
                 return client && !client.deletedAt &&
+                    window.isEmployeeAllowedInSupervisorReports(client.addedBy) &&
                     (agent === 'ALL' || client.addedBy === agent) &&
                     (city === 'ALL' || normalizeReportCity(client.city) === city) &&
                     (stage === 'ALL' || client.stage === stage);
@@ -8463,8 +8567,8 @@
             if(window.currentUserRole==='agent' && !(window.hasManagerPermissions&&window.hasManagerPermissions()) && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
             document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام';const assignBtn=document.getElementById('btnSupportAssignTask');const canAssign=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(emp)==='supervisor';if(assignBtn)assignBtn.classList.toggle('hidden',!canAssign); syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
         };
-        window.closeTechnicalSupportWorkspace=function(){ const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.currentUserRole==='agent'&&!(window.hasManagerPermissions&&window.hasManagerPermissions())&&window.getEmployeeDepartment(emp)==='الدعم الفني')return;document.getElementById('technicalSupportWorkspace').classList.add('hidden'); };
-        window.supportDashboardHome=function(){if(window.hasManagerPermissions&&window.hasManagerPermissions()){document.getElementById('technicalSupportWorkspace').classList.add('hidden');switchRole('manager');window.scrollTo({top:0,behavior:'smooth'});return;}document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
+        window.closeTechnicalSupportWorkspace=function(){ const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.currentUserRole==='agent'&&!(window.canAccessReportsDashboard&&window.canAccessReportsDashboard())&&window.getEmployeeDepartment(emp)==='الدعم الفني')return;document.getElementById('technicalSupportWorkspace').classList.add('hidden'); };
+        window.supportDashboardHome=function(){if(window.canAccessReportsDashboard&&window.canAccessReportsDashboard()){document.getElementById('technicalSupportWorkspace').classList.add('hidden');switchRole('manager');window.scrollTo({top:0,behavior:'smooth'});return;}document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
         window.supportLogout=function(){document.getElementById('technicalSupportWorkspace').classList.add('hidden');logout();};
         window.syncSupportProjectsFromFunnel=function(notify=true){
             let projects=loadSupport(),changed=0;
