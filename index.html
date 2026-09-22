@@ -494,7 +494,7 @@
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">نوع الحساب / الدور</label>
                     <select id="loginRole" onchange="toggleLoginInputs()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-800 text-xs focus:outline-none focus:border-brand-500">
-                        <option value="agent">👨‍💼 موظف خدمة عملاء (Agent)</option>
+                        <option value="agent">👨‍💼 فريق العمل (موظف / مشرف / مدير متابعة)</option>
                         <option value="manager">👑 مدير المنظومة (Manager)</option>
                     </select>
                 </div>
@@ -605,7 +605,7 @@
                         <button id="btnRoleManager" onclick="switchRole('manager')" 
                                 class="px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer">
                             <i class="fa-solid fa-chart-pie"></i>
-                            <span>لوحة الإشراف والتقارير</span>
+                            <span id="roleManagerButtonLabel">لوحة الإشراف والتقارير</span>
                         </button>
                     </div>
 
@@ -1128,6 +1128,54 @@
 
         </div>
 
+        <!-- ========================================== -->
+        <!-- VIEW 3: SUPPORT SUPERVISOR DASHBOARD -->
+        <!-- ========================================== -->
+        <div id="supportSupervisorView" class="hidden space-y-6">
+            <div class="bg-gradient-to-l from-slate-950 via-indigo-950 to-violet-900 text-white rounded-3xl p-6 shadow-xl border border-violet-500/30">
+                <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+                    <div>
+                        <span class="inline-flex items-center gap-2 bg-white/10 border border-white/15 px-3 py-1 rounded-full text-xs font-black text-violet-100"><i class="fa-solid fa-headset"></i> لوحة إشراف الدعم الفني</span>
+                        <h2 class="text-2xl font-black mt-3">متابعة فريق الدعم والتاسكات والبصمة</h2>
+                        <p class="text-violet-200 text-xs mt-1">تقارير الدعم الفني فقط — جميع الشفتات — بدون تقارير خدمة العملاء.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openTechnicalSupportWorkspace()" class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-headset ml-1"></i>مركز عمل الدعم</button>
+                        <button onclick="openDailySummaryModal('SUPPORT_PERFORMANCE')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-chart-line ml-1"></i>تقارير الدعم</button>
+                        <button onclick="openAttendanceManagerModal()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-fingerprint ml-1"></i>مراجعة البصمة</button>
+                        <button onclick="openDepartmentTaskModal('الدعم الفني')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-user-check ml-1"></i>إسناد تاسك</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm"><span class="text-[11px] font-bold text-slate-500">فريق الدعم</span><b id="supportSupTeamCount" class="block text-2xl text-indigo-700 mt-1">0</b></div>
+                <div class="bg-white border border-sky-200 rounded-2xl p-4 shadow-sm"><span class="text-[11px] font-bold text-slate-500">تاسكات جديدة</span><b id="supportSupNewCount" class="block text-2xl text-sky-700 mt-1">0</b></div>
+                <div class="bg-white border border-amber-200 rounded-2xl p-4 shadow-sm"><span class="text-[11px] font-bold text-slate-500">جاري التنفيذ</span><b id="supportSupActiveCount" class="block text-2xl text-amber-600 mt-1">0</b></div>
+                <div class="bg-white border border-rose-200 rounded-2xl p-4 shadow-sm"><span class="text-[11px] font-bold text-slate-500">متأخرة</span><b id="supportSupLateCount" class="block text-2xl text-rose-600 mt-1">0</b></div>
+                <div class="bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm"><span class="text-[11px] font-bold text-slate-500">مكتملة</span><b id="supportSupDoneCount" class="block text-2xl text-emerald-700 mt-1">0</b></div>
+                <div class="bg-white border border-violet-200 rounded-2xl p-4 shadow-sm"><span class="text-[11px] font-bold text-slate-500">ملفات الدعم المفتوحة</span><b id="supportSupProjectsCount" class="block text-2xl text-violet-700 mt-1">0</b></div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+                    <div><h3 class="font-black text-sm text-slate-900">أداء موظفي الدعم في جميع الشفتات</h3><p class="text-[10px] text-slate-500 mt-1">التاسكات الجديدة والمستلمة والمكتملة والمتأخرة لكل موظف.</p></div>
+                    <button onclick="openTaskNotifications()" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-bell text-amber-300 ml-1"></i>متابعة إشعارات التاسكات</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs">
+                        <thead class="bg-slate-100 text-slate-700"><tr><th class="p-3">الموظف</th><th class="p-3">الشفت</th><th class="p-3 text-center">الإجمالي</th><th class="p-3 text-center">جديدة</th><th class="p-3 text-center">جاري التنفيذ</th><th class="p-3 text-center">مكتملة</th><th class="p-3 text-center">متأخرة</th><th class="p-3 text-center">نسبة الإنجاز</th></tr></thead>
+                        <tbody id="supportSupervisorTeamBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b bg-slate-50"><h3 class="font-black text-sm text-slate-900">آخر التاسكات وتحديثات التنفيذ</h3></div>
+                <div id="supportSupervisorRecentTasks" class="divide-y divide-slate-100"></div>
+            </div>
+        </div>
+
     </main>
 
     <div id="departmentTaskModal" class="fixed inset-0 bg-slate-950/70 z-[120] hidden p-4 flex items-center justify-center" dir="rtl">
@@ -1154,7 +1202,7 @@
 
     <div id="taskNotificationsModal" class="fixed inset-0 bg-slate-950/65 z-[135] hidden p-4 flex items-start justify-center pt-20" dir="rtl">
         <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div class="bg-slate-950 text-white p-4 flex justify-between items-center"><div><h3 class="font-black">إشعارات المهام</h3><p class="text-[10px] text-slate-300">المهام الجديدة المسندة إليك</p></div><button onclick="closeTaskNotifications()"><i class="fa-solid fa-xmark"></i></button></div>
+            <div class="bg-slate-950 text-white p-4 flex justify-between items-center"><div><h3 class="font-black">إشعارات المهام</h3><p class="text-[10px] text-slate-300">الإسناد والاستلام والتحديث والإنهاء لحظة بلحظة</p></div><button onclick="closeTaskNotifications()"><i class="fa-solid fa-xmark"></i></button></div>
             <div class="p-3 border-b flex justify-end"><button onclick="markAllTaskNotificationsRead()" class="text-xs font-black text-sky-700">تحديد الكل كمقروء</button></div>
             <div id="taskNotificationsList" class="max-h-[60vh] overflow-y-auto divide-y"></div>
         </div>
@@ -1866,7 +1914,7 @@
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                     <h4 class="font-black text-slate-800 text-xs flex items-center gap-1.5">
                         <i class="fa-solid fa-user-plus text-amber-600"></i>
-                        <span>إضافة موظف جديد لخدمة العملاء</span>
+                        <span>إضافة حساب موظف / مشرف / مدير متابعة</span>
                     </h4>
                     <div>
                         <label class="block font-bold text-slate-700 mb-1">اسم الموظف الثلاثي *</label>
@@ -1887,6 +1935,7 @@
                             <select id="newEmployeeAccessLevel" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none">
                                 <option value="employee">موظف</option>
                                 <option value="supervisor">مشرف القسم — تقارير ومتابعة الفريق</option>
+                                <option value="manager">مدير متابعة — جميع صلاحيات المدير</option>
                             </select>
                         </div>
                         <div>
@@ -2064,7 +2113,7 @@
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-4 flex justify-between items-center shrink-0 no-print">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-chart-pie text-amber-300 text-lg"></i>
-                    <h3 class="font-extrabold text-base">مركز تقارير نبضي — تقارير إنفوجرافيك مستقلة</h3>
+                    <h3 id="reportCenterTitle" class="font-extrabold text-base">مركز تقارير نبضي — تقارير إنفوجرافيك مستقلة</h3>
                 </div>
                 <button type="button" onclick="closeDailySummaryModal()" class="text-slate-300 hover:text-white text-xl cursor-pointer">
                     <i class="fa-solid fa-xmark"></i>
@@ -2639,9 +2688,14 @@
             if (String(emp.name || '').includes('الدعم الفني') || String(emp.name || '').includes('دعم فني')) return 'الدعم الفني';
             return saved || 'خدمات العملاء';
         };
-        window.getEmployeeAccessLevel = function(emp) { return emp && (emp.accessLevel === 'supervisor' || emp.isSupervisor === true) ? 'supervisor' : 'employee'; };
+        window.getEmployeeAccessLevel = function(emp) {
+            if (emp?.accessLevel === 'manager') return 'manager';
+            return emp && (emp.accessLevel === 'supervisor' || emp.isSupervisor === true) ? 'supervisor' : 'employee';
+        };
         window.getEmployeeJobTitle = function(emp) {
-            const department = window.getEmployeeDepartment(emp), supervisor = window.getEmployeeAccessLevel(emp) === 'supervisor';
+            const accessLevel = window.getEmployeeAccessLevel(emp);
+            if (accessLevel === 'manager') return 'مدير متابعة — صلاحيات المدير';
+            const department = window.getEmployeeDepartment(emp), supervisor = accessLevel === 'supervisor';
             if (department === 'الدعم الفني') return supervisor ? 'مشرف الدعم الفني — تقارير الفريق' : 'موظف دعم فني';
             if (department === 'خدمات العملاء') return supervisor ? 'مشرف خدمات المبيعات — تقارير الفريق' : 'موظف خدمات مبيعات';
             return supervisor ? 'مدير إداري' : 'موظف إدارة';
@@ -3302,6 +3356,7 @@
         window.saveTaskToCloud = async function(taskData) {
             if (!taskData.id) taskData.id = 'task_' + Date.now();
             taskData.createdAt = taskData.createdAt || Date.now();
+            taskData.updatedAt = Date.now();
             const taskEmployee=window.findEmployeeByName(taskData.agent);
             taskData.agentId=taskData.agentId||taskEmployee?.id||'';
             const existingStoredTask = typeof window.findTaskByRecordId === 'function'
@@ -3514,6 +3569,10 @@
 
         function isInternalTask(task) {
             return Boolean(task && task.taskType === 'internal');
+        }
+
+        function isInternalTaskAccepted(task) {
+            return Boolean(task && (task.acceptedAt || (Array.isArray(task.activityLog) && task.activityLog.length)));
         }
 
         function getInternalTaskState(task, referenceDate = window.getLocalDateString()) {
@@ -5145,6 +5204,10 @@
                 const canModifyClient = matchedClient ? window.canCurrentUserActOnClient(matchedClient) : false;
                 const canModifyTask = (window.hasManagerPermissions && window.hasManagerPermissions()) ||
                     (window.sameEmployee(t.agent, window.currentLoggedInAgent) && canModifyClient);
+                const isOwnInternalTask = t.taskType === 'internal' && window.sameEmployee(t.agent, window.currentLoggedInAgent, t.agentId || '', window.currentLoggedInEmployeeId || '');
+                const internalTaskAccepted = isInternalTaskAccepted(t);
+                const canWorkInternalTask = (window.hasManagerPermissions && window.hasManagerPermissions()) || (isOwnInternalTask && internalTaskAccepted);
+                const internalTaskActions = t.taskType === 'internal' ? `${t.status !== 'مكتمل' && isOwnInternalTask && !internalTaskAccepted ? `<button type="button" onclick="acceptInternalTask('${t.id}')" class="bg-violet-700 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-hand ml-1"></i>استلام المهمة</button>` : ''}${t.status !== 'مكتمل' && canWorkInternalTask ? `<button type="button" onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-comment-dots ml-1"></i>إجراء / تعليق</button><button type="button" onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-check ml-1"></i>إنهاء المهمة</button>` : ''}${t.status === 'مكتمل' ? '<span class="bg-emerald-100 text-emerald-800 px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-circle-check ml-1"></i>مكتملة</span>' : ''}` : '';
 
                 return `
                     <tr class="hover:bg-slate-50/80 transition-colors">
@@ -5178,7 +5241,7 @@
                                         <span>إجراء</span>
                                     </button>` : ''}
                                 ` : ''}
-                                ${t.taskType === 'internal' ? `${t.status!=='مكتمل'?`<button type="button" onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black"><i class="fa-solid fa-comment-dots ml-1"></i>إجراء / تعليق</button>`:''}<button type="button" onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black" ${t.status==='مكتمل'?'disabled':''}><i class="fa-solid fa-check ml-1"></i>${t.status==='مكتمل'?'مكتملة':'إنهاء المهمة'}</button>` : (canModifyTask ? `<button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل الإجراء"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف الإجراء"><i class="fa-solid fa-trash-can"></i></button>` : '')}
+                                ${t.taskType === 'internal' ? internalTaskActions : (canModifyTask ? `<button type="button" onclick="editTask('${t.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg border border-slate-200 transition-colors cursor-pointer" title="تعديل الإجراء"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="confirmDeleteTask('${t.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg border border-rose-200 transition-colors cursor-pointer" title="حذف الإجراء"><i class="fa-solid fa-trash-can"></i></button>` : '')}
                             </div>
                         </td>
                     </tr>
@@ -5189,16 +5252,25 @@
         function getTaskNotificationReadIds(){try{return JSON.parse(localStorage.getItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'))||'[]')}catch(e){return[]}}
         function setTaskNotificationReadIds(ids){localStorage.setItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'),JSON.stringify(Array.from(new Set(ids))));}
         function getAssignedNotificationTasks(){
-            const current=window.currentLoggedInAgent||'المدير العام', manager=Boolean(window.hasManagerPermissions&&window.hasManagerPermissions()), items=[];
+            const current=window.currentLoggedInAgent||'المدير العام', items=[];
             (window.tasks||[]).filter(t=>t.taskType==='internal').forEach(t=>{
-                if(!manager&&t.agent===current) items.push({...t,notificationKey:'assigned:'+t.id,notificationAt:t.createdAt||0,notificationText:t.notes||'',notificationFrom:t.assignedBy||'المدير'});
-                const last=t.activityLog?.[t.activityLog.length-1];
-                if(last&&(manager||t.assignedBy===current)) items.push({...t,notificationKey:'reply:'+t.id+':'+last.at,notificationAt:Date.parse(last.at)||0,notificationText:(t.status==='مكتمل'?'تم إنهاء المهمة: ':'رد الموظف: ')+last.comment,notificationFrom:last.by||t.agent});
+                if(window.sameEmployee(t.agent,current,t.agentId||'',window.currentLoggedInEmployeeId||'')) {
+                    items.push({...t,notificationKind:'assigned',notificationKey:'assigned:'+t.id,notificationAt:Number(t.createdAt||0),notificationText:'تم إسناد تاسك جديد إليك: '+(t.title||t.notes||'مهمة داخلية'),notificationFrom:t.assignedBy||'المدير'});
+                }
+                if(window.sameEmployee(t.assignedBy,current)) {
+                    (t.activityLog||[]).forEach(log=>{
+                        const isAccepted=log.type==='استلام المهمة';
+                        const isCompleted=log.type==='إنهاء المهمة';
+                        const prefix=isAccepted?'استلم المهمة وبدأ التنفيذ: ':isCompleted?'أنهى المهمة: ':'أرسل تحديثًا على المهمة: ';
+                        items.push({...t,notificationKind:isAccepted?'accepted':isCompleted?'completed':'update',notificationKey:'activity:'+t.id+':'+log.at,notificationAt:Date.parse(log.at)||0,notificationText:prefix+(log.comment||t.title||''),notificationFrom:log.by||t.agent});
+                    });
+                }
             });
             return items.sort((a,b)=>(b.notificationAt||0)-(a.notificationAt||0));
         }
-        function updateTaskNotifications(showNewToast=false){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),unread=tasks.filter(t=>!read.includes(t.notificationKey));document.querySelectorAll('.task-notification-badge').forEach(b=>{b.textContent=unread.length;b.classList.toggle('hidden',!unread.length);b.classList.toggle('flex',!!unread.length);});const btn=document.getElementById('btnTaskNotifications');if(btn){btn.classList.remove('hidden');btn.classList.add('flex');}if(showNewToast){const fresh=unread.find(t=>(t.notificationAt||0)>(window.userLoginAt||Date.now())&&t.notificationKey!==window.lastTaskToastId);if(fresh){window.lastTaskToastId=fresh.notificationKey;showToast(`${fresh.notificationFrom}: ${fresh.notificationText||fresh.title||'تحديث مهمة'}`,'info');}}}
-        function openTaskNotifications(){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),box=document.getElementById('taskNotificationsList');box.innerHTML=tasks.length?tasks.map(t=>`<button onclick="openTaskFromNotification('${t.id}','${t.notificationKey}')" class="w-full text-right p-4 hover:bg-sky-50 ${read.includes(t.notificationKey)?'bg-white':'bg-amber-50'}"><div class="flex justify-between gap-2"><b class="text-xs">${escapeHtml(t.title||'مهمة داخلية')}</b>${read.includes(t.notificationKey)?'':'<span class="w-2 h-2 rounded-full bg-rose-500 mt-1"></span>'}</div><p class="text-[10px] text-slate-500 mt-1">من: ${escapeHtml(t.notificationFrom||'-')} · الحالة: ${escapeHtml(t.status||'-')} · التسليم: ${escapeHtml(t.date||'-')}</p><p class="text-[11px] text-slate-700 mt-2">${escapeHtml(t.notificationText||t.notes||'')}</p></button>`).join(''):'<div class="p-10 text-center text-xs text-slate-400">لا توجد إشعارات مهام.</div>';document.getElementById('taskNotificationsModal').classList.remove('hidden');}
+        function playTaskNotificationSound(){try{const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;const context=new AudioContextClass(),oscillator=context.createOscillator(),gain=context.createGain();oscillator.connect(gain);gain.connect(context.destination);oscillator.frequency.setValueAtTime(880,context.currentTime);gain.gain.setValueAtTime(.08,context.currentTime);gain.gain.exponentialRampToValueAtTime(.001,context.currentTime+.22);oscillator.start();oscillator.stop(context.currentTime+.22);}catch(error){}}
+        function updateTaskNotifications(showNewToast=false){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),unread=tasks.filter(t=>!read.includes(t.notificationKey));document.querySelectorAll('.task-notification-badge').forEach(b=>{b.textContent=unread.length;b.classList.toggle('hidden',!unread.length);b.classList.toggle('flex',!!unread.length);});const btn=document.getElementById('btnTaskNotifications');if(btn){btn.classList.remove('hidden');btn.classList.add('flex');btn.classList.toggle('animate-pulse',unread.length>0);}if(showNewToast){const fresh=unread.find(t=>(t.notificationAt||0)>(window.userLoginAt||0)&&t.notificationKey!==window.lastTaskToastId);if(fresh){window.lastTaskToastId=fresh.notificationKey;playTaskNotificationSound();showToast(`${fresh.notificationFrom}: ${fresh.notificationText||fresh.title||'تحديث مهمة'}`,'info');}}}
+        function openTaskNotifications(){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),box=document.getElementById('taskNotificationsList');box.innerHTML=tasks.length?tasks.map(t=>{const kindLabel=t.notificationKind==='assigned'?'تاسك جديد':t.notificationKind==='accepted'?'تم الاستلام':t.notificationKind==='completed'?'تم الإنجاز':'تحديث جديد';const kindClass=t.notificationKind==='completed'?'bg-emerald-100 text-emerald-800':t.notificationKind==='accepted'?'bg-sky-100 text-sky-800':t.notificationKind==='assigned'?'bg-violet-100 text-violet-800':'bg-amber-100 text-amber-800';return `<button onclick="openTaskFromNotification('${t.id}','${t.notificationKey}')" class="w-full text-right p-4 hover:bg-sky-50 ${read.includes(t.notificationKey)?'bg-white':'bg-amber-50'}"><div class="flex justify-between gap-2"><div class="flex items-center gap-2"><b class="text-xs">${escapeHtml(t.title||'مهمة داخلية')}</b><span class="${kindClass} px-2 py-0.5 rounded-full text-[9px] font-black">${kindLabel}</span></div>${read.includes(t.notificationKey)?'':'<span class="w-2 h-2 rounded-full bg-rose-500 mt-1"></span>'}</div><p class="text-[10px] text-slate-500 mt-1">من: ${escapeHtml(t.notificationFrom||'-')} · الحالة: ${escapeHtml(getInternalTaskState(t)||t.status||'-')} · التسليم: ${escapeHtml(t.date||'-')}</p><p class="text-[11px] text-slate-700 mt-2">${escapeHtml(t.notificationText||t.notes||'')}</p></button>`}).join(''):'<div class="p-10 text-center text-xs text-slate-400">لا توجد إشعارات مهام.</div>';document.getElementById('taskNotificationsModal').classList.remove('hidden');}
         function closeTaskNotifications(){document.getElementById('taskNotificationsModal').classList.add('hidden');}
         function markAllTaskNotificationsRead(){setTaskNotificationReadIds(getAssignedNotificationTasks().map(t=>t.notificationKey));updateTaskNotifications();openTaskNotifications();}
         function openTaskFromNotification(id,key){const ids=getTaskNotificationReadIds();ids.push(key||id);setTaskNotificationReadIds(ids);updateTaskNotifications();closeTaskNotifications();const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.hasManagerPermissions&&window.hasManagerPermissions()){switchRole('manager');document.getElementById('managerView')?.scrollIntoView({behavior:'smooth',block:'start'});}else if(window.getEmployeeDepartment(emp)==='الدعم الفني'){openTechnicalSupportWorkspace();document.getElementById('supportInternalTasksList')?.scrollIntoView({behavior:'smooth',block:'start'});}else{switchRole('agent');document.getElementById('agentTaskTableBody')?.scrollIntoView({behavior:'smooth',block:'start'});}}
@@ -5212,7 +5284,7 @@
             document.getElementById('departmentTaskDepartment').value=department;document.getElementById('departmentTaskSubtitle').textContent='القسم: '+department;document.getElementById('departmentTaskTitle').value='';document.getElementById('departmentTaskNotes').value='';document.getElementById('departmentTaskDue').value=window.getLocalDateString();document.getElementById('departmentTaskAssignee').innerHTML=staff.map(e=>`<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');document.getElementById('departmentTaskModal').classList.remove('hidden');
         }
         function closeDepartmentTaskModal(){document.getElementById('departmentTaskModal').classList.add('hidden');}
-        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',agent:assignee,date:due,time:window.getEgyptTimeString(),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'قيد المعالجة',title,notes:(title+(notes?' — '+notes:''))});closeDepartmentTaskModal();showToast('تم إسناد المهمة إلى '+assignee+' وستظهر في حسابه');}
+        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',assignedById:window.currentLoggedInEmployeeId||'manager_primary',agent:assignee,agentId:emp?.id||'',date:due,time:window.getEgyptTimeString(),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'جديدة',title,notes:(title+(notes?' — '+notes:'')),activityLog:[]});closeDepartmentTaskModal();showToast('تم إرسال التاسك إلى '+assignee+' وظهر له إشعار جديد');if(typeof renderSupportSupervisorDashboard==='function')renderSupportSupervisorDashboard();}
 
         function openAddTaskModal(clientIdToPreselect = null, options = {}) {
             const modal = document.getElementById('addTaskModal');
@@ -5365,13 +5437,20 @@
             }
         }
 
-        function openInternalTaskAction(id){const task=(window.tasks||[]).find(t=>t.id===id);if(!task||task.taskType!=='internal')return;if(window.currentUserRole==='agent'&&!(window.hasManagerPermissions&&window.hasManagerPermissions())&&task.agent!==window.currentLoggedInAgent){showToast('هذه المهمة مسندة لموظف آخر','error');return;}document.getElementById('internalTaskActionId').value=id;document.getElementById('internalTaskActionTitle').textContent=task.title||task.notes||'مهمة داخلية';document.getElementById('internalTaskActionComment').value='';document.getElementById('internalTaskActionModal').classList.remove('hidden');}
+        async function acceptInternalTask(id){
+            const task=window.findTaskByRecordId(id);if(!task||task.taskType!=='internal')return;
+            if(!window.sameEmployee(task.agent,window.currentLoggedInAgent,task.agentId||'',window.currentLoggedInEmployeeId||'')){showToast('هذه المهمة مسندة لموظف آخر','error');return;}
+            if(isInternalTaskAccepted(task)){showToast('تم استلام هذه المهمة من قبل','info');return;}
+            const now=new Date().toISOString();task.activityLog=task.activityLog||[];task.activityLog.push({type:'استلام المهمة',comment:'تم استلام المهمة وبدء التنفيذ',by:window.currentLoggedInAgent,at:now});task.acceptedAt=now;task.acceptedBy=window.currentLoggedInAgent;task.status='قيد المعالجة';await window.saveTaskToCloud(task);const readIds=getTaskNotificationReadIds();readIds.push('assigned:'+task.id);setTaskNotificationReadIds(readIds);updateTaskNotifications();showToast('تم استلام المهمة وإرسال إشعار للمشرف');renderAgentTasks();if(typeof window.renderSupportInternalTasks==='function')window.renderSupportInternalTasks();
+        }
+        function openInternalTaskAction(id){const task=(window.tasks||[]).find(t=>t.id===id);if(!task||task.taskType!=='internal')return;if(window.currentUserRole==='agent'&&!(window.hasManagerPermissions&&window.hasManagerPermissions())&&task.agent!==window.currentLoggedInAgent){showToast('هذه المهمة مسندة لموظف آخر','error');return;}if(window.currentUserRole==='agent'&&!isInternalTaskAccepted(task)){showToast('اضغط استلام المهمة وبدء التنفيذ أولاً','error');return;}document.getElementById('internalTaskActionId').value=id;document.getElementById('internalTaskActionTitle').textContent=task.title||task.notes||'مهمة داخلية';document.getElementById('internalTaskActionComment').value='';document.getElementById('internalTaskActionModal').classList.remove('hidden');}
         function closeInternalTaskActionModal(){document.getElementById('internalTaskActionModal').classList.add('hidden');}
         async function saveInternalTaskAction(e){e.preventDefault();const id=document.getElementById('internalTaskActionId').value,task=(window.tasks||[]).find(t=>t.id===id);if(!task)return;task.activityLog=task.activityLog||[];task.activityLog.push({type:document.getElementById('internalTaskActionType').value,comment:document.getElementById('internalTaskActionComment').value.trim(),by:window.currentLoggedInAgent||'المدير العام',at:new Date().toISOString()});task.status='قيد المعالجة';await window.saveTaskToCloud(task);closeInternalTaskActionModal();showToast('تم حفظ الإجراء والتعليق وإرساله للمشرف');}
 
         async function completeInternalTask(id) {
             const task=(window.tasks||[]).find(t=>t.id===id);if(!task||task.taskType!=='internal')return;
             if(window.currentUserRole==='agent'&&!(window.hasManagerPermissions&&window.hasManagerPermissions())&&task.agent!==window.currentLoggedInAgent){showToast('هذه المهمة مسندة لموظف آخر','error');return;}
+            if(window.currentUserRole==='agent'&&!isInternalTaskAccepted(task)){showToast('يجب استلام المهمة أولاً','error');return;}
             if(!task.activityLog||!task.activityLog.length){showToast('أضف إجراءً وتعليقًا على المهمة قبل إنهائها','error');return;}const result=prompt('اكتب النتيجة النهائية للمهمة:');if(!result||!result.trim())return;task.activityLog.push({type:'إنهاء المهمة',comment:result.trim(),by:window.currentLoggedInAgent||'المدير العام',at:new Date().toISOString()});task.finalResult=result.trim();task.status='مكتمل';task.completedBy=window.currentLoggedInAgent||'المدير العام';task.completedAt=new Date().toISOString();await window.saveTaskToCloud(task);showToast('تم إنهاء المهمة وإرسال النتيجة للمشرف');
         }
 
@@ -5525,7 +5604,8 @@
                     showToast("كلمة مرور الموظف غير صحيحة", "error");
                     return;
                 }
-                applyLoginSession('agent', agentName);
+                const employeeAccess = window.getEmployeeAccessLevel(empObj);
+                applyLoginSession(employeeAccess === 'manager' ? 'manager' : 'agent', agentName);
             }
 
             document.getElementById('loginPassword').value = '';
@@ -5536,11 +5616,15 @@
             try {
                 const savedRole = sessionStorage.getItem('cs_logged_role');
                 const savedAgent = sessionStorage.getItem('cs_logged_agent');
-                const validManagerSession = savedRole === 'manager' && window.NABDI_MANAGER_AUTHENTICATED === true;
+                const savedManagerEmployee = savedAgent ? window.findEmployeeByName(savedAgent) : null;
+                const validManagerSession = savedRole === 'manager' && (
+                    window.NABDI_MANAGER_AUTHENTICATED === true ||
+                    window.getEmployeeAccessLevel(savedManagerEmployee) === 'manager'
+                );
                 const validAgentSession = savedRole === 'agent' && Boolean(savedAgent);
 
                 if (!validManagerSession && !validAgentSession) return false;
-                applyLoginSession(savedRole, validAgentSession ? savedAgent : null);
+                applyLoginSession(savedRole, savedRole === 'manager' ? (savedAgent || null) : (validAgentSession ? savedAgent : null));
                 return true;
             } catch (error) {
                 return false;
@@ -5549,9 +5633,9 @@
 
         function applyLoginSession(role, agentName) {
             window.currentUserRole = role;
-            const resolvedEmployee = role === 'agent' ? window.findEmployeeByName(agentName) : null;
+            const resolvedEmployee = agentName ? window.findEmployeeByName(agentName) : null;
             window.currentLoggedInAgent = resolvedEmployee?.name || agentName;
-            window.currentLoggedInEmployeeId = resolvedEmployee?.id || (role === 'manager' ? 'manager' : '');
+            window.currentLoggedInEmployeeId = resolvedEmployee?.id || (role === 'manager' ? 'manager_primary' : '');
             window.userLoginAt = Date.now();
 
             try {
@@ -5573,11 +5657,13 @@
             const btnManagerAttendance = document.getElementById('btnManagerAttendance');
 
             if (role === 'manager') {
-                nameSpan.innerText = 'المدير العام';
+                nameSpan.innerText = resolvedEmployee ? `المدير: ${resolvedEmployee.name}` : 'المدير العام';
+                const roleManagerButtonLabel = document.getElementById('roleManagerButtonLabel');
+                if (roleManagerButtonLabel) roleManagerButtonLabel.textContent = 'لوحة الإدارة والتقارير';
                 roleSwitcher.classList.remove('hidden');
                 btnManageEmp.classList.remove('hidden');
                 agentSelectorWrapper.classList.remove('hidden');
-                if (btnAgentChangePin) btnAgentChangePin.classList.add('hidden');
+                if (btnAgentChangePin) btnAgentChangePin.classList.toggle('hidden', !resolvedEmployee);
                 if (btnTechnicalSupport) { btnTechnicalSupport.classList.remove('hidden'); btnTechnicalSupport.classList.add('flex'); }
                 if (btnCustomerAssignTask) { btnCustomerAssignTask.classList.remove('hidden'); btnCustomerAssignTask.classList.add('flex'); }
                 if (btnEmployeeAttendance) { btnEmployeeAttendance.classList.add('hidden'); btnEmployeeAttendance.classList.remove('flex'); }
@@ -5616,8 +5702,11 @@
                 const datePicker = document.getElementById('globalDatePicker');
                 if (datePicker) datePicker.value = window.currentDateFilter;
                 syncAgentDateControls();
-                switchRole(hasReportingAccess ? 'manager' : 'agent');
-                if (isTechnicalSupport && !hasReportingAccess) setTimeout(() => window.openTechnicalSupportWorkspace && window.openTechnicalSupportWorkspace(), 100);
+                const roleManagerButtonLabel = document.getElementById('roleManagerButtonLabel');
+                if (roleManagerButtonLabel && hasReportingAccess) {
+                    roleManagerButtonLabel.textContent = isTechnicalSupport ? 'إشراف وتقارير الدعم' : 'إشراف وتقارير المبيعات';
+                }
+                switchRole('agent');
             }
 
             renderApp();
@@ -5686,8 +5775,13 @@
             const btnManager = document.getElementById('btnRoleManager');
             const agentView = document.getElementById('agentView');
             const managerView = document.getElementById('managerView');
+            const supportSupervisorView = document.getElementById('supportSupervisorView');
             const agentSelectorWrapper = document.getElementById('agentSelectorWrapper');
             const agentSelector = document.getElementById('agentSelector');
+            const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
+            const isSupportSupervisor = window.currentUserRole === 'agent' &&
+                window.isReportingSupervisor(loggedEmployee) &&
+                window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
 
             if (role === 'agent') {
                 if (window.currentUserRole === 'agent') {
@@ -5699,14 +5793,29 @@
                 if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
                 agentView.classList.remove('hidden');
                 managerView.classList.add('hidden');
+                supportSupervisorView?.classList.add('hidden');
                 renderAgentTasks();
+                if (window.currentUserRole === 'agent' && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني') {
+                    setTimeout(() => {
+                        const scopeFilter = document.getElementById('supportScopeFilter');
+                        if (scopeFilter) scopeFilter.value = 'MINE';
+                        if (window.openTechnicalSupportWorkspace) window.openTechnicalSupportWorkspace();
+                    }, 80);
+                }
             } else {
                 if (window.currentUserRole === 'agent') window.currentAgent = 'ALL';
                 if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-white text-brand-600 shadow-sm cursor-pointer";
                 if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
                 agentView.classList.add('hidden');
-                managerView.classList.remove('hidden');
-                renderManagerDashboard();
+                if (isSupportSupervisor) {
+                    managerView.classList.add('hidden');
+                    supportSupervisorView?.classList.remove('hidden');
+                    renderSupportSupervisorDashboard();
+                } else {
+                    supportSupervisorView?.classList.add('hidden');
+                    managerView.classList.remove('hidden');
+                    renderManagerDashboard();
+                }
             }
         }
 
@@ -5807,7 +5916,7 @@
             let optionsHtml = '<option value="ALL">جميع الموظفين (الكل)</option>';
             let formOptionsHtml = '';
 
-            (window.employees || []).forEach(emp => {
+            (window.employees || []).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager').forEach(emp => {
                 optionsHtml += `<option value="${emp.name}">${emp.name}</option>`;
                 formOptionsHtml += `<option value="${emp.name}">${emp.name} (${emp.shift})</option>`;
             });
@@ -5817,7 +5926,7 @@
             if (summaryAgent) {
                 const summaryEmployees = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
                     ? window.getCurrentSupervisorTeam()
-                    : (window.employees || []);
+                    : (window.employees || []).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager');
                 summaryAgent.innerHTML = '<option value="ALL">جميع موظفي النطاق</option>' + summaryEmployees.map(emp => `<option value="${escapeHtml(emp.name)}">${escapeHtml(emp.name)} (${escapeHtml(emp.shift || '')})</option>`).join('');
                 summaryAgent.value = Array.from(summaryAgent.options).some(option => option.value === selectedSummaryAgent) ? selectedSummaryAgent : 'ALL';
             }
@@ -5930,6 +6039,7 @@
                     <select onchange="updateEmployeeAccessLevel('${emp.id}',this.value)" class="border border-slate-200 rounded-lg p-1.5 text-[10px] font-bold bg-slate-50">
                         <option value="employee" ${window.getEmployeeAccessLevel(emp)==='employee'?'selected':''}>موظف</option>
                         <option value="supervisor" ${window.getEmployeeAccessLevel(emp)==='supervisor'?'selected':''}>مشرف — تقارير ومتابعة الفريق</option>
+                        <option value="manager" ${window.getEmployeeAccessLevel(emp)==='manager'?'selected':''}>مدير متابعة — صلاحيات المدير</option>
                     </select>
                     <button type="button" onclick="window.deleteEmployeeFromCloud('${emp.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg bg-rose-50 cursor-pointer" title="حذف الموظف">
                         <i class="fa-solid fa-trash-can"></i>
@@ -5962,7 +6072,8 @@
                 return;
             }
 
-            const newEmp = { id: 'emp_' + Date.now(), name, shift, department: departmentSelect.value, accessLevel: accessLevelSelect.value, pin };
+            const accessLevel = accessLevelSelect.value;
+            const newEmp = { id: 'emp_' + Date.now(), name, shift, department: accessLevel === 'manager' ? 'الإدارة' : departmentSelect.value, accessLevel, pin };
             window.saveEmployeeToCloud(newEmp);
 
             nameInput.value = '';
@@ -5981,7 +6092,9 @@
         function updateEmployeeAccessLevel(empId, accessLevel) {
             if (!(window.hasManagerPermissions && window.hasManagerPermissions())) return showToast('إدارة الموظفين متاحة للمدير العام فقط.', 'error');
             const emp = (window.employees || []).find(e => e.id === empId); if (!emp) return;
-            emp.accessLevel = accessLevel; window.saveEmployeeToCloud(emp); showToast(`تم تحديث صلاحية ${emp.name} إلى ${window.getEmployeeJobTitle(emp)}`);
+            emp.accessLevel = accessLevel;
+            if (accessLevel === 'manager') emp.department = 'الإدارة';
+            window.saveEmployeeToCloud(emp); showToast(`تم تحديث صلاحية ${emp.name} إلى ${window.getEmployeeJobTitle(emp)}`);
         }
 
         function getAttendanceEmployee() {
@@ -6242,7 +6355,7 @@
             const current = select.value || 'ALL';
             const availableEmployees = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
                 ? window.getCurrentSupervisorTeam()
-                : (window.employees || []);
+                : (window.employees || []).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager');
             select.innerHTML = '<option value="ALL">جميع موظفي النطاق</option>' + availableEmployees.map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(emp.name)} — ${escapeHtml(window.getEmployeeJobTitle(emp))}</option>`).join('');
             select.value = [...select.options].some(option => option.value === current) ? current : 'ALL';
         }
@@ -6373,10 +6486,72 @@
 
         function renderApp() {
             renderAgentTasks();
-            if (window.canAccessReportsDashboard && window.canAccessReportsDashboard()) {
+            const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
+            const isSupportSupervisor = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedEmployee) && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
+            if (window.canAccessReportsDashboard && window.canAccessReportsDashboard() && !isSupportSupervisor) {
                 renderManagerDashboard();
             }
+            if (!document.getElementById('supportSupervisorView')?.classList.contains('hidden')) {
+                renderSupportSupervisorDashboard();
+            }
             if (window.renderAttendanceUI) window.renderAttendanceUI();
+        }
+
+        function renderSupportSupervisorDashboard() {
+            const supervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+            if (!supervisor || window.getEmployeeDepartment(supervisor) !== 'الدعم الفني' || !window.isReportingSupervisor(supervisor)) return;
+            const team = window.getCurrentSupervisorTeam().filter(emp => window.getEmployeeDepartment(emp) === 'الدعم الفني');
+            const teamNames = new Set(team.map(emp => window.normalizeEmployeeName(emp.name)));
+            const today = window.getLocalDateString();
+            const tasks = (window.tasks || []).filter(task =>
+                isInternalTask(task) &&
+                task.department === 'الدعم الفني' &&
+                teamNames.has(window.normalizeEmployeeName(task.agent))
+            );
+            const state = task => getInternalTaskState(task, today);
+            let projects = [];
+            try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]').filter(project => !project.deletedAt); } catch (error) {}
+
+            const counts = {
+                supportSupTeamCount: team.filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager').length,
+                supportSupNewCount: tasks.filter(task => state(task) === 'جديدة').length,
+                supportSupActiveCount: tasks.filter(task => state(task) === 'جاري التنفيذ').length,
+                supportSupLateCount: tasks.filter(task => state(task) === 'متأخرة').length,
+                supportSupDoneCount: tasks.filter(task => state(task) === 'مكتملة').length,
+                supportSupProjectsCount: projects.filter(project => project.handoffStatus !== 'تم الرفع بنجاح').length
+            };
+            Object.entries(counts).forEach(([id, value]) => { const element = document.getElementById(id); if (element) element.textContent = value; });
+
+            const body = document.getElementById('supportSupervisorTeamBody');
+            if (body) {
+                body.innerHTML = team.length ? team.map(emp => {
+                    const owned = tasks.filter(task => window.sameEmployee(task.agent, emp.name, task.agentId || '', emp.id || ''));
+                    const done = owned.filter(task => state(task) === 'مكتملة').length;
+                    return `<tr class="hover:bg-slate-50">
+                        <td class="p-3 font-black text-slate-900">${escapeHtml(emp.name)}</td>
+                        <td class="p-3 font-bold text-slate-600">${escapeHtml(emp.shift || '-')}</td>
+                        <td class="p-3 text-center font-black">${owned.length}</td>
+                        <td class="p-3 text-center font-black text-sky-700">${owned.filter(task => state(task) === 'جديدة').length}</td>
+                        <td class="p-3 text-center font-black text-amber-600">${owned.filter(task => state(task) === 'جاري التنفيذ').length}</td>
+                        <td class="p-3 text-center font-black text-emerald-700">${done}</td>
+                        <td class="p-3 text-center font-black text-rose-600">${owned.filter(task => state(task) === 'متأخرة').length}</td>
+                        <td class="p-3 text-center font-black text-violet-700">${reportPercent(done, owned.length)}%</td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold">لا يوجد موظفون في قسم الدعم الفني.</td></tr>';
+            }
+
+            const recent = document.getElementById('supportSupervisorRecentTasks');
+            if (recent) {
+                const latestTasks = tasks.slice().sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0)).slice(0, 12);
+                recent.innerHTML = latestTasks.length ? latestTasks.map(task => {
+                    const taskState = state(task);
+                    const lastAction = task.activityLog?.[task.activityLog.length - 1];
+                    return `<div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div><div class="flex flex-wrap items-center gap-2"><b class="text-sm text-slate-900">${escapeHtml(task.title || 'مهمة داخلية')}</b><span class="text-[10px] px-2 py-1 rounded-full bg-slate-100 font-black">${escapeHtml(taskState)}</span></div><p class="text-[11px] text-slate-500 mt-1">إلى: ${escapeHtml(task.agent || '-')} · التسليم: ${escapeHtml(window.getTaskDateString(task) || '-')} · الأولوية: ${escapeHtml(task.priority || 'عادية')}</p>${lastAction ? `<p class="text-[11px] text-indigo-700 mt-2"><b>${escapeHtml(lastAction.type || 'تحديث')}:</b> ${escapeHtml(lastAction.comment || '')} — ${escapeHtml(lastAction.by || task.agent || '')}</p>` : '<p class="text-[11px] text-slate-400 mt-2">لم يستلم الموظف المهمة بعد.</p>'}</div>
+                        <button onclick="openTaskFromNotification('${escapeHtml(task.id)}','')" class="self-start md:self-center bg-violet-50 text-violet-800 border border-violet-200 px-3 py-2 rounded-xl text-[10px] font-black">فتح ومتابعة</button>
+                    </div>`;
+                }).join('') : '<div class="p-10 text-center text-xs text-slate-400">لا توجد تاسكات دعم مسندة حتى الآن.</div>';
+            }
         }
 
         function renderManagerDashboard() {
@@ -6445,7 +6620,7 @@
             const eveBoth = eveTasks.filter(isSignedContractAction).length;
             const eveCallsTotal = eveAns + eveUnans;
 
-            const dashboardEmployees = supervisorTeam || (window.employees || []);
+            const dashboardEmployees = (supervisorTeam || (window.employees || [])).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager');
             const mornEmps = dashboardEmployees.filter(e => e.shift === 'شفت صباحي').length;
             const eveEmps = dashboardEmployees.filter(e => e.shift === 'شفت مسائي').length;
 
@@ -6479,7 +6654,7 @@
 
             const emps = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
                 ? window.getCurrentSupervisorTeam()
-                : (window.employees || []);
+                : (window.employees || []).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager');
             if (emps.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="11" class="text-center p-4 text-slate-400 font-bold">لا يوجد موظفين مسجلين.</td></tr>';
                 return;
@@ -6527,7 +6702,7 @@
         }
 
         function renderCharts(dayTasks) {
-            const emps = (window.employees || []).map(e => e.name);
+            const emps = (window.employees || []).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager').map(e => e.name);
             const empTaskCounts = emps.map(name => dayTasks.filter(t => t.agent === name).length);
 
             const ctx1 = document.getElementById('teamPerformanceChart');
@@ -6607,10 +6782,40 @@
             const element = document.getElementById(id);
             if (!element) return;
             const valid = Array.from(element.options || []).some(function(option) { return option.value === value; });
-            element.value = valid ? value : fallback;
+            const fallbackValid = Array.from(element.options || []).some(function(option) { return option.value === fallback; });
+            element.value = valid ? value : (fallbackValid ? fallback : (element.options?.[0]?.value || ''));
         }
 
-        function openDailySummaryModal() {
+        function configureReportTypesForCurrentUser(preferredType = '') {
+            const select = document.getElementById('reportTypeSelect');
+            if (!select) return '';
+            if (!window.allReportTypeOptions) {
+                window.allReportTypeOptions = Array.from(select.options).map(option => ({ value: option.value, text: option.textContent }));
+            }
+            const loggedSupervisor = window.findEmployeeByName(window.currentLoggedInAgent);
+            const isSupervisorReport = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedSupervisor);
+            const supervisorDepartment = isSupervisorReport ? window.getEmployeeDepartment(loggedSupervisor) : '';
+            let allowedValues = window.allReportTypeOptions.map(option => option.value);
+            if (supervisorDepartment === 'الدعم الفني') {
+                allowedValues = ['SUPPORT_PERFORMANCE', 'INTERNAL_TASKS', 'ATTENDANCE'];
+            } else if (supervisorDepartment === 'خدمات العملاء') {
+                allowedValues = allowedValues.filter(value => value !== 'SUPPORT_PERFORMANCE');
+            }
+            select.innerHTML = window.allReportTypeOptions
+                .filter(option => allowedValues.includes(option.value))
+                .map(option => `<option value="${option.value}">${option.text}</option>`).join('');
+            const defaultType = supervisorDepartment === 'الدعم الفني' ? 'SUPPORT_PERFORMANCE' : 'SHIFT_AGENT';
+            restoreReportSelectValue('reportTypeSelect', preferredType || defaultType, defaultType);
+            const title = document.getElementById('reportCenterTitle');
+            if (title) title.textContent = supervisorDepartment === 'الدعم الفني'
+                ? 'مركز تقارير الدعم الفني — جميع الشفتات'
+                : supervisorDepartment === 'خدمات العملاء'
+                    ? 'مركز تقارير خدمات المبيعات والعملاء'
+                    : 'مركز تقارير نبضي — تقارير إنفوجرافيك مستقلة';
+            return select.value;
+        }
+
+        function openDailySummaryModal(requestedReportType = '') {
             if (!(window.canAccessReportsDashboard && window.canAccessReportsDashboard())) {
                 showToast('مركز التقارير متاح للمدير والمشرفين فقط.', 'error');
                 return;
@@ -6621,9 +6826,10 @@
             const saved = getSavedReportViewState();
             const loggedSupervisor = window.findEmployeeByName(window.currentLoggedInAgent);
             const isSupervisorReport = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedSupervisor);
+            const isSupportSupervisorReport = isSupervisorReport && window.getEmployeeDepartment(loggedSupervisor) === 'الدعم الفني';
             document.getElementById('summaryStartDate').value = saved?.start || monthStart;
             document.getElementById('summaryEndDate').value = saved?.end || today;
-            restoreReportSelectValue('reportTypeSelect', saved?.reportType || 'SHIFT_AGENT', 'SHIFT_AGENT');
+            configureReportTypesForCurrentUser(requestedReportType || (isSupportSupervisorReport ? 'SUPPORT_PERFORMANCE' : (saved?.reportType || 'SHIFT_AGENT')));
             restoreReportSelectValue('summaryShiftFilter', isSupervisorReport ? 'ALL' : (saved?.shift || 'ALL'), 'ALL');
             restoreReportSelectValue('summaryAgentFilter', saved?.agent || 'ALL', 'ALL');
             restoreReportSelectValue('summaryCityFilter', saved?.city || 'ALL', 'ALL');
@@ -8162,9 +8368,9 @@
             const stage = document.getElementById('summaryStageFilter')?.value || 'ALL';
             const area = document.getElementById('summaryContentArea');
             if (!area) return;
-            const isAttendanceReport = reportType === 'ATTENDANCE';
-            document.getElementById('summaryCityFilterWrapper')?.classList.toggle('hidden', isAttendanceReport);
-            document.getElementById('summaryStageFilterWrapper')?.classList.toggle('hidden', isAttendanceReport);
+            const hidesClientFilters = ['ATTENDANCE', 'INTERNAL_TASKS', 'SUPPORT_PERFORMANCE'].includes(reportType);
+            document.getElementById('summaryCityFilterWrapper')?.classList.toggle('hidden', hidesClientFilters);
+            document.getElementById('summaryStageFilterWrapper')?.classList.toggle('hidden', hidesClientFilters);
 
             const periodTasks = (window.tasks || []).filter(function(task) {
                 const taskDate = window.getTaskDateString(task);
@@ -8210,7 +8416,7 @@
             };
             saveReportViewState();
 
-            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, isAttendanceReport ? 'ALL' : city, isAttendanceReport ? 'ALL' : stage);
+            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, hidesClientFilters ? 'ALL' : city, hidesClientFilters ? 'ALL' : stage);
             content += '<section id="reportDrilldownPanel" class="report-drilldown-panel hidden mb-6 rounded-3xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-lg scroll-mt-4"></section>';
             if (reportType === 'ATTENDANCE') {
                 content += buildAttendanceInfographic(attendanceRecords);
@@ -8562,13 +8768,18 @@
             // اكتب السجل الذي تغيّر فقط؛ لا تعِد كتابة جميع مشاريع الدعم عند كل فتح.
             if(changed.length&&window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(changed);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));}
         }
+        window.canManageSupportDepartment=function(){
+            if(window.hasManagerPermissions&&window.hasManagerPermissions())return true;
+            const employee=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
+            return window.getEmployeeAccessLevel(employee)==='supervisor'&&window.getEmployeeDepartment(employee)==='الدعم الفني'&&window.currentWorkspaceRole==='manager';
+        };
         window.openTechnicalSupportWorkspace=function(){
             const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
             if(window.currentUserRole==='agent' && !(window.hasManagerPermissions&&window.hasManagerPermissions()) && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
-            document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام';const assignBtn=document.getElementById('btnSupportAssignTask');const canAssign=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(emp)==='supervisor';if(assignBtn)assignBtn.classList.toggle('hidden',!canAssign); syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
+            document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام';const assignBtn=document.getElementById('btnSupportAssignTask');const canAssign=window.canManageSupportDepartment();if(assignBtn)assignBtn.classList.toggle('hidden',!canAssign);const scope=document.getElementById('supportScopeFilter');if(scope&&!canAssign)scope.value='MINE'; syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
         };
         window.closeTechnicalSupportWorkspace=function(){ const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.currentUserRole==='agent'&&!(window.canAccessReportsDashboard&&window.canAccessReportsDashboard())&&window.getEmployeeDepartment(emp)==='الدعم الفني')return;document.getElementById('technicalSupportWorkspace').classList.add('hidden'); };
-        window.supportDashboardHome=function(){if(window.canAccessReportsDashboard&&window.canAccessReportsDashboard()){document.getElementById('technicalSupportWorkspace').classList.add('hidden');switchRole('manager');window.scrollTo({top:0,behavior:'smooth'});return;}document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
+        window.supportDashboardHome=function(){if(window.currentWorkspaceRole==='manager'&&window.canAccessReportsDashboard&&window.canAccessReportsDashboard()){document.getElementById('technicalSupportWorkspace').classList.add('hidden');switchRole('manager');window.scrollTo({top:0,behavior:'smooth'});return;}const employee=window.findEmployeeByName(window.currentLoggedInAgent);if(window.currentWorkspaceRole==='agent'&&window.isReportingSupervisor(employee)){document.getElementById('technicalSupportWorkspace').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});return;}document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
         window.supportLogout=function(){document.getElementById('technicalSupportWorkspace').classList.add('hidden');logout();};
         window.syncSupportProjectsFromFunnel=function(notify=true){
             let projects=loadSupport(),changed=0;
@@ -8606,13 +8817,13 @@
         };
         window.completeSupportProject=function(pid){
             if(!confirm('تأكيد أن جميع بيانات وخدمات العميل تم رفعها بنجاح؟'))return;
-            let projects=loadSupport(),p=projects.find(x=>x.id===pid);if(!p)return;if(p.handoffStatus!=='تم الاستلام'){if(window.showToast)showToast('يجب استلام الملف أولاً','error');return;}
+            let projects=loadSupport(),p=projects.find(x=>x.id===pid);if(!p)return;if(p.handoffStatus!=='تم الاستلام'){if(window.showToast)showToast('يجب استلام الملف أولاً','error');return;}if(!window.canManageSupportDepartment()&&!window.sameEmployee(p.receivedBy,window.currentLoggedInAgent)){if(window.showToast)showToast('يمكنك إنهاء الملفات المستلمة باسمك فقط','error');return;}
             p.handoffStatus='تم الرفع بنجاح';p.completedBy=window.currentLoggedInAgent||'المدير العام';p.completedAt=new Date().toISOString();(p.tasks||[]).forEach(t=>t.status='مكتملة');saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم إغلاق العميل ونقله إلى أرشيف المكتمل');
         };
         window.openSupportTaskEditor=function(projectId='',taskId=''){
-            const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(!taskId&&!(window.hasManagerPermissions&&window.hasManagerPermissions())&&window.getEmployeeAccessLevel(logged)!=='supervisor'){if(window.showToast)showToast('إسناد المهام متاح لمدير الدعم الفني فقط','error');return;}
+            const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(!taskId&&!window.canManageSupportDepartment()){if(window.showToast)showToast('إسناد المهام متاح من واجهة إشراف الدعم فقط','error');return;}
             const projects=loadSupport(), project=projects.find(p=>p.id===projectId), task=project&&project.tasks.find(t=>t.id===taskId);
-            const supervisor=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(logged)==='supervisor';if(task&&!supervisor&&task.agent!==window.currentLoggedInAgent){if(window.showToast)showToast('يمكنك تحديث مهامك فقط','error');return;}
+            const supervisor=window.canManageSupportDepartment();if(task&&!supervisor&&task.agent!==window.currentLoggedInAgent){if(window.showToast)showToast('يمكنك تحديث مهامك فقط','error');return;}
             const clients=(window.clients||[]); document.getElementById('supportTaskClient').innerHTML=clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
             const supportNames=supervisor?['غير موزعة',...(window.employees||[]).filter(e=>window.getEmployeeDepartment(e)==='الدعم الفني').map(e=>e.name)]:[window.currentLoggedInAgent];document.getElementById('supportTaskAgent').innerHTML=supportNames.map(n=>`<option>${n}</option>`).join('');
             document.getElementById('supportTaskId').value=taskId; document.getElementById('supportTaskProjectId').value=projectId;
@@ -8627,19 +8838,31 @@
             if(project.handoffStatus!=='تم الاستلام'){project.handoffStatus='تم الاستلام';project.receivedBy=data.agent;project.receivedAt=new Date().toISOString();}
             const ix=project.tasks.findIndex(t=>t.id===id); ix>=0?project.tasks[ix]=data:project.tasks.push(data); saveSupport(projects); closeSupportTaskEditor(); renderTechnicalSupport(); if(window.showToast)showToast('تم حفظ مهمة الدعم الفني بنجاح');
         };
-        window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(t){t.status=status;saveSupport(p);renderTechnicalSupport();}};
-        window.deleteSupportProjectTask=function(pid,tid){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف مهام الدعم متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف مهمة الدعم نهائيًا؟'))return;let projects=loadSupport(),project=projects.find(p=>p.id===pid);if(!project)return;const task=(project.tasks||[]).find(t=>t.id===tid);if(task){task.deletedAt=new Date().toISOString();task.deletedBy=window.currentLoggedInAgent||'المدير العام';}saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم حذف مهمة الدعم');};
-        window.deleteInternalSupportTask=async function(id){const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),allowed=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(logged)==='supervisor';if(!allowed){if(window.showToast)showToast('حذف المهام متاح لمدير الدعم أو المدير العام فقط','error');return;}if(!confirm('هل تريد حذف المهمة المسندة نهائيًا؟'))return;await window.deleteTaskFromCloud(id);renderTechnicalSupport();if(window.showToast)showToast('تم حذف المهمة');};
-        window.renderSupportInternalTasks=function(){const box=document.getElementById('supportInternalTasksList');if(!box)return;const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canSeeAll=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(logged)==='supervisor';let list=(window.tasks||[]).filter(t=>t.taskType==='internal'&&t.department==='الدعم الفني'&&(canSeeAll||t.agent===window.currentLoggedInAgent));list.sort((a,b)=>(a.status==='مكتمل')-(b.status==='مكتمل')||String(a.date||'').localeCompare(String(b.date||'')));document.getElementById('supportInternalTasksCount').textContent=list.filter(t=>t.status!=='مكتمل').length;box.innerHTML=list.length?list.map(t=>{const last=t.activityLog?.[t.activityLog.length-1];return `<article class="border rounded-2xl p-4 ${t.status==='مكتمل'?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><div class="flex justify-between gap-2"><div><b class="text-sm">${escapeHtml(t.title||'مهمة داخلية')}</b><p class="text-[10px] text-slate-500 mt-1">إلى: ${escapeHtml(t.agent||'-')} · من: ${escapeHtml(t.assignedBy||'-')}</p></div><span class="text-[10px] font-black ${t.status==='مكتمل'?'text-emerald-700':'text-amber-700'}">${t.status}</span></div><p class="text-xs text-slate-700 mt-3">${escapeHtml(t.notes||'')}</p>${last?`<div class="mt-2 bg-sky-50 border border-sky-100 rounded-xl p-2 text-[10px]"><b>${escapeHtml(last.type)}:</b> ${escapeHtml(last.comment)}<div class="text-slate-400 mt-1">${escapeHtml(last.by)} · ${window.formatEgyptDateTime(last.at)}</div></div>`:''}<div class="flex gap-2 mt-3">${t.status!=='مكتمل'&&t.agent===window.currentLoggedInAgent?`<button onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إجراء / تعليق</button><button onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إنهاء المهمة</button>`:''}${canSeeAll?`<button onclick="deleteInternalSupportTask('${t.id}')" class="bg-rose-600 text-white px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-trash ml-1"></i>حذف</button>`:''}</div></article>`}).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';};
+        window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(!t)return;if(!window.canManageSupportDepartment()&&t.agent!==window.currentLoggedInAgent){if(window.showToast)showToast('يمكنك تحديث مهامك فقط','error');return;}t.status=status;saveSupport(p);renderTechnicalSupport();};
+        window.deleteSupportProjectTask=function(pid,tid){if(!window.canManageSupportDepartment()){if(window.showToast)showToast('حذف مهام الدعم متاح من واجهة الإشراف فقط','error');return;}if(!confirm('هل تريد حذف مهمة الدعم نهائيًا؟'))return;let projects=loadSupport(),project=projects.find(p=>p.id===pid);if(!project)return;const task=(project.tasks||[]).find(t=>t.id===tid);if(task){task.deletedAt=new Date().toISOString();task.deletedBy=window.currentLoggedInAgent||'المدير العام';}saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم حذف مهمة الدعم');};
+        window.deleteInternalSupportTask=async function(id){if(!window.canManageSupportDepartment()){if(window.showToast)showToast('حذف المهام متاح من واجهة الإشراف فقط','error');return;}if(!confirm('هل تريد حذف المهمة المسندة نهائيًا؟'))return;await window.deleteTaskFromCloud(id);renderTechnicalSupport();if(window.showToast)showToast('تم حذف المهمة');};
+        window.renderSupportInternalTasks=function(){
+            const box=document.getElementById('supportInternalTasksList');if(!box)return;
+            const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canSeeAll=window.canManageSupportDepartment();
+            let list=(window.tasks||[]).filter(t=>t.taskType==='internal'&&t.department==='الدعم الفني'&&(canSeeAll||t.agent===window.currentLoggedInAgent));
+            list.sort((a,b)=>(a.status==='مكتمل')-(b.status==='مكتمل')||String(a.date||'').localeCompare(String(b.date||'')));
+            document.getElementById('supportInternalTasksCount').textContent=list.filter(t=>t.status!=='مكتمل').length;
+            box.innerHTML=list.length?list.map(t=>{
+                const last=t.activityLog?.[t.activityLog.length-1],isOwn=window.sameEmployee(t.agent,window.currentLoggedInAgent,t.agentId||'',window.currentLoggedInEmployeeId||''),state=getInternalTaskState(t);
+                const employeeActions=t.status!=='مكتمل'&&isOwn?(!isInternalTaskAccepted(t)?`<button onclick="acceptInternalTask('${t.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-hand ml-1"></i>استلام المهمة</button>`:`<button onclick="openInternalTaskAction('${t.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إجراء / تعليق</button><button onclick="completeInternalTask('${t.id}')" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black">إنهاء المهمة</button>`):'';
+                return `<article class="border rounded-2xl p-4 ${t.status==='مكتمل'?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><div class="flex justify-between gap-2"><div><b class="text-sm">${escapeHtml(t.title||'مهمة داخلية')}</b><p class="text-[10px] text-slate-500 mt-1">إلى: ${escapeHtml(t.agent||'-')} · من: ${escapeHtml(t.assignedBy||'-')}</p></div><span class="text-[10px] font-black ${t.status==='مكتمل'?'text-emerald-700':'text-amber-700'}">${escapeHtml(state)}</span></div><p class="text-xs text-slate-700 mt-3">${escapeHtml(t.notes||'')}</p>${last?`<div class="mt-2 bg-sky-50 border border-sky-100 rounded-xl p-2 text-[10px]"><b>${escapeHtml(last.type)}:</b> ${escapeHtml(last.comment)}<div class="text-slate-400 mt-1">${escapeHtml(last.by)} · ${window.formatEgyptDateTime(last.at)}</div></div>`:''}<div class="flex flex-wrap gap-2 mt-3">${employeeActions}${canSeeAll?`<button onclick="deleteInternalSupportTask('${t.id}')" class="bg-rose-600 text-white px-3 py-2 rounded-xl text-[10px] font-black"><i class="fa-solid fa-trash ml-1"></i>حذف</button>`:''}</div></article>`;
+            }).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';
+        };
         window.renderTechnicalSupport=function(){
             renderSupportInternalTasks();
-            const supportUser=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canManageSupport=(window.hasManagerPermissions&&window.hasManagerPermissions())||window.getEmployeeAccessLevel(supportUser)==='supervisor';
+            const supportUser=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canManageSupport=window.canManageSupportDepartment();
             const projects=loadSupport().filter(p=>!p.deletedAt), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=window.getLocalDateString();
             const open=all.filter(t=>t.status!=='مكتملة'), late=open.filter(t=>t.status==='متأخرة'||(t.due&&t.due<today));
             const pending=projects.filter(p=>!['تم الاستلام','تم الرفع بنجاح'].includes(p.handoffStatus)),receivedProjects=projects.filter(p=>p.handoffStatus==='تم الاستلام'),completedProjects=projects.filter(p=>p.handoffStatus==='تم الرفع بنجاح'); ['supportOpenTasksBadge'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pending.length}); document.getElementById('supportProjectsCount').textContent=pending.length; document.getElementById('supportOpenCount').textContent=receivedProjects.length; document.getElementById('supportDoneCount').textContent=completedProjects.length; document.getElementById('supportLateCount').textContent=late.length;
             const scope=document.getElementById('supportScopeFilter')?.value||'ALL';
             const activeProjects=projects.filter(p=>p.handoffStatus!=='تم الرفع بنجاح');
-            const visibleProjects=scope==='COMPLETED'?completedProjects:scope==='MINE'?activeProjects.filter(p=>p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent)):scope==='UNASSIGNED'?activeProjects.filter(p=>p.handoffStatus!=='تم الاستلام'):activeProjects;
+            const personalProjects=activeProjects.filter(p=>p.handoffStatus!=='تم الاستلام'||p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent));
+            const visibleProjects=!canManageSupport?personalProjects:(scope==='COMPLETED'?completedProjects:scope==='MINE'?activeProjects.filter(p=>p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent)):scope==='UNASSIGNED'?activeProjects.filter(p=>p.handoffStatus!=='تم الاستلام'):activeProjects);
             const filtered=visibleProjects.filter(p=>!q||p.clientName.toLowerCase().includes(q)||(p.tasks||[]).some(t=>t.title.toLowerCase().includes(q)));
             document.getElementById('supportProjectsList').innerHTML=filtered.length?filtered.map(p=>{const received=p.handoffStatus==='تم الاستلام',linkReady=p.handoffStatus==='تم إرسال رابط البيانات',c=(window.clients||[]).find(x=>x.id===p.clientId)||{},drive=p.supportPackage?.driveLink||c.supportPackage?.driveLink||'',label=received?'تم الاستلام بواسطة '+p.receivedBy:(linkReady?'تم إرسال رابط البيانات':'عميل جديد — بانتظار رابط البيانات');return `<article class="border ${received?'border-emerald-200':linkReady?'border-sky-300':'border-amber-300'} rounded-2xl overflow-hidden"><div class="${received?'bg-emerald-50':linkReady?'bg-sky-50':'bg-amber-50'} p-4 flex flex-wrap justify-between items-center gap-3"><div><div class="flex items-center gap-2"><b class="text-sm text-slate-950">${p.clientName}</b><span class="px-2 py-1 rounded-full text-[10px] font-black ${received?'bg-emerald-200 text-emerald-900':linkReady?'bg-sky-200 text-sky-900':'bg-amber-200 text-amber-900'}">${label}</span></div><p class="text-[10px] text-slate-600 mt-1">أرسله: ${p.sender||'خدمات العملاء'} · ${p.phone||''}</p></div><div class="flex flex-wrap gap-2">${drive?`<a href="${drive}" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-brands fa-google-drive ml-1"></i>فتح ملفات العميل</a>`:''}<button onclick="closeTechnicalSupportWorkspace();openClientProfileModal('${p.clientId}')" class="bg-white border px-3 py-2 rounded-xl text-xs font-black text-indigo-700">فتح بيانات العميل</button>${linkReady?`<button onclick="acceptSupportHandoff('${p.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black">استلام وبدء التنفيذ</button>`:received?`<button onclick="openSupportTaskEditor('${p.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-black">+ مهمة</button>`:`<span class="bg-amber-100 text-amber-900 px-3 py-2 rounded-xl text-xs font-black">بانتظار خدمات العملاء</span>`}</div></div>${received?`<div class="divide-y">${(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>`<div class="p-3 grid sm:grid-cols-[1fr_120px_140px_auto] gap-2 items-center"><button onclick="openSupportTaskEditor('${p.id}','${t.id}')" class="text-right"><b class="block text-xs">${t.title}</b><span class="text-[10px] text-slate-500">${t.notes||'بدون ملاحظات'}</span></button><span class="text-[10px] font-bold">${t.agent}</span><select onchange="setSupportTaskStatus('${p.id}','${t.id}',this.value)" class="border rounded-lg p-1.5 text-[10px]">${['جديدة','جاري التنفيذ','انتظار العميل','مكتملة','متأخرة'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>${canManageSupport?`<button onclick="deleteSupportProjectTask('${p.id}','${t.id}')" class="bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2 text-[10px] font-black"><i class="fa-solid fa-trash"></i></button>`:''}</div>`).join('')}</div>`:`<div class="p-4 bg-white text-xs text-slate-600">${linkReady?'وصل رابط الملفات ويمكن لموظف الدعم استلام العميل وبدء التنفيذ.':'تم إشعار الدعم بالعميل، وسيظهر رابط الملفات فور إرساله من خدمات العملاء.'}</div>`}</article>`}).join(''):'<div class="text-center text-xs text-slate-400 py-12">لا توجد ملفات مرسلة إلى الدعم الفني حتى الآن.</div>';
             Array.from(document.getElementById('supportProjectsList').children).forEach((article,index)=>{const p=filtered[index];if(!p)return;const actions=article.querySelector('.flex.flex-wrap.gap-2');if(p.handoffStatus==='تم الاستلام'&&actions){const btn=document.createElement('button');btn.className='bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-black';btn.innerHTML='<i class="fa-solid fa-circle-check ml-1"></i>تم الرفع بنجاح';btn.onclick=()=>completeSupportProject(p.id);actions.appendChild(btn);}if(p.handoffStatus==='تم الرفع بنجاح'){const badge=article.querySelector('span.px-2');if(badge){badge.textContent='تم الرفع بنجاح بواسطة '+(p.completedBy||'-');badge.className='px-2 py-1 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900';}const info=article.lastElementChild;if(info)info.innerHTML='<i class="fa-solid fa-box-archive text-emerald-600 ml-1"></i>أُغلق الملف ونُقل للأرشيف — '+(p.completedAt?window.formatEgyptDateTime(p.completedAt):'');}}
