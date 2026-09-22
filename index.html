@@ -488,13 +488,13 @@
             </div>
 
             <h2 class="text-xl font-black text-slate-900">تسجيل الدخول - منصة نبضي</h2>
-            <p class="text-xs text-purple-700 font-bold mt-1">منظومة خدمة العملاء ودليل جهات الاتصال ومتابعة الرحلة والتقارير</p>
+            <p class="text-xs text-purple-700 font-bold mt-1">منظومة خدمات العملاء والدعم الفني والمهام والتقارير</p>
 
             <form onsubmit="handleLogin(event)" class="mt-6 space-y-4 text-right">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">نوع الحساب / الدور</label>
                     <select id="loginRole" onchange="toggleLoginInputs()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-800 text-xs focus:outline-none focus:border-brand-500">
-                        <option value="agent">👨‍💼 فريق العمل (موظف / مشرف / مدير متابعة)</option>
+                        <option value="agent">فريق العمل — خدمات العملاء / الدعم الفني / الإشراف</option>
                         <option value="manager">👑 مدير المنظومة (Manager)</option>
                     </select>
                 </div>
@@ -525,7 +525,7 @@
     </div>
 
     <!-- Toast Notification Box -->
-    <div id="toastBox" class="fixed bottom-5 left-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div id="toastBox" role="status" aria-live="polite" class="fixed bottom-5 left-5 z-[200] transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
         <div id="toastContent" class="bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-slate-700 text-xs font-bold">
             <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
             <span id="toastMessage">تمت العملية بنجاح</span>
@@ -1141,6 +1141,7 @@
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <button onclick="openTechnicalSupportWorkspace()" class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-headset ml-1"></i>مركز عمل الدعم</button>
+                        <button onclick="openSupportBulletins()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-bullhorn ml-1"></i>نشرات الدعم</button>
                         <button onclick="openDailySummaryModal('SUPPORT_PERFORMANCE')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-chart-line ml-1"></i>تقارير الدعم</button>
                         <button onclick="openAttendanceManagerModal()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-fingerprint ml-1"></i>مراجعة البصمة</button>
                         <button onclick="openDepartmentTaskModal('الدعم الفني')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black"><i class="fa-solid fa-user-check ml-1"></i>إسناد تاسك</button>
@@ -1178,6 +1179,18 @@
 
     </main>
 
+    <div id="supportBulletinsModal" class="hidden fixed inset-0 bg-slate-950/70 z-[145] p-4 flex items-center justify-center" dir="rtl">
+        <section class="bg-white rounded-3xl p-5 w-full max-w-2xl max-h-[85vh] overflow-auto">
+            <div class="flex items-center justify-between mb-4"><h2 class="font-black text-lg">نشرات وتعميمات الدعم الفني</h2><button onclick="document.getElementById('supportBulletinsModal').classList.add('hidden')" aria-label="إغلاق">✕</button></div>
+            <form id="supportBulletinForm" onsubmit="publishSupportBulletin(event)" class="hidden p-4 bg-indigo-50 rounded-xl mb-4 space-y-3">
+                <input id="supportBulletinTitle" required maxlength="120" placeholder="عنوان النشرة" class="w-full border rounded-xl p-3 text-sm">
+                <textarea id="supportBulletinMessage" required maxlength="4000" placeholder="نص التعميم لفريق الدعم الفني" class="w-full border rounded-xl p-3 text-sm" rows="3"></textarea>
+                <button type="submit" class="bg-indigo-700 text-white rounded-xl px-4 py-2 font-bold text-sm">نشر لفريق الدعم الفني</button>
+                <p id="supportBulletinError" role="alert" class="text-rose-700 text-sm"></p>
+            </form>
+            <div id="supportBulletinsList" class="space-y-3"></div>
+        </section>
+    </div>
     <div id="departmentTaskModal" class="fixed inset-0 bg-slate-950/70 z-[120] hidden p-4 flex items-center justify-center" dir="rtl">
         <form onsubmit="saveDepartmentTask(event)" class="bg-white rounded-3xl w-full max-w-lg p-5 space-y-3 shadow-2xl text-xs">
             <div class="flex justify-between items-center"><div><h3 class="font-black text-base">إسناد مهمة داخلية لموظف</h3><p id="departmentTaskSubtitle" class="text-slate-500 mt-1"></p></div><button type="button" onclick="closeDepartmentTaskModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2707,6 +2720,9 @@
             const key=window.normalizeEmployeeName(name);
             return (window.employees||[]).find(e=>window.normalizeEmployeeName(e.name)===key);
         };
+        window.isSupportAccount = function() {
+            return window.currentUserRole === 'agent' && window.getEmployeeDepartment(window.findEmployeeByName(window.currentLoggedInAgent)) === 'الدعم الفني';
+        };
         window.isReportingSupervisor = function(emp) {
             if (!emp || window.getEmployeeAccessLevel(emp) !== 'supervisor') return false;
             const department = window.getEmployeeDepartment(emp);
@@ -3069,6 +3085,9 @@
                 });
                 taskList = mergeCloudRecords(archivedCloudData.tasks, taskList)
                     .filter(task => !task.deletedAt && !deletedTaskIds.has(task.id));
+                window.supportBulletins = taskList.filter(task => task.taskType === 'support_bulletin' && task.department === 'الدعم الفني');
+                taskList = taskList.filter(task => task.taskType !== 'support_bulletin');
+                if (window.renderSupportBulletins) window.renderSupportBulletins();
                 window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 window.attachEmployeeIds();
                 window.saveLocalBackup();
@@ -3353,6 +3372,15 @@
             }
         };
 
+        window.saveSupportBulletinToCloud = async function(title, message) {
+            const actor = window.findEmployeeByName(window.currentLoggedInAgent);
+            if (!window.hasManagerPermissions() && !(window.isSupportAccount() && window.isReportingSupervisor(actor))) throw new Error('نشر التعميم متاح لمشرف الدعم والمدير فقط');
+            const record = {id:'bulletin_'+crypto.randomUUID(),taskType:'support_bulletin',department:'الدعم الفني',title,message,assignedBy:window.currentLoggedInAgent||'المدير العام',createdAt:Date.now()};
+            await waitForFirebaseUser();
+            await withOperationTimeout(setDoc(doc(db,'artifacts',appId,'public','data','tasks',record.id),record),8000,'تعذر حفظ نشرة الدعم. حاول مرة أخرى.');
+            window.supportBulletins=[record,...(window.supportBulletins||[]).filter(item=>item.id!==record.id)];
+            return record;
+        };
         window.saveTaskToCloud = async function(taskData) {
             if (!taskData.id) taskData.id = 'task_' + Date.now();
             taskData.createdAt = taskData.createdAt || Date.now();
@@ -5249,15 +5277,32 @@
             }).join('');
         }
 
+        function openSupportBulletins(){
+            if(!window.isSupportAccount()&&!window.hasManagerPermissions())return;
+            renderSupportBulletins();document.getElementById('supportBulletinsModal').classList.remove('hidden');
+        }
+        function renderSupportBulletins(){
+            const box=document.getElementById('supportBulletinsList');if(!box)return;
+            if(!window.isSupportAccount()&&!window.hasManagerPermissions()){box.innerHTML='';document.getElementById('supportBulletinsModal').classList.add('hidden');return;}
+            const actor=window.findEmployeeByName(window.currentLoggedInAgent);
+            document.getElementById('supportBulletinForm').classList.toggle('hidden',!(window.hasManagerPermissions()||window.isReportingSupervisor(actor)));
+            box.innerHTML=(window.supportBulletins||[]).slice().sort((a,b)=>b.createdAt-a.createdAt).map(item=>`<article class="border rounded-xl p-4"><h3 class="font-black text-indigo-900">${escapeHtml(item.title)}</h3><p class="text-xs text-slate-500 mt-1">${escapeHtml(item.assignedBy)} · ${window.formatEgyptDateTime(item.createdAt)}</p><p class="whitespace-pre-wrap text-sm mt-3">${escapeHtml(item.message)}</p></article>`).join('')||'<p class="text-slate-500 text-center p-6">لا توجد نشرات للدعم الفني حتى الآن.</p>';
+        }
+        async function publishSupportBulletin(event){
+            event.preventDefault();const form=event.target,button=form.querySelector('button[type="submit"]'),error=document.getElementById('supportBulletinError');
+            const title=document.getElementById('supportBulletinTitle').value.trim(),message=document.getElementById('supportBulletinMessage').value.trim();if(!title||!message)return;
+            button.disabled=true;error.textContent='';
+            try{await window.saveSupportBulletinToCloud(title,message);form.reset();renderSupportBulletins();updateTaskNotifications();showToast('تم نشر التعميم لفريق الدعم الفني');}catch(err){error.textContent=err.message||'تعذر النشر، حاول مرة أخرى';}finally{button.disabled=false;}
+        }
         function getTaskNotificationReadIds(){try{return JSON.parse(localStorage.getItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'))||'[]')}catch(e){return[]}}
         function setTaskNotificationReadIds(ids){localStorage.setItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'),JSON.stringify(Array.from(new Set(ids))));}
         function getAssignedNotificationTasks(){
             const current=window.currentLoggedInAgent||'المدير العام', items=[];
-            (window.tasks||[]).filter(t=>t.taskType==='internal').forEach(t=>{
+            (window.tasks||[]).filter(t=>t.taskType==='internal'&&!t.deletedAt&&(!window.isSupportAccount()||t.department==='الدعم الفني')).forEach(t=>{
                 if(window.sameEmployee(t.agent,current,t.agentId||'',window.currentLoggedInEmployeeId||'')) {
-                    items.push({...t,notificationKind:'assigned',notificationKey:'assigned:'+t.id,notificationAt:Number(t.createdAt||0),notificationText:'تم إسناد تاسك جديد إليك: '+(t.title||t.notes||'مهمة داخلية'),notificationFrom:t.assignedBy||'المدير'});
+                    items.push({...t,notificationKind:'assigned',notificationKey:'assigned:'+t.id,notificationAt:notificationTimestamp(t.createdAt),notificationText:'تم إسناد تاسك جديد إليك: '+(t.title||t.notes||'مهمة داخلية'),notificationFrom:t.assignedBy||'المدير'});
                 }
-                if(window.sameEmployee(t.assignedBy,current)) {
+                if(window.sameEmployee(t.assignedBy,current,t.assignedById||'',window.currentLoggedInEmployeeId||'')) {
                     (t.activityLog||[]).forEach(log=>{
                         const isAccepted=log.type==='استلام المهمة';
                         const isCompleted=log.type==='إنهاء المهمة';
@@ -5266,14 +5311,38 @@
                     });
                 }
             });
+            if(window.isSupportAccount() || window.hasManagerPermissions()) (window.supportBulletins||[]).forEach(item=>items.push({id:item.id,title:item.title,notificationKind:'bulletin',notificationKey:'bulletin:'+item.id,notificationAt:item.createdAt,notificationText:item.message,notificationFrom:item.assignedBy,status:'نشرة الدعم الفني'}));
             return items.sort((a,b)=>(b.notificationAt||0)-(a.notificationAt||0));
         }
+        function notificationTimestamp(value) { return typeof value === 'number' ? value : value?.seconds ? value.seconds * 1000 : Date.parse(value || '') || 0; }
         function playTaskNotificationSound(){try{const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;const context=new AudioContextClass(),oscillator=context.createOscillator(),gain=context.createGain();oscillator.connect(gain);gain.connect(context.destination);oscillator.frequency.setValueAtTime(880,context.currentTime);gain.gain.setValueAtTime(.08,context.currentTime);gain.gain.exponentialRampToValueAtTime(.001,context.currentTime+.22);oscillator.start();oscillator.stop(context.currentTime+.22);}catch(error){}}
-        function updateTaskNotifications(showNewToast=false){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),unread=tasks.filter(t=>!read.includes(t.notificationKey));document.querySelectorAll('.task-notification-badge').forEach(b=>{b.textContent=unread.length;b.classList.toggle('hidden',!unread.length);b.classList.toggle('flex',!!unread.length);});const btn=document.getElementById('btnTaskNotifications');if(btn){btn.classList.remove('hidden');btn.classList.add('flex');btn.classList.toggle('animate-pulse',unread.length>0);}if(showNewToast){const fresh=unread.find(t=>(t.notificationAt||0)>(window.userLoginAt||0)&&t.notificationKey!==window.lastTaskToastId);if(fresh){window.lastTaskToastId=fresh.notificationKey;playTaskNotificationSound();showToast(`${fresh.notificationFrom}: ${fresh.notificationText||fresh.title||'تحديث مهمة'}`,'info');}}}
-        function openTaskNotifications(){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),box=document.getElementById('taskNotificationsList');box.innerHTML=tasks.length?tasks.map(t=>{const kindLabel=t.notificationKind==='assigned'?'تاسك جديد':t.notificationKind==='accepted'?'تم الاستلام':t.notificationKind==='completed'?'تم الإنجاز':'تحديث جديد';const kindClass=t.notificationKind==='completed'?'bg-emerald-100 text-emerald-800':t.notificationKind==='accepted'?'bg-sky-100 text-sky-800':t.notificationKind==='assigned'?'bg-violet-100 text-violet-800':'bg-amber-100 text-amber-800';return `<button onclick="openTaskFromNotification('${t.id}','${t.notificationKey}')" class="w-full text-right p-4 hover:bg-sky-50 ${read.includes(t.notificationKey)?'bg-white':'bg-amber-50'}"><div class="flex justify-between gap-2"><div class="flex items-center gap-2"><b class="text-xs">${escapeHtml(t.title||'مهمة داخلية')}</b><span class="${kindClass} px-2 py-0.5 rounded-full text-[9px] font-black">${kindLabel}</span></div>${read.includes(t.notificationKey)?'':'<span class="w-2 h-2 rounded-full bg-rose-500 mt-1"></span>'}</div><p class="text-[10px] text-slate-500 mt-1">من: ${escapeHtml(t.notificationFrom||'-')} · الحالة: ${escapeHtml(getInternalTaskState(t)||t.status||'-')} · التسليم: ${escapeHtml(t.date||'-')}</p><p class="text-[11px] text-slate-700 mt-2">${escapeHtml(t.notificationText||t.notes||'')}</p></button>`}).join(''):'<div class="p-10 text-center text-xs text-slate-400">لا توجد إشعارات مهام.</div>';document.getElementById('taskNotificationsModal').classList.remove('hidden');}
+        function updateTaskNotifications(showNewToast=false){
+            if(!window.currentUserRole)return;
+            const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),unread=tasks.filter(t=>!read.includes(t.notificationKey));
+            document.querySelectorAll('.task-notification-badge').forEach(b=>{b.textContent=unread.length;b.classList.toggle('hidden',!unread.length);b.classList.toggle('flex',!!unread.length);});
+            const btn=document.getElementById('btnTaskNotifications');if(btn){btn.classList.remove('hidden');btn.classList.add('flex');btn.classList.toggle('animate-pulse',unread.length>0);}
+            window.alertedTaskNotificationIds ||= new Set();
+            if(showNewToast){
+                const fresh=unread.filter(t=>t.notificationAt>(window.userLoginAt||0)&&!window.alertedTaskNotificationIds.has(t.notificationKey));
+                if(fresh.length){fresh.forEach(t=>window.alertedTaskNotificationIds.add(t.notificationKey));playTaskNotificationSound();showToast(fresh.length===1?`${fresh[0].notificationFrom}: ${fresh[0].notificationText}`:`وصلت ${fresh.length} إشعارات جديدة — افتح جرس الإشعارات`,'info');}
+            }
+            if(!document.getElementById('taskNotificationsModal')?.classList.contains('hidden')) openTaskNotifications();
+        }
+        function openTaskNotifications(){const tasks=getAssignedNotificationTasks(),read=getTaskNotificationReadIds(),box=document.getElementById('taskNotificationsList');box.innerHTML=tasks.length?tasks.map(t=>{const kindLabel=t.notificationKind==='bulletin'?'نشرة الدعم':t.notificationKind==='assigned'?'تاسك جديد':t.notificationKind==='accepted'?'تم الاستلام':t.notificationKind==='completed'?'تم الإنجاز':'تحديث جديد';const kindClass=t.notificationKind==='completed'?'bg-emerald-100 text-emerald-800':t.notificationKind==='accepted'?'bg-sky-100 text-sky-800':t.notificationKind==='assigned'?'bg-violet-100 text-violet-800':'bg-amber-100 text-amber-800';return `<button onclick="openTaskFromNotification('${t.id}','${t.notificationKey}')" class="w-full text-right p-4 hover:bg-sky-50 ${read.includes(t.notificationKey)?'bg-white':'bg-amber-50'}"><div class="flex justify-between gap-2"><div class="flex items-center gap-2"><b class="text-xs">${escapeHtml(t.title||'مهمة داخلية')}</b><span class="${kindClass} px-2 py-0.5 rounded-full text-[9px] font-black">${kindLabel}</span></div>${read.includes(t.notificationKey)?'':'<span class="w-2 h-2 rounded-full bg-rose-500 mt-1"></span>'}</div><p class="text-[10px] text-slate-500 mt-1">من: ${escapeHtml(t.notificationFrom||'-')} · الحالة: ${escapeHtml(getInternalTaskState(t)||t.status||'-')} · التسليم: ${escapeHtml(t.date||'-')}</p><p class="text-[11px] text-slate-700 mt-2">${escapeHtml(t.notificationText||t.notes||'')}</p></button>`}).join(''):'<div class="p-10 text-center text-xs text-slate-400">لا توجد إشعارات مهام.</div>';document.getElementById('taskNotificationsModal').classList.remove('hidden');}
         function closeTaskNotifications(){document.getElementById('taskNotificationsModal').classList.add('hidden');}
         function markAllTaskNotificationsRead(){setTaskNotificationReadIds(getAssignedNotificationTasks().map(t=>t.notificationKey));updateTaskNotifications();openTaskNotifications();}
-        function openTaskFromNotification(id,key){const ids=getTaskNotificationReadIds();ids.push(key||id);setTaskNotificationReadIds(ids);updateTaskNotifications();closeTaskNotifications();const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.hasManagerPermissions&&window.hasManagerPermissions()){switchRole('manager');document.getElementById('managerView')?.scrollIntoView({behavior:'smooth',block:'start'});}else if(window.getEmployeeDepartment(emp)==='الدعم الفني'){openTechnicalSupportWorkspace();document.getElementById('supportInternalTasksList')?.scrollIntoView({behavior:'smooth',block:'start'});}else{switchRole('agent');document.getElementById('agentTaskTableBody')?.scrollIntoView({behavior:'smooth',block:'start'});}}
+        function openTaskFromNotification(id,key){
+            const ids=getTaskNotificationReadIds();ids.push(key||id);setTaskNotificationReadIds(ids);closeTaskNotifications();updateTaskNotifications();
+            if(String(key||'').startsWith('bulletin:')) {openSupportBulletins();return;}
+            const task=(window.tasks||[]).find(t=>t.id===id);
+            if(window.isSupportAccount()){
+                const own=task&&window.sameEmployee(task.agent,window.currentLoggedInAgent,task.agentId||'',window.currentLoggedInEmployeeId||'');
+                switchRole(own?'agent':'manager');
+                if(!own&&task)openTechnicalSupportWorkspace();
+                document.getElementById(own?'supportInternalTasksList':'supportSupervisorRecentTasks')?.scrollIntoView({behavior:'smooth',block:'start'});
+            }else if(window.hasManagerPermissions()){switchRole('manager');}
+            else {switchRole('agent');document.getElementById('agentTaskTableBody')?.scrollIntoView({behavior:'smooth',block:'start'});}
+        }
 
         function openDepartmentTaskModal(department) {
             const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);
@@ -5284,7 +5353,7 @@
             document.getElementById('departmentTaskDepartment').value=department;document.getElementById('departmentTaskSubtitle').textContent='القسم: '+department;document.getElementById('departmentTaskTitle').value='';document.getElementById('departmentTaskNotes').value='';document.getElementById('departmentTaskDue').value=window.getLocalDateString();document.getElementById('departmentTaskAssignee').innerHTML=staff.map(e=>`<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)}</option>`).join('');document.getElementById('departmentTaskModal').classList.remove('hidden');
         }
         function closeDepartmentTaskModal(){document.getElementById('departmentTaskModal').classList.add('hidden');}
-        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',assignedById:window.currentLoggedInEmployeeId||'manager_primary',agent:assignee,agentId:emp?.id||'',date:due,time:window.getEgyptTimeString(),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'جديدة',title,notes:(title+(notes?' — '+notes:'')),activityLog:[]});closeDepartmentTaskModal();showToast('تم إرسال التاسك إلى '+assignee+' وظهر له إشعار جديد');if(typeof renderSupportSupervisorDashboard==='function')renderSupportSupervisorDashboard();}
+        async function saveDepartmentTask(e){e.preventDefault();const department=document.getElementById('departmentTaskDepartment').value,assignee=document.getElementById('departmentTaskAssignee').value,title=document.getElementById('departmentTaskTitle').value.trim(),due=document.getElementById('departmentTaskDue').value,priority=document.getElementById('departmentTaskPriority').value,notes=document.getElementById('departmentTaskNotes').value.trim(),emp=(window.employees||[]).find(x=>x.name===assignee);const actor=window.findEmployeeByName(window.currentLoggedInAgent);if(!title||!emp||window.getEmployeeDepartment(emp)!==department||(!window.hasManagerPermissions()&&(window.getEmployeeAccessLevel(actor)!=='supervisor'||window.getEmployeeDepartment(actor)!==department)))return showToast('لا يمكنك إسناد هذه المهمة خارج فريقك','error');await window.saveTaskToCloud({id:null,taskType:'internal',department,assignedBy:window.currentLoggedInAgent||'المدير العام',assignedById:window.currentLoggedInEmployeeId||'manager_primary',agent:assignee,agentId:emp?.id||'',date:due,time:window.getEgyptTimeString(),shift:emp?.shift||'شفت صباحي',customer:'مهمة داخلية — '+department,phone:'-',entityType:'مهمة داخلية',specialty:department,city:'-',category:'مهمة داخلية',channel:'نظام نبضي',priority,status:'جديدة',title,notes:(title+(notes?' — '+notes:'')),activityLog:[]});closeDepartmentTaskModal();showToast('تم إرسال التاسك إلى '+assignee+' وظهر له إشعار جديد');if(typeof renderSupportSupervisorDashboard==='function')renderSupportSupervisorDashboard();}
 
         function openAddTaskModal(clientIdToPreselect = null, options = {}) {
             const modal = document.getElementById('addTaskModal');
@@ -5637,6 +5706,7 @@
             window.currentLoggedInAgent = resolvedEmployee?.name || agentName;
             window.currentLoggedInEmployeeId = resolvedEmployee?.id || (role === 'manager' ? 'manager_primary' : '');
             window.userLoginAt = Date.now();
+            window.alertedTaskNotificationIds = new Set();
 
             try {
                 sessionStorage.setItem('cs_logged_role', role);
@@ -5656,6 +5726,7 @@
             const btnEmployeeAttendance = document.getElementById('btnEmployeeAttendance');
             const btnManagerAttendance = document.getElementById('btnManagerAttendance');
 
+            ['taskNotificationsModal','supportBulletinsModal','dailySummaryModal'].forEach(id=>document.getElementById(id)?.classList.add('hidden'));
             if (role === 'manager') {
                 nameSpan.innerText = resolvedEmployee ? `المدير: ${resolvedEmployee.name}` : 'المدير العام';
                 const roleManagerButtonLabel = document.getElementById('roleManagerButtonLabel');
@@ -5706,7 +5777,7 @@
                 if (roleManagerButtonLabel && hasReportingAccess) {
                     roleManagerButtonLabel.textContent = isTechnicalSupport ? 'إشراف وتقارير الدعم' : 'إشراف وتقارير المبيعات';
                 }
-                switchRole('agent');
+                switchRole(isTechnicalSupport && isSupervisor ? 'manager' : 'agent');
             }
 
             renderApp();
@@ -5727,6 +5798,7 @@
                 window.firebaseSignOut().catch(error => console.error('Firebase sign-out failed:', error));
             }
             document.getElementById('loginOverlay').classList.remove('hidden');
+            ['technicalSupportWorkspace','supportSupervisorView','taskNotificationsModal','supportBulletinsModal','dailySummaryModal','departmentTaskModal'].forEach(id=>document.getElementById(id)?.classList.add('hidden'));
             const btnTechnicalSupport = document.getElementById('btnTechnicalSupport');
             if (btnTechnicalSupport) { btnTechnicalSupport.classList.add('hidden'); btnTechnicalSupport.classList.remove('flex'); }
             const btnCustomerAssignTask = document.getElementById('btnCustomerAssignTask');
@@ -5771,6 +5843,11 @@
                 return;
             }
             window.currentWorkspaceRole = role;
+            document.getElementById('technicalSupportWorkspace')?.classList.add('hidden');
+            const supportAccount = window.isSupportAccount();
+            document.querySelectorAll('button[onclick="openAddTaskModal()"], button[onclick="openClientDirectoryModal(\'directory\')"]').forEach(button => button.classList.toggle('hidden', supportAccount));
+            const employeeLabel = document.querySelector('#btnRoleAgent span');
+            if (employeeLabel) employeeLabel.textContent = supportAccount ? 'مهامي في الدعم الفني' : 'واجهة الموظف';
             const btnAgent = document.getElementById('btnRoleAgent');
             const btnManager = document.getElementById('btnRoleManager');
             const agentView = document.getElementById('agentView');
@@ -5791,16 +5868,16 @@
                 }
                 if (btnAgent) btnAgent.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 bg-white text-brand-600 shadow-sm cursor-pointer";
                 if (btnManager) btnManager.className = "px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:text-slate-900 cursor-pointer";
-                agentView.classList.remove('hidden');
+                agentView.classList.toggle('hidden', supportAccount);
                 managerView.classList.add('hidden');
                 supportSupervisorView?.classList.add('hidden');
                 renderAgentTasks();
                 if (window.currentUserRole === 'agent' && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني') {
-                    setTimeout(() => {
+                    (() => {
                         const scopeFilter = document.getElementById('supportScopeFilter');
                         if (scopeFilter) scopeFilter.value = 'MINE';
                         if (window.openTechnicalSupportWorkspace) window.openTechnicalSupportWorkspace();
-                    }, 80);
+                    })();
                 }
             } else {
                 if (window.currentUserRole === 'agent') window.currentAgent = 'ALL';
@@ -6485,7 +6562,8 @@
         }
 
         function renderApp() {
-            renderAgentTasks();
+            if (!window.isSupportAccount()) renderAgentTasks();
+            else { document.getElementById('agentView')?.classList.add('hidden'); document.getElementById('managerView')?.classList.add('hidden'); }
             const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
             const isSupportSupervisor = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedEmployee) && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
             if (window.canAccessReportsDashboard && window.canAccessReportsDashboard() && !isSupportSupervisor) {
@@ -6555,6 +6633,7 @@
         }
 
         function renderManagerDashboard() {
+            if (window.isSupportAccount()) { document.getElementById('managerView')?.classList.add('hidden'); return; }
             const supervisorTeam = window.currentUserRole === 'agent' && window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))
                 ? window.getCurrentSupervisorTeam()
                 : null;
@@ -6796,7 +6875,7 @@
             const isSupervisorReport = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedSupervisor);
             const supervisorDepartment = isSupervisorReport ? window.getEmployeeDepartment(loggedSupervisor) : '';
             let allowedValues = window.allReportTypeOptions.map(option => option.value);
-            if (supervisorDepartment === 'الدعم الفني') {
+            if (window.isSupportAccount()) {
                 allowedValues = ['SUPPORT_PERFORMANCE', 'INTERNAL_TASKS', 'ATTENDANCE'];
             } else if (supervisorDepartment === 'خدمات العملاء') {
                 allowedValues = allowedValues.filter(value => value !== 'SUPPORT_PERFORMANCE');
@@ -8359,6 +8438,8 @@
         }
 
         function generateInfographicReport() {
+            if (!(window.canAccessReportsDashboard && window.canAccessReportsDashboard())) return;
+            if (window.isSupportAccount()) configureReportTypesForCurrentUser(document.getElementById('reportTypeSelect').value);
             const reportType = document.getElementById('reportTypeSelect').value;
             const start = document.getElementById('summaryStartDate').value;
             const end = document.getElementById('summaryEndDate').value;
@@ -8705,6 +8786,7 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-user-gear text-emerald-300 ml-1"></i><span id="supportLoggedUserName">موظف الدعم</span></span>
+                    <button onclick="openSupportBulletins()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-bullhorn ml-1"></i>نشرات الدعم</button>
                     <button onclick="openTaskNotifications()" class="relative bg-white/10 border border-white/15 w-10 h-10 rounded-xl flex items-center justify-center"><i class="fa-solid fa-bell text-amber-300"></i><span class="task-notification-badge hidden absolute -top-1 -left-1 bg-rose-600 text-white min-w-5 h-5 px-1 rounded-full text-[9px] font-black items-center justify-center">0</span></button>
                     <button onclick="openAttendancePunchModal()" class="bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 px-3 py-2 rounded-xl text-xs font-black cursor-pointer"><i class="fa-solid fa-fingerprint ml-1"></i><span id="supportAttendanceButtonText">البصمة</span></button>
                     <select id="supportScopeFilter" onchange="renderTechnicalSupport()" class="bg-white text-slate-900 rounded-xl px-3 py-2 text-xs font-black"><option value="ALL">الشغل النشط</option><option value="MINE">مهامي فقط</option><option value="UNASSIGNED">غير موزع</option><option value="COMPLETED">أرشيف المكتمل</option></select>
@@ -8778,8 +8860,19 @@
             if(window.currentUserRole==='agent' && !(window.hasManagerPermissions&&window.hasManagerPermissions()) && window.getEmployeeDepartment(emp)!=='الدعم الفني'){ if(window.showToast)showToast('هذه الشاشة مخصصة لموظفي الدعم الفني والمدير','error'); return; }
             document.getElementById('technicalSupportWorkspace').classList.remove('hidden'); const name=document.getElementById('supportLoggedUserName');if(name)name.textContent=window.currentLoggedInAgent||'المدير العام';const assignBtn=document.getElementById('btnSupportAssignTask');const canAssign=window.canManageSupportDepartment();if(assignBtn)assignBtn.classList.toggle('hidden',!canAssign);const scope=document.getElementById('supportScopeFilter');if(scope&&!canAssign)scope.value='MINE'; syncSupportProjectsFromFunnel(false); renderTechnicalSupport();
         };
-        window.closeTechnicalSupportWorkspace=function(){ const emp=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(window.currentUserRole==='agent'&&!(window.canAccessReportsDashboard&&window.canAccessReportsDashboard())&&window.getEmployeeDepartment(emp)==='الدعم الفني')return;document.getElementById('technicalSupportWorkspace').classList.add('hidden'); };
-        window.supportDashboardHome=function(){if(window.currentWorkspaceRole==='manager'&&window.canAccessReportsDashboard&&window.canAccessReportsDashboard()){document.getElementById('technicalSupportWorkspace').classList.add('hidden');switchRole('manager');window.scrollTo({top:0,behavior:'smooth'});return;}const employee=window.findEmployeeByName(window.currentLoggedInAgent);if(window.currentWorkspaceRole==='agent'&&window.isReportingSupervisor(employee)){document.getElementById('technicalSupportWorkspace').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});return;}document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'});renderTechnicalSupport();};
+        window.closeTechnicalSupportWorkspace=function(){
+            if(window.isSupportAccount()) {
+                if(window.isReportingSupervisor(window.findEmployeeByName(window.currentLoggedInAgent))) switchRole('manager');
+                return;
+            }
+            document.getElementById('technicalSupportWorkspace').classList.add('hidden');
+        };
+        window.supportDashboardHome=function(){
+            if(window.canAccessReportsDashboard && window.canAccessReportsDashboard()) {
+                switchRole('manager'); window.scrollTo({top:0,behavior:'smooth'}); return;
+            }
+            document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'}); renderTechnicalSupport();
+        };
         window.supportLogout=function(){document.getElementById('technicalSupportWorkspace').classList.add('hidden');logout();};
         window.syncSupportProjectsFromFunnel=function(notify=true){
             let projects=loadSupport(),changed=0;
@@ -8876,3 +8969,4 @@
     </script>
 </body>
 </html>
+
