@@ -532,6 +532,8 @@
         </div>
     </div>
 
+    <div id="localBackupWarning" class="hidden bg-amber-50 text-amber-900 border border-amber-300 p-3 text-sm" role="status">تعذر تحديث النسخة المحلية على هذا الجهاز. لا تمسح بيانات الموقع؛ تأكد من ظهور تأكيد الحفظ قبل إغلاق الصفحة.</div>
+
     <!-- Header / Navbar -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2216,6 +2218,63 @@
     </div>
 
     <!-- FIREBASE CLOUD REALTIME SYNC ENGINE MODULE -->
+    <script>
+    // Application snapshots use their own IndexedDB database. Firestore keeps its
+    // existing database and pending writes; its multi-tab localStorage is untouched.
+    (function(){
+        const values=new Map(),pending=new Map();let database=null,queue=Promise.resolve();
+        const ownKey=key=>/^(cs_nabdi_|nabdi_|cs_logged_)/.test(key);
+        const native=(()=>{try{return window.localStorage;}catch(error){return null;}})();
+        const legacy=new Map();
+        try{for(let i=0;native&&i<native.length;i++){const key=native.key(i);if(ownKey(key)){const value=native.getItem(key);legacy.set(key,value);values.set(key,value);}}}catch(error){}
+        function warn(){window.nabdiLocalBackupUnavailable=true;const banner=document.getElementById('localBackupWarning');if(banner)banner.classList.remove('hidden');}
+        function transaction(key,value){return new Promise(resolve=>{
+            if(!database)return resolve(false);
+            let tx,settled=false;const finish=ok=>{if(settled)return;settled=true;clearTimeout(timer);resolve(ok);};
+            const timer=setTimeout(()=>{try{tx?.abort();}catch(error){}finish(false);},5000);
+            try{tx=database.transaction('snapshots','readwrite');const store=tx.objectStore('snapshots');value===null?store.delete(key):store.put(value,key);tx.oncomplete=()=>finish(true);tx.onabort=tx.onerror=()=>finish(false);}catch(error){finish(false);}
+        });}
+        let channel;try{channel=new BroadcastChannel('nabdi-local-snapshots-v2');channel.onmessage=event=>{const {key,value}=event.data||{};if(!ownKey(key)||pending.has(key))return;value===null?values.delete(key):values.set(key,value);};}catch(error){}
+        window.nabdiStorageReady=(async()=>{
+            database=await new Promise(resolve=>{
+                let settled=false;const finish=db=>{if(settled){db?.close();return;}settled=true;clearTimeout(timer);resolve(db);};
+                const timer=setTimeout(()=>finish(null),5000);
+                try{const request=indexedDB.open('nabdi-app-snapshots-v2',1);request.onupgradeneeded=()=>request.result.createObjectStore('snapshots');request.onsuccess=()=>finish(request.result);request.onerror=request.onblocked=()=>finish(null);}catch(error){finish(null);}
+            });
+            if(!database){warn();return;}
+            database.onversionchange=()=>{database.close();database=null;warn();};
+            await new Promise(resolve=>{
+                let finished=false;const done=()=>{if(!finished){finished=true;clearTimeout(timer);resolve();}};const timer=setTimeout(done,5000);
+                try{const tx=database.transaction('snapshots','readonly'),request=tx.objectStore('snapshots').openCursor();request.onsuccess=()=>{const cursor=request.result;if(cursor){if(!values.has(cursor.key)&&!pending.has(cursor.key))values.set(cursor.key,cursor.value);cursor.continue();}};tx.oncomplete=tx.onabort=tx.onerror=done;}catch(error){done();}
+            });
+            for(const [key,value]of legacy){
+                // Never remove the old copy unless its replacement committed.
+                if(await transaction(key,value)){try{if(native.getItem(key)===value)native.removeItem(key);}catch(error){}}else {warn();break;}
+            }
+        })();
+        async function persist(key,value){
+            await window.nabdiStorageReady;
+            let previous=null;try{previous=native?.getItem(key);}catch(error){}
+            if(await transaction(key,value)){
+                try{if(native?.getItem(key)===previous)native.removeItem(key);}catch(error){}
+                try{channel?.postMessage({key,value});}catch(error){}
+                return;
+            }
+            // Best-effort small preference fallback; never fill Web Storage with
+            // whole CRM snapshots or throw after a successful cloud operation.
+            try{if(value===null)native?.removeItem(key);else if(value.length<=16384&&native)native.setItem(key,value);else warn();}catch(error){warn();}
+        }
+        function enqueue(key,value){pending.set(key,value);queue=queue.then(async()=>{if(!pending.has(key))return;const latest=pending.get(key);pending.delete(key);await persist(key,latest);}).catch(warn);}
+        window.nabdiStorage={
+            getItem(key){return values.has(key)?values.get(key):null;},
+            setItem(key,value){value=String(value);values.set(key,value);enqueue(key,value);},
+            removeItem(key){values.delete(key);enqueue(key,null);},
+            async flush(){await window.nabdiStorageReady;await queue;}
+        };
+        window.addEventListener('storage',event=>{if(ownKey(event.key)&&event.newValue!==null){values.set(event.key,event.newValue);enqueue(event.key,event.newValue);}});
+    })();
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInAnonymously, signInWithCustomToken, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -2245,6 +2304,7 @@
         const managerEmail = 'yousri.shams@gmail.com';
         window.NABDI_MANAGER_EMAIL = managerEmail;
         window.NABDI_MANAGER_AUTHENTICATED = false;
+        await window.nabdiStorageReady;
         let db;
         try {
             // ذاكرة Firestore الدائمة تمنع تحميل نفس مئات السجلات من الصفر
@@ -2289,7 +2349,7 @@
 
         function restoreArchivedDataCache() {
             try {
-                const cached = JSON.parse(localStorage.getItem(archiveCacheKey) || 'null');
+                const cached = JSON.parse(window.nabdiStorage.getItem(archiveCacheKey) || 'null');
                 if (!cached || !cached.savedAt || !cached.collections) return false;
                 for (const collectionName of ['employees', 'tasks', 'clients', 'supportProjects']) {
                     if (Array.isArray(cached.collections[collectionName])) {
@@ -2304,7 +2364,7 @@
 
         function persistArchivedDataCache() {
             try {
-                localStorage.setItem(archiveCacheKey, JSON.stringify({
+                window.nabdiStorage.setItem(archiveCacheKey, JSON.stringify({
                     savedAt: Date.now(),
                     collections: archivedCloudData
                 }));
@@ -2403,7 +2463,7 @@
                 const previous = byClient.get(key);
                 if (!previous || recordTimestamp(project) >= recordTimestamp(previous)) byClient.set(key, project);
             });
-            localStorage.setItem('nabdi_support_projects', JSON.stringify(Array.from(byClient.values())));
+            window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(Array.from(byClient.values())));
             window.attachEmployeeIds();
             window.saveLocalBackup();
             renderEmployeeSelects();
@@ -2777,7 +2837,7 @@
             (window.tasks||[]).forEach(t=>{if(!t.agentId){const emp=window.findEmployeeByName(t.agent);if(emp)t.agentId=emp.id;}});
         };
         window.dedupeClients = function(list) {
-            const deletedIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
+            const deletedIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_client_ids') || '[]'));
             const map = new Map();
             (list || []).forEach(function(client) {
                 if (!client || client.deletedAt || deletedIds.has(client.id) || String(client.name || '').startsWith('مهمة داخلية')) return;
@@ -2844,13 +2904,13 @@
 
         window.loadFromLocalStorage = function() {
             try {
-                const storedEmp = localStorage.getItem('cs_nabdi_employees');
+                const storedEmp = window.nabdiStorage.getItem('cs_nabdi_employees');
                 if (storedEmp) window.employees = JSON.parse(storedEmp).map(emp => ({...emp, department: window.getEmployeeDepartment(emp)}));
 
-                const storedTasks = localStorage.getItem('cs_nabdi_tasks');
+                const storedTasks = window.nabdiStorage.getItem('cs_nabdi_tasks');
                 if (storedTasks) window.tasks = JSON.parse(storedTasks);
 
-                const storedClients = localStorage.getItem('cs_nabdi_clients');
+                const storedClients = window.nabdiStorage.getItem('cs_nabdi_clients');
                 if (storedClients) {
                     window.clients = window.dedupeClients(
                         JSON.parse(storedClients)
@@ -2862,22 +2922,28 @@
                     );
                 }
 
-                const storedAttendance = localStorage.getItem('cs_nabdi_attendance');
+                const storedAttendance = window.nabdiStorage.getItem('cs_nabdi_attendance');
                 if (storedAttendance) window.attendanceRecords = JSON.parse(storedAttendance);
             } catch(e) {}
         };
 
+        window.describeCloudSaveError = function(error) {
+            const text=String(error?.message||error||'');
+            if(/quota|setItem|INTERNAL ASSERTION FAILED/i.test(text))return 'تعذر تأكيد الحفظ بسبب مساحة التخزين في المتصفح. احتفظ بالبيانات المكتوبة وأغلق تبويبات البرنامج الأخرى، ثم أعد فتح النسخة المحدّثة وتحقق من وجود العملية قبل تكرارها.';
+            if(error?.code==='permission-denied')return 'لا توجد صلاحية لحفظ هذه العملية.';
+            return 'تعذر تأكيد الحفظ في قاعدة البيانات. احتفظ بالبيانات المكتوبة وتحقق من الاتصال ومن ظهور العملية قبل تكرارها.';
+        };
         window.saveAttendanceLocalBackup = function() {
             try {
-                localStorage.setItem('cs_nabdi_attendance', JSON.stringify(window.attendanceRecords || []));
+                window.nabdiStorage.setItem('cs_nabdi_attendance', JSON.stringify(window.attendanceRecords || []));
             } catch(e) {}
         };
 
         window.saveLocalBackup = function() {
             try {
-                localStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
-                localStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
-                localStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
+                window.nabdiStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
+                window.nabdiStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
+                window.nabdiStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
                 window.saveAttendanceLocalBackup();
             } catch(e) {}
         };
@@ -2910,7 +2976,7 @@
 
         async function migrateExistingDataToSharedDatabase() {
             const migrationKey = `nabdi_shared_database_migration_v4_${legacyAppId}`;
-            if (localStorage.getItem(migrationKey) === 'done') return;
+            if (window.nabdiStorage.getItem(migrationKey) === 'done') return;
 
             // قفل مركزي يمنع كل جهاز/موظف من إعادة نسخ آلاف السجلات نفسها.
             // في النسخة السابقة كان القفل محلياً داخل المتصفح فقط، وهو ما ضاعف
@@ -2940,7 +3006,7 @@
             }
 
             if (leaseState === 'done') {
-                localStorage.setItem(migrationKey, 'done');
+                window.nabdiStorage.setItem(migrationKey, 'done');
                 return;
             }
             if (leaseState !== 'claimed') return;
@@ -2977,7 +3043,7 @@
                     completedAt: Date.now(),
                     migratedCount
                 }, { merge: true });
-                localStorage.setItem(migrationKey, 'done');
+                window.nabdiStorage.setItem(migrationKey, 'done');
                 if (migratedCount > 0 && window.showToast) {
                     window.showToast(`تم توحيد ${migratedCount} سجل قديم في قاعدة الموظفين المشتركة.`, 'info');
                 }
@@ -3076,7 +3142,7 @@
             });
 
             onSnapshot(tasksColRef, (snapshot) => {
-                const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
+                const deletedTaskIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_task_ids') || '[]'));
                 let taskList = [];
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
@@ -3131,7 +3197,7 @@
                 const raw = []; snapshot.forEach(docSnap => {const data=docSnap.data();if(!data.deletedAt)raw.push({ id: docSnap.id, ...data });});
                 const mergedRaw = mergeCloudRecords(archivedCloudData.supportProjects, raw).filter(project => !project.deletedAt);
                 const byClient = new Map(); mergedRaw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
-                const list=Array.from(byClient.values()); localStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport();
+                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport();
             });
         }
 
@@ -3169,7 +3235,7 @@
 
             window.tasks.forEach(t => {
                 if (t.taskType === 'internal' || t.deletedAt) return;
-                const deletedClientIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
+                const deletedClientIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_client_ids') || '[]'));
                 if (t.clientId && deletedClientIds.has(t.clientId)) return;
                 if (!t.customer && !t.phone) return;
                 
@@ -3237,7 +3303,7 @@
             } catch (error) {
                 // لا تعرض سجلاً وهمياً داخل دليل الجهات. يظل نموذج التسجيل
                 // مفتوحاً ببياناته حتى ينجح الحفظ المركزي أو يعيد الموظف المحاولة.
-                const saveError = new Error(`فشل الحفظ المركزي ولم تُسجل الجهة: ${error.code || error.message || 'تعذر الاتصال'}`);
+                const saveError = new Error(window.describeCloudSaveError(error));
                 saveError.cause = error;
                 throw saveError;
             }
@@ -3279,22 +3345,22 @@
             const ids = Array.from(new Set([clientId, ...(target._duplicateIds || [])].filter(Boolean)));
             const warning = ids.length > 1 ? `هذا العميل لديه ${ids.length} سجلات مكررة. سيتم حذفها كلها نهائيًا. هل تريد المتابعة؟` : `هل تريد حذف العميل (${target.name}) نهائيًا؟`;
             if (!confirm(warning)) return;
-            const deletedIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_client_ids') || '[]'));
+            const deletedIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_client_ids') || '[]'));
             ids.forEach(id => deletedIds.add(id));
-            localStorage.setItem('nabdi_deleted_client_ids', JSON.stringify([...deletedIds]));
+            window.nabdiStorage.setItem('nabdi_deleted_client_ids', JSON.stringify([...deletedIds]));
             const targetName = String(target.name || '').trim().toLowerCase();
             const removedTasks = (window.tasks || []).filter(t =>
                 ids.includes(t.clientId) ||
                 (!t.clientId && targetName && String(t.customer || '').trim().toLowerCase() === targetName)
             );
-            const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
+            const deletedTaskIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_task_ids') || '[]'));
             removedTasks.forEach(t => t.id && deletedTaskIds.add(t.id));
-            localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
+            window.nabdiStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
             window.clients = window.clients.filter(c => !ids.includes(c.id));
             window.tasks = window.tasks.filter(t => !removedTasks.some(removed => removed.id === t.id));
-            const support = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]');
+            const support = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]');
             const removedSupport = support.filter(p => ids.includes(p.clientId));
-            localStorage.setItem('nabdi_support_projects', JSON.stringify(support.filter(p => !ids.includes(p.clientId))));
+            window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(support.filter(p => !ids.includes(p.clientId))));
             window.saveLocalBackup();
             renderClientSelectInTaskForm();
             renderLeadsTable();
@@ -3452,7 +3518,7 @@
                     'انتهت مهلة تسجيل الإجراء في قاعدة الموظفين المشتركة.'
                 );
             } catch(error) {
-                throw new Error(`لم يتم حفظ العمل المركزي للموظف: ${error.code || error.message || 'تعذر الاتصال'}`);
+                throw new Error(window.describeCloudSaveError(error));
             }
 
             const idx = window.tasks.findIndex(t => t.id === taskData.id);
@@ -3470,9 +3536,9 @@
             const task = typeof window.findTaskByRecordId === 'function' ? window.findTaskByRecordId(taskId) : null;
             const recordId = task ? window.getTaskRecordId(task) : String(taskId || '').trim();
             if (!recordId) throw new Error('تعذر تحديد رقم الإجراء المطلوب حذفه.');
-            const deletedTaskIds = new Set(JSON.parse(localStorage.getItem('nabdi_deleted_task_ids') || '[]'));
+            const deletedTaskIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_task_ids') || '[]'));
             deletedTaskIds.add(recordId);
-            localStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
+            window.nabdiStorage.setItem('nabdi_deleted_task_ids', JSON.stringify([...deletedTaskIds]));
             window.tasks = window.tasks.filter(t => window.getTaskRecordId(t) !== recordId);
             window.saveLocalBackup();
             if (!options.preserveClientProfile) renderApp();
@@ -3714,10 +3780,10 @@
 
         function getDocumentSyncDeviceId() {
             const storageKey = 'nabdi_document_sync_device_id';
-            let deviceId = localStorage.getItem(storageKey);
+            let deviceId = window.nabdiStorage.getItem(storageKey);
             if (!deviceId) {
                 deviceId = `device_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-                localStorage.setItem(storageKey, deviceId);
+                window.nabdiStorage.setItem(storageKey, deviceId);
             }
             return deviceId;
         }
@@ -5305,8 +5371,8 @@
             button.disabled=true;error.textContent='';
             try{await window.saveSupportBulletinToCloud(title,message);form.reset();renderSupportBulletins();updateTaskNotifications();showToast('تم نشر التعميم لفريق الدعم الفني');}catch(err){error.textContent=err.message||'تعذر النشر، حاول مرة أخرى';}finally{button.disabled=false;}
         }
-        function getTaskNotificationReadIds(){try{return JSON.parse(localStorage.getItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'))||'[]')}catch(e){return[]}}
-        function setTaskNotificationReadIds(ids){localStorage.setItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'),JSON.stringify(Array.from(new Set(ids))));}
+        function getTaskNotificationReadIds(){try{return JSON.parse(window.nabdiStorage.getItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'))||'[]')}catch(e){return[]}}
+        function setTaskNotificationReadIds(ids){window.nabdiStorage.setItem('nabdi_task_notifications_read_'+(window.currentLoggedInAgent||'manager'),JSON.stringify(Array.from(new Set(ids))));}
         function assignedTaskNotificationKey(task){return 'assigned:'+task.id+(task.assignmentUpdatedAt?':'+task.assignmentUpdatedAt:'');}
         function getAssignedNotificationTasks(){
             const current=window.currentLoggedInAgent||'المدير العام', items=[];
@@ -5852,8 +5918,8 @@
             try {
                 sessionStorage.removeItem('cs_logged_role');
                 sessionStorage.removeItem('cs_logged_agent');
-                localStorage.removeItem('cs_logged_role');
-                localStorage.removeItem('cs_logged_agent');
+                window.nabdiStorage.removeItem('cs_logged_role');
+                window.nabdiStorage.removeItem('cs_logged_agent');
             } catch (error) {}
             if (typeof window.firebaseSignOut === 'function') {
                 window.firebaseSignOut().catch(error => console.error('Firebase sign-out failed:', error));
@@ -6649,7 +6715,7 @@
             );
             const state = task => getInternalTaskState(task, today);
             let projects = [];
-            try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]').filter(project => !project.deletedAt); } catch (error) {}
+            try { projects = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]').filter(project => !project.deletedAt); } catch (error) {}
 
             const counts = {
                 supportSupTeamCount: team.filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager').length,
@@ -6912,12 +6978,12 @@
                 city: document.getElementById('summaryCityFilter')?.value || 'ALL',
                 stage: document.getElementById('summaryStageFilter')?.value || 'ALL'
             };
-            try { localStorage.setItem(REPORT_VIEW_STATE_KEY, JSON.stringify(state)); } catch (error) {}
+            try { window.nabdiStorage.setItem(REPORT_VIEW_STATE_KEY, JSON.stringify(state)); } catch (error) {}
             return state;
         }
 
         function getSavedReportViewState() {
-            try { return JSON.parse(localStorage.getItem(REPORT_VIEW_STATE_KEY) || 'null'); } catch (error) { return null; }
+            try { return JSON.parse(window.nabdiStorage.getItem(REPORT_VIEW_STATE_KEY) || 'null'); } catch (error) { return null; }
         }
 
         function restoreReportSelectValue(id, value, fallback) {
@@ -7192,7 +7258,7 @@
 
             if (reportType === 'SUPPORT_PERFORMANCE') {
                 let projects = [];
-                try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
+                try { projects = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
                 projects = projects.filter(function(project) {
                     const stamp = project.sentAt || project.createdAt || 0;
                     const date = stamp ? window.getLocalDateString(stamp) : '';
@@ -8063,7 +8129,7 @@
 
         function buildSupportInfographic(start, end, agent) {
             let projects = [];
-            try { projects = JSON.parse(localStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
+            try { projects = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
             projects = projects.filter(function(p) {
                 const stamp = p.sentAt || p.createdAt || 0;
                 const projectDate = stamp ? window.getLocalDateString(stamp) : '';
@@ -8907,11 +8973,11 @@
     <script>
     (function(){
         const SUPPORT_STEPS = ['انتظار استلام بيانات العميل','مراجعة البيانات','طلب واستكمال البيانات الناقصة','تجهيز ورفع المنتجات والخدمات','رفع بيانات الدكاترة والصور','إدخال مواعيد الدكاترة','مراجعة الجودة','إرسال النسخة للعميل للمراجعة','تنفيذ تعديلات العميل','النشر والتسليم النهائي'];
-        function loadSupport(){ try{return JSON.parse(localStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
+        function loadSupport(){ try{return JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects')||'[]')}catch(e){return []} }
         function saveSupport(v){
             const next=Array.isArray(v)?v:[],previous=loadSupport(),previousById=new Map(previous.filter(p=>p&&p.id).map(p=>[p.id,JSON.stringify(p)]));
             const changed=next.filter(p=>p&&p.id&&previousById.get(p.id)!==JSON.stringify(p));
-            localStorage.setItem('nabdi_support_projects',JSON.stringify(next));
+            window.nabdiStorage.setItem('nabdi_support_projects',JSON.stringify(next));
             // اكتب السجل الذي تغيّر فقط؛ لا تعِد كتابة جميع مشاريع الدعم عند كل فتح.
             if(changed.length&&window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(changed);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));}
         }
@@ -9041,7 +9107,7 @@
         };
         const originalSaveTask=window.saveTaskToCloud;
         if(typeof originalSaveTask==='function') window.saveTaskToCloud=async function(taskData){ const result=await originalSaveTask(taskData); if(taskData&&taskData.category==='إرسال البيانات إلى الدعم الفني') syncSupportProjectsFromFunnel(false); return result; };
-        setTimeout(()=>{try{syncSupportProjectsFromFunnel(false)}catch(e){}},1200);
+        window.nabdiStorageReady.then(()=>setTimeout(()=>{try{if(window.dbUser)syncSupportProjectsFromFunnel(false)}catch(e){}},1200));
     })();
     </script>
 </body>
