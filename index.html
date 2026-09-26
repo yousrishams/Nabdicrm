@@ -501,7 +501,8 @@
 
                 <div id="loginEmpSelectContainer">
                     <label class="block text-xs font-bold text-slate-700 mb-1">اسم الموظف المسجل</label>
-                    <select id="loginEmployeeName" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-800 text-xs focus:outline-none focus:border-brand-500">
+                    <select id="loginEmployeeName" disabled class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold text-slate-800 text-xs focus:outline-none focus:border-brand-500">
+                        <option value="">جارٍ تحميل أسماء الموظفين…</option>
                     </select>
                 </div>
 
@@ -2329,6 +2330,7 @@
         const supportProjectsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'supportProjects');
         const attendanceColRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
         const archivedCloudData = { employees: [], tasks: [], clients: [], supportProjects: [] };
+        const archiveSnapshotRefreshers = new Map();
         const archiveCacheKey = 'nabdi_archive_snapshot_v1';
         const archiveCacheTtlMs = 24 * 60 * 60 * 1000;
 
@@ -2386,6 +2388,7 @@
                         return { ...data, id: data.id || docSnap.id, cloudDocumentId: docSnap.id };
                     });
                     refreshedAnyCollection = true;
+                    archiveSnapshotRefreshers.get(collectionName)?.();
                 } catch (error) {
                     // عند انتهاء الحصة قد يفشل الأرشيف مؤقتاً؛ ابدأ المستمعات
                     // الأساسية ولا تعرض أن البيانات حُذفت.
@@ -2747,12 +2750,8 @@
             };
         };
 
-        window.employees = [
-            { id: 'emp_1', name: 'سارة خالد', shift: 'شفت صباحي', pin: '' },
-            { id: 'emp_2', name: 'محمد العتيبي', shift: 'شفت صباحي', pin: '' },
-            { id: 'emp_3', name: 'عبدالله الشمري', shift: 'شفت مسائي', pin: '' },
-            { id: 'emp_4', name: 'ريم الدوسري', shift: 'شفت مسائي', pin: '' }
-        ];
+        window.employees = [];
+        window.employeeDirectoryState = 'loading';
         window.getEmployeeDepartment = function(emp) {
             if (!emp) return '';
             const saved = String(emp.department || emp.roleDepartment || '').trim();
@@ -3077,8 +3076,9 @@
                         window.NABDI_MANAGER_AUTHENTICATED = false;
                     }
                 }
-                await loadArchivedSharedData();
+                restoreArchivedDataCache();
                 startRealtimeListeners();
+                loadArchivedSharedData().catch(error => console.error('Archive loading failed:', error));
                 setTimeout(() => {
                     loadRecoveryFallbackIfNeeded().catch(error => console.error('Recovery fallback failed:', error));
                 }, 6000);
@@ -3094,6 +3094,7 @@
                     applyLoginSession('manager', null);
                 }
             } catch (err) {
+                window.employeeDirectoryState = 'error';
                 renderEmployeeSelects();
                 if (window.showToast) {
                     window.showToast(`تعذر تشغيل المزامنة المشتركة: ${err.code || err.message || 'خطأ غير معروف'}`, 'error');
@@ -3103,8 +3104,26 @@
 
         function startRealtimeListeners() {
             if (!window.dbUser) return;
+            function listen(name, reference, callback, onError) {
+                let latestSnapshot;
+                archiveSnapshotRefreshers.set(name, () => {
+                    if (latestSnapshot) callback(latestSnapshot);
+                });
+                return onSnapshot(reference, snapshot => {
+                    latestSnapshot = snapshot;
+                    callback(snapshot);
+                }, error => {
+                    console.error(`Failed to load ${name}:`, error);
+                    if (onError) onError(error);
+                    if (name === 'employees') {
+                        window.employeeDirectoryState = 'error';
+                        renderEmployeeSelects();
+                    }
+                });
+            }
 
-            onSnapshot(employeesColRef, (snapshot) => {
+            listen('employees', employeesColRef, (snapshot) => {
+                window.employeeDirectoryState = snapshot.metadata?.fromCache ? 'loading' : 'ready';
                 let list = [];
                 snapshot.forEach(docSnap => { const emp = { id: docSnap.id, ...docSnap.data() }; list.push({...emp, department: window.getEmployeeDepartment(emp)}); });
                 list = mergeCloudRecords(archivedCloudData.employees, list)
@@ -3114,13 +3133,15 @@
                     window.employees = list;
                     window.attachEmployeeIds();
                     window.saveLocalBackup();
+                } else if (!snapshot.metadata?.fromCache) {
+                    window.employees = [];
                 }
                 renderEmployeeSelects();
                 if (window.hasManagerPermissions && window.hasManagerPermissions()) renderEmployeeListUI();
                 renderApp();
             });
 
-            onSnapshot(attendanceColRef, (snapshot) => {
+            listen('attendance', attendanceColRef, (snapshot) => {
                 const records = [];
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
@@ -3141,7 +3162,7 @@
                 console.error('Attendance sync failed:', error);
             });
 
-            onSnapshot(tasksColRef, (snapshot) => {
+            listen('tasks', tasksColRef, (snapshot) => {
                 const deletedTaskIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_task_ids') || '[]'));
                 let taskList = [];
                 snapshot.forEach(docSnap => {
@@ -3167,7 +3188,7 @@
                 }
             });
 
-            onSnapshot(clientsColRef, (snapshot) => {
+            listen('clients', clientsColRef, (snapshot) => {
                 window.cloudClientsListenerReady = true;
                 let clientList = [];
                 snapshot.forEach(docSnap => {
@@ -3193,7 +3214,7 @@
                 }
             });
 
-            onSnapshot(supportProjectsColRef, (snapshot) => {
+            listen('supportProjects', supportProjectsColRef, (snapshot) => {
                 const raw = []; snapshot.forEach(docSnap => {const data=docSnap.data();if(!data.deletedAt)raw.push({ id: docSnap.id, ...data });});
                 const mergedRaw = mergeCloudRecords(archivedCloudData.supportProjects, raw).filter(project => !project.deletedAt);
                 const byClient = new Map(); mergedRaw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
@@ -3558,7 +3579,9 @@
             }
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
+        function bootNabdiApp() {
+            if (window.nabdiAppBooted) return;
+            window.nabdiAppBooted = true;
             window.loadFromLocalStorage();
             const datePicker = document.getElementById('globalDatePicker');
             if (datePicker) datePicker.value = window.currentDateFilter;
@@ -3579,7 +3602,13 @@
             }
 
             initCloudSync();
-        });
+        }
+        // Top-level await may resume after DOMContentLoaded has already fired.
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', bootNabdiApp, { once: true });
+        } else {
+            bootNabdiApp();
+        }
     </script>
 
     <script>
@@ -5749,10 +5778,19 @@
             const sel = document.getElementById('loginEmployeeName');
             if (!sel) return;
             if (!window.employees || window.employees.length === 0) {
-                sel.innerHTML = '<option value="">لا يوجد موظفين مسجلين حالياً - أضف كمدير أولاً</option>';
+                const message = window.employeeDirectoryState === 'error'
+                    ? 'تعذر تحميل الموظفين. تحقق من الاتصال وأعد فتح الصفحة.'
+                    : window.employeeDirectoryState === 'ready'
+                        ? 'لم تصل أسماء موظفين من قاعدة البيانات. راجع المدير.'
+                        : 'جارٍ تحميل أسماء الموظفين…';
+                sel.innerHTML = `<option value="">${message}</option>`;
+                sel.disabled = true;
                 return;
             }
-            sel.innerHTML = window.employees.map(e => `<option value="${e.name}">${e.name} — ${window.getEmployeeJobTitle(e)} (${e.shift})</option>`).join('');
+            const selected = sel.value;
+            sel.disabled = false;
+            sel.innerHTML = window.employees.filter(e => !e.deletedAt).map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)} — ${escapeHtml(window.getEmployeeJobTitle(e))} (${escapeHtml(e.shift || '')})</option>`).join('');
+            if (Array.from(sel.options).some(option => option.value === selected)) sel.value = selected;
         }
 
         async function handleLogin(e) {
