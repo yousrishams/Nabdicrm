@@ -2163,6 +2163,7 @@
                             <option value="ATTENTION_REQUIRED">🚨 تقرير العملاء المحتاجين تدخل</option>
                             <option value="INTERNAL_TASKS">✅ تقرير مهام المشرفين والإنجاز</option>
                             <option value="FUNNEL_STAGES">🎯 تقرير رحلة العملاء وتحول الفانل</option>
+                            <option value="CONTRACTS">📄 تقرير العقود فقط</option>
                             <option value="BANK_COMMISSIONS">💰 تقرير العمولات والحسابات والآيبان</option>
                             <option value="ENTITIES_GEO">🗺️ تقرير نوع المنشآت والتوزيع الجغرافي</option>
                             <option value="SUPPORT_PERFORMANCE">🛠️ تقرير أداء الدعم الفني</option>
@@ -2206,6 +2207,14 @@
                         <label class="block font-bold text-slate-700 mb-1">مرحلة العميل:</label>
                         <select id="summaryStageFilter" onchange="generateReportContent()" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-800">
                             <option value="ALL">جميع المراحل</option>
+                        </select>
+                    </div>
+                    <div id="contractReportFilterWrapper" class="hidden">
+                        <label class="block font-bold text-slate-700 mb-1">نوع العقد:</label>
+                        <select id="contractReportFilter" onchange="generateReportContent()" class="w-full bg-white border border-amber-300 rounded-xl p-2 font-bold text-amber-900">
+                            <option value="ALL">كل العقود</option>
+                            <option value="SENT">العقود التي تم إرسالها</option>
+                            <option value="SIGNED">العقود التي تم توقيعها</option>
                         </select>
                     </div>
                 </div>
@@ -7101,6 +7110,7 @@
                 agent: document.getElementById('summaryAgentFilter')?.value || 'ALL',
                 city: document.getElementById('summaryCityFilter')?.value || 'ALL',
                 stage: document.getElementById('summaryStageFilter')?.value || 'ALL'
+                ,contractType: document.getElementById('contractReportFilter')?.value || 'ALL'
             };
             try { window.nabdiStorage.setItem(REPORT_VIEW_STATE_KEY, JSON.stringify(state)); } catch (error) {}
             return state;
@@ -7166,6 +7176,7 @@
             restoreReportSelectValue('summaryAgentFilter', saved?.agent || 'ALL', 'ALL');
             restoreReportSelectValue('summaryCityFilter', saved?.city || 'ALL', 'ALL');
             restoreReportSelectValue('summaryStageFilter', saved?.stage || 'ALL', 'ALL');
+            restoreReportSelectValue('contractReportFilter', saved?.contractType || 'ALL', 'ALL');
             generateReportContent();
             document.getElementById('dailySummaryModal').classList.remove('hidden');
         }
@@ -7186,6 +7197,7 @@
             ATTENTION_REQUIRED: 'تقرير العملاء المحتاجين تدخل',
             INTERNAL_TASKS: 'تقرير مهام المشرفين ونسب الإنجاز',
             FUNNEL_STAGES: 'تقرير رحلة العملاء وتحول المبيعات',
+            CONTRACTS: 'تقرير العقود',
             BANK_COMMISSIONS: 'تقرير الحسابات والعمولات والمستندات',
             ENTITIES_GEO: 'تقرير توزيع المنشآت والمدن',
             SUPPORT_PERFORMANCE: 'تقرير أداء الدعم الفني وتنفيذ العملاء',
@@ -8712,6 +8724,30 @@
             return html;
         }
 
+        function buildContractsInfographic(tasks, contractType) {
+            const sentTasks = (tasks || []).filter(isSentContractAction);
+            const signedTasks = (tasks || []).filter(isSignedContractAction);
+            const selectedTasks = contractType === 'SENT' ? sentTasks : contractType === 'SIGNED' ? signedTasks : sentTasks.concat(signedTasks).sort(function(a,b){return Number(b.createdAt||0)-Number(a.createdAt||0);});
+            const uniqueClients = function(items) {
+                return new Set(items.map(function(task) { return task.clientId || (String(task.customer||'').trim().toLowerCase()+'|'+String(task.phone||'').replace(/\D/g,'')); }).filter(Boolean)).size;
+            };
+            let html = '<div class="report-kpi-grid">' +
+                (contractType === 'ALL' ? reportKpi('fa-file-contract', 'إجمالي حركات العقود', sentTasks.length + signedTasks.length, '#5b21b6') : '') +
+                (contractType !== 'SIGNED' ? reportKpi('fa-paper-plane', 'العقود التي تم إرسالها', sentTasks.length, '#d97706') : '') +
+                (contractType !== 'SENT' ? reportKpi('fa-file-circle-check', 'العقود التي تم توقيعها', signedTasks.length, '#059669') : '') +
+                reportKpi('fa-building', 'عملاء العقود المختارة', uniqueClients(selectedTasks), '#2563eb') +
+            '</div>';
+            const title = contractType === 'SENT' ? 'العقود التي تم إرسالها فقط' : contractType === 'SIGNED' ? 'العقود التي تم توقيعها فقط' : 'كل العقود المرسلة والموقعة';
+            html += reportSection(title, reportTable(
+                ['التاريخ', 'نوع الحركة', 'العميل / المنشأة', 'الهاتف', 'الموظف', 'الشفت', 'الحالة', 'الملاحظات'],
+                selectedTasks.map(function(task) {
+                    return [reportDateText(window.getTaskDateString(task)), isSignedContractAction(task)?'تم توقيع العقد':'تم إرسال العقد', task.customer||'-', task.phone||'-', task.agent||'-', task.shift||'-', task.status||'-', task.notes||task.finalResult||'-'];
+                })
+            ));
+            html += '<div class="report-note">هذا تقرير مستقل للعقود فقط. الفلتر والطباعة يطبقان على النوع المختار دون إظهار بقية أنشطة العملاء.</div>';
+            return html;
+        }
+
         function generateInfographicReport() {
             if (!(window.canAccessReportsDashboard && window.canAccessReportsDashboard())) return;
             if (window.isSupportAccount()) configureReportTypesForCurrentUser(document.getElementById('reportTypeSelect').value);
@@ -8722,11 +8758,13 @@
             const agent = document.getElementById('summaryAgentFilter').value;
             const city = document.getElementById('summaryCityFilter')?.value || 'ALL';
             const stage = document.getElementById('summaryStageFilter')?.value || 'ALL';
+            const contractType = document.getElementById('contractReportFilter')?.value || 'ALL';
             const area = document.getElementById('summaryContentArea');
             if (!area) return;
             const hidesClientFilters = ['ATTENDANCE', 'INTERNAL_TASKS', 'SUPPORT_PERFORMANCE'].includes(reportType);
             document.getElementById('summaryCityFilterWrapper')?.classList.toggle('hidden', hidesClientFilters);
-            document.getElementById('summaryStageFilterWrapper')?.classList.toggle('hidden', hidesClientFilters);
+            document.getElementById('summaryStageFilterWrapper')?.classList.toggle('hidden', hidesClientFilters || reportType === 'CONTRACTS');
+            document.getElementById('contractReportFilterWrapper')?.classList.toggle('hidden', reportType !== 'CONTRACTS');
 
             const periodTasks = (window.tasks || []).filter(function(task) {
                 const taskDate = window.getTaskDateString(task);
@@ -8760,7 +8798,7 @@
                 });
             }
             const tasks = periodTasks.filter(function(task) {
-                if (reportType !== 'FUNNEL_STAGES') return reportTaskMatchesClientFilters(task, city, stage);
+                if (reportType !== 'FUNNEL_STAGES') return reportTaskMatchesClientFilters(task, city, reportType === 'CONTRACTS' ? 'ALL' : stage);
                 if (isInternalTask(task)) return false;
                 const client = findReportClientForTask(task, clients);
                 return Boolean(client && (city === 'ALL' || normalizeReportCity(client.city) === city));
@@ -8776,6 +8814,7 @@
                 agent: agent,
                 city: city,
                 stage: stage,
+                contractType: contractType,
                 tasks: tasks,
                 periodTasks: periodTasks,
                 clients: clients,
@@ -8785,7 +8824,7 @@
             };
             saveReportViewState();
 
-            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, hidesClientFilters ? 'ALL' : city, hidesClientFilters ? 'ALL' : stage);
+            let content = reportHeader(REPORT_TITLES[reportType] || REPORT_TITLES.DETAILED_LOG, start, end, shift, agent, hidesClientFilters ? 'ALL' : city, (hidesClientFilters || reportType === 'CONTRACTS') ? 'ALL' : stage);
             content += '<section id="reportDrilldownPanel" class="report-drilldown-panel hidden mb-6 rounded-3xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-lg scroll-mt-4"></section>';
             if (reportType === 'ATTENDANCE') {
                 content += buildAttendanceInfographic(attendanceRecords);
@@ -8807,6 +8846,8 @@
                 content += buildInternalTasksInfographic(periodTasks);
             } else if (reportType === 'SUPPORT_PERFORMANCE') {
                 content += buildSupportInfographic(start, end, agent);
+            } else if (reportType === 'CONTRACTS') {
+                content += buildContractsInfographic(tasks.filter(function(task) { return isSentContractAction(task) || isSignedContractAction(task); }), contractType);
             } else {
                 content += buildStandardInfographic(reportType, tasks, clients);
             }
