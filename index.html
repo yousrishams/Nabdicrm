@@ -2530,6 +2530,52 @@
             return window.FUNNEL_STAGES.includes(normalized) ? normalized : window.FUNNEL_STAGES[0];
         };
 
+        window.getRecordedFunnelStage = function(value) {
+            const normalized = window.LEGACY_STAGE_MAP[value] || value;
+            return window.FUNNEL_STAGES.includes(normalized) ? normalized : '';
+        };
+
+        window.getClientFunnelJourney = function(client, tasks) {
+            const journey = new Map();
+            const scopedToTasks = Array.isArray(tasks);
+            const add = function(stage, at, source) {
+                const normalized = window.getRecordedFunnelStage(stage);
+                if (!normalized) return;
+                const stamp = at || '';
+                const previous = journey.get(normalized);
+                if (!previous || (!previous.at && stamp) || (stamp && previous.at && String(stamp) < String(previous.at))) {
+                    journey.set(normalized, { stage: normalized, at: stamp, source: source || 'record' });
+                }
+            };
+            if (!scopedToTasks) (client?.stageHistory || []).forEach(function(entry) {
+                if (typeof entry === 'string') add(entry, '', 'history');
+                else add(entry?.stage, entry?.at || entry?.date || '', 'history');
+            });
+            (tasks || window.tasks || []).forEach(function(task) {
+                if (!task || task.deletedAt || isInternalTask(task) || !window.taskMatchesClient(task, client)) return;
+                add(task.category, window.getTaskDateString(task) || task.createdAt || '', 'action');
+            });
+            if (!scopedToTasks || journey.size === 0) add(client?.stage, client?.stageUpdatedAt || '', 'current');
+            return Array.from(journey.values()).sort(function(a, b) {
+                return (window.FUNNEL_STAGES || []).indexOf(a.stage) - (window.FUNNEL_STAGES || []).indexOf(b.stage);
+            });
+        };
+
+        window.clientReachedFunnelStage = function(client, stage, tasks) {
+            const target = window.getRecordedFunnelStage(stage);
+            return Boolean(target && window.getClientFunnelJourney(client, tasks).some(function(entry) { return entry.stage === target; }));
+        };
+
+        window.recordClientFunnelStage = function(client, stage, at, taskId) {
+            const normalized = window.getRecordedFunnelStage(stage);
+            if (!client || !normalized) return;
+            const history = Array.isArray(client.stageHistory) ? client.stageHistory.slice() : [];
+            const exists = history.some(function(entry) { return window.getRecordedFunnelStage(typeof entry === 'string' ? entry : entry?.stage) === normalized; });
+            if (!exists) history.push({ stage: normalized, at: at || new Date().toISOString(), taskId: taskId || '' });
+            client.stageHistory = history;
+            client.stageUpdatedAt = at || new Date().toISOString();
+        };
+
         window.getStageForTaskCategory = function(category, currentStage) {
             if (!category || category === 'تسجيل جهة جديدة') return window.normalizeFunnelStage(currentStage);
             return window.normalizeFunnelStage(category);
@@ -3548,6 +3594,7 @@
                         addedById: taskData.agentId || '',
                         createdAt: Date.now()
                     };
+                    window.recordClientFunnelStage(matchedClient, stageForTask, taskData.createdAt, taskData.id);
                     await window.saveClientToCloud(matchedClient);
                 } else {
                     taskData.clientId = matchedClient.id;
@@ -3556,6 +3603,7 @@
                     const shouldUpdateStatusNote = nextStatusNote && nextStatusNote !== String(matchedClient.statusNote || '').trim();
                     if (shouldUpdateStage || shouldUpdateStatusNote) {
                         if (shouldUpdateStage) matchedClient.stage = stageForTask;
+                        if (taskData.affectsFunnel !== false) window.recordClientFunnelStage(matchedClient, stageForTask, taskData.createdAt, taskData.id);
                         if (shouldUpdateStatusNote) {
                             matchedClient.statusNote = nextStatusNote;
                             matchedClient.statusUpdatedAt = Date.now();
@@ -4382,7 +4430,7 @@
         }
 
         function buildDuplicateClientMessage(client) {
-            return `الجهة «${client.name || 'بدون اسم'}» مسجلة من قبل وتابعة للموظف: ${getClientOwnerName(client)} — الهاتف: ${client.phone || 'غير مسجل'} — المدينة: ${client.city || 'غير محددة'}.`;
+            return `العميل «${client.name || 'بدون اسم'}» متسجل قبل كده وتابع للموظف: ${getClientOwnerName(client)} — الهاتف: ${client.phone || 'غير مسجل'} — المدينة: ${client.city || 'غير محددة'}.`;
         }
 
         function refreshClientDuplicateAlert() {
@@ -4971,6 +5019,7 @@
             if (client) {
                 if (rejectUnauthorizedClientAction(client)) return;
                 client.stage = newStage;
+                window.recordClientFunnelStage(client, newStage, new Date().toISOString(), 'manual_profile_update');
                 window.saveClientToCloud(client);
                 showToast(`تم تحديث مرحلة (${client.name}) إلى: ${newStage}`);
                 renderClientTimelineUI(window.activeProfileClientId);
@@ -7356,11 +7405,15 @@
 
             if (reportType === 'FUNNEL_STAGES' || reportType === 'BANK_COMMISSIONS' || reportType === 'ENTITIES_GEO') {
                 let clients = context.clients || [];
-                if (label === 'العملاء المهتمون') clients = clients.filter(function(client) { return client.stage === 'عميل مهتم'; });
-                else if (label === 'اجتماعات تمت') clients = clients.filter(function(client) { return client.stage === 'عقد اجتماع'; });
-                else if (label === 'التعاقد وإرسال العقد') clients = clients.filter(function(client) { return ['الاتفاق على التعاقد', 'إرسال العقد'].includes(client.stage); });
-                else if (label === 'توقيع العقد') clients = clients.filter(function(client) { return client.stage === 'توقيع العقد'; });
-                else if (label === 'جهات مفعلة') clients = clients.filter(function(client) { return client.stage === 'تفعيل الجهة'; });
+                const funnelTasks = context.tasks || [];
+                const maxReached = function(client) { return Math.max.apply(null, window.getClientFunnelJourney(client, funnelTasks).map(function(entry) { return (window.FUNNEL_STAGES || []).indexOf(entry.stage); }).concat([-1])); };
+                if (label === 'العملاء المهتمون') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عميل مهتم', funnelTasks); });
+                else if (label === 'تحولوا لعملاء محتملين') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عميل مهتم', funnelTasks) && maxReached(client) >= (window.FUNNEL_STAGES || []).indexOf('الاتفاق على الاجتماع'); });
+                else if (label === 'تحولوا لعملاء فعليين') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عميل مهتم', funnelTasks) && maxReached(client) >= (window.FUNNEL_STAGES || []).indexOf('توقيع العقد'); });
+                else if (label === 'اجتماعات تمت') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عقد اجتماع', funnelTasks); });
+                else if (label === 'التعاقد وإرسال العقد') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'الاتفاق على التعاقد', funnelTasks) || window.clientReachedFunnelStage(client, 'إرسال العقد', funnelTasks); });
+                else if (label === 'توقيع العقد') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'توقيع العقد', funnelTasks); });
+                else if (label === 'جهات مفعلة') clients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'تفعيل الجهة', funnelTasks); });
                 else if (label === 'حساب بنكي مسجل') clients = clients.filter(function(client) { return client.accountNumber; });
                 else if (label === 'آيبان مسجل') clients = clients.filter(function(client) { return client.iban; });
                 else if (label === 'عمولة محددة') clients = clients.filter(function(client) { return client.commission; });
@@ -7377,7 +7430,7 @@
 
             if (reportType === 'SHIFT_AGENT') {
                 if (label === 'العملاء الجدد') return clientResult(detailsFor(context.clients || []), label, false);
-                if (label === 'العملاء المهتمون Leads') return clientResult(detailsFor((context.clients || []).filter(function(client) { return client.stage === 'عميل مهتم'; })), label, false);
+                if (label === 'العملاء المهتمون Leads') return clientResult(detailsFor((context.clients || []).filter(function(client) { return window.clientReachedFunnelStage(client, 'عميل مهتم', context.tasks || []); })), label, false);
                 let tasks = context.tasks || [];
                 if (label === 'إجمالي المكالمات') tasks = tasks.filter(isPhoneAction);
                 else if (label === 'المكالمات المجابة') tasks = tasks.filter(isAnsweredPhoneAction);
@@ -7729,7 +7782,7 @@
             const whatsapp = tasks.filter(function(task) { return task.category === 'إرسال واتساب'; }).length;
             const meetings = tasks.filter(isMeetingAction).length;
             const signedContracts = tasks.filter(isSignedContractAction).length;
-            const interestedClients = clients.filter(function(client) { return client.stage === 'عميل مهتم'; }).length;
+            const interestedClients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عميل مهتم', tasks); }).length;
             const employeeMap = new Map();
 
             (window.employees || []).forEach(function(employee) {
@@ -7750,7 +7803,7 @@
                 const employeeMeetings = employeeTasks.filter(isMeetingAction).length;
                 const employeeContracts = employeeTasks.filter(isSignedContractAction).length;
                 const employeeNewClients = clients.filter(function(client) { return client.addedBy === name; }).length;
-                const employeeInterested = clients.filter(function(client) { return client.addedBy === name && client.stage === 'عميل مهتم'; }).length;
+                const employeeInterested = clients.filter(function(client) { return client.addedBy === name && window.clientReachedFunnelStage(client, 'عميل مهتم', employeeTasks); }).length;
                 const employeeInternalTasks = employeeTasks.filter(isInternalTask);
                 const employeeCompletedTasks = employeeInternalTasks.filter(function(task) { return getInternalTaskState(task) === 'مكتملة'; }).length;
                 const responseRate = reportPercent(employeeAnswered, employeeCalls);
@@ -8531,29 +8584,45 @@
             let html = '';
             if (reportType === 'FUNNEL_STAGES') {
                 const stages = (window.FUNNEL_STAGES || []).map(function(stage) {
-                    return { label: stage, count: clients.filter(function(client) { return client.stage === stage; }).length };
+                    return { label: stage, count: clients.filter(function(client) { return window.clientReachedFunnelStage(client, stage, tasks); }).length };
                 });
-                const interested = clients.filter(function(client) { return client.stage === 'عميل مهتم'; }).length;
-                const meetings = clients.filter(function(client) { return client.stage === 'عقد اجتماع'; }).length;
-                const offers = clients.filter(function(client) { return ['الاتفاق على التعاقد', 'إرسال العقد'].includes(client.stage); }).length;
-                const signed = clients.filter(function(client) { return client.stage === 'توقيع العقد'; }).length;
-                const activated = clients.filter(function(client) { return client.stage === 'تفعيل الجهة'; }).length;
+                const stageIndex = function(stage) { return (window.FUNNEL_STAGES || []).indexOf(stage); };
+                const maxReachedIndex = function(client) { return Math.max.apply(null, window.getClientFunnelJourney(client, tasks).map(function(entry) { return stageIndex(entry.stage); }).concat([-1])); };
+                const interestedClients = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عميل مهتم', tasks); });
+                const potentialClients = interestedClients.filter(function(client) { return maxReachedIndex(client) >= stageIndex('الاتفاق على الاجتماع'); });
+                const actualClients = interestedClients.filter(function(client) { return maxReachedIndex(client) >= stageIndex('توقيع العقد'); });
+                const interested = interestedClients.length;
+                const meetings = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'عقد اجتماع', tasks); }).length;
+                const offers = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'إرسال العقد', tasks) || window.clientReachedFunnelStage(client, 'الاتفاق على التعاقد', tasks); }).length;
+                const signed = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'توقيع العقد', tasks); }).length;
+                const activated = clients.filter(function(client) { return window.clientReachedFunnelStage(client, 'تفعيل الجهة', tasks); }).length;
                 html += '<div class="report-kpi-grid">' +
                     reportKpi('fa-users', 'إجمالي العملاء', clients.length, '#5b21b6') +
                     reportKpi('fa-user-check', 'العملاء المهتمون', interested, '#0b63ce') +
+                    reportKpi('fa-arrow-trend-up', 'تحولوا لعملاء محتملين', potentialClients.length, '#7c3aed') +
+                    reportKpi('fa-user-tie', 'تحولوا لعملاء فعليين', actualClients.length, '#047857') +
                     reportKpi('fa-calendar-check', 'اجتماعات تمت', meetings, '#2563eb') +
                     reportKpi('fa-paper-plane', 'التعاقد وإرسال العقد', offers, '#6d28d9') +
                     reportKpi('fa-file-signature', 'توقيع العقد', signed, '#059669') +
                     reportKpi('fa-circle-check', 'جهات مفعلة', activated, '#047857') +
                 '</div>';
-                html += reportSection('توزيع العملاء على مراحل الرحلة', reportBars(stages));
-                html += reportSection('تفاصيل العملاء ومراحلهم الحالية', reportTable(
-                    ['المنشأة', 'المسؤول', 'الموظف', 'الهاتف', 'المدينة', 'المرحلة', 'الإفادة الحالية'],
+                html += reportSection('التحويل من مهتم إلى محتمل إلى فعلي', reportTable(
+                    ['المؤشر', 'العدد', 'نسبة التحويل'],
+                    [
+                        ['عملاء سجلوا اهتمامًا', interested, interested ? '100%' : '0%'],
+                        ['تحولوا إلى محتملين', potentialClients.length, reportPercent(potentialClients.length, interested) + '%'],
+                        ['تحولوا إلى فعليين', actualClients.length, reportPercent(actualClients.length, interested) + '%']
+                    ]
+                ));
+                html += reportSection('عدد العملاء الذين مروا بكل مرحلة خلال الفترة', reportBars(stages));
+                html += reportSection('تفاصيل رحلة العملاء', reportTable(
+                    ['المنشأة', 'المسؤول', 'الموظف', 'الهاتف', 'المدينة', 'المرحلة الحالية', 'المراحل التي مر بها', 'الإفادة الحالية'],
                     clients.map(function(client) {
-                        return [client.name, client.contactPerson || '-', client.addedBy || 'المدير العام', client.phone || '-', client.city || '-', client.stage || '-', client.statusNote || '-'];
+                        const journey = window.getClientFunnelJourney(client, tasks).map(function(entry) { return entry.stage; }).join(' ← ');
+                        return [client.name, client.contactPerson || '-', client.addedBy || 'المدير العام', client.phone || '-', client.city || '-', client.stage || '-', journey || client.stage || '-', client.statusNote || '-'];
                     })
                 ));
-                html += '<div class="report-note">نسبة توقيع العقد: ' + reportPercent(signed, clients.length) + '% — نسبة التفعيل: ' + reportPercent(activated, clients.length) + '%.</div>';
+                html += '<div class="report-note">كل عميل يُحسب مرة واحدة فقط داخل كل مرحلة مرّ بها. انتقاله لمرحلة أحدث لا يمسح المراحل السابقة. نسبة توقيع العقد: ' + reportPercent(signed, clients.length) + '% — نسبة التفعيل: ' + reportPercent(activated, clients.length) + '%.</div>';
             } else if (reportType === 'BANK_COMMISSIONS') {
                 const withAccount = clients.filter(function(client) { return client.accountNumber; }).length;
                 const withIban = clients.filter(function(client) { return client.iban; }).length;
@@ -8673,15 +8742,28 @@
                     window.isEmployeeAllowedInSupervisorReports(client.addedBy) &&
                     (agent === 'ALL' || client.addedBy === agent) &&
                     (city === 'ALL' || normalizeReportCity(client.city) === city) &&
-                    (stage === 'ALL' || client.stage === stage);
+                    (stage === 'ALL' || (reportType === 'FUNNEL_STAGES'
+                        ? window.clientReachedFunnelStage(client, stage, periodTasks)
+                        : client.stage === stage));
             });
-            const clients = allScopedClients.filter(function(client) {
+            let clients = allScopedClients.filter(function(client) {
                 const createdDate = getClientRegistrationDate(client);
                 const dateMatch = (!start && !end) || Boolean(createdDate && (!start || createdDate >= start) && (!end || createdDate <= end));
                 return dateMatch;
             });
+            if (reportType === 'FUNNEL_STAGES') {
+                clients = allScopedClients.filter(function(client) {
+                    const hasActionInPeriod = periodTasks.some(function(task) { return !isInternalTask(task) && window.taskMatchesClient(task, client); });
+                    const createdDate = getClientRegistrationDate(client);
+                    const registeredInPeriod = Boolean(createdDate && (!start || createdDate >= start) && (!end || createdDate <= end));
+                    return hasActionInPeriod || registeredInPeriod;
+                });
+            }
             const tasks = periodTasks.filter(function(task) {
-                return reportTaskMatchesClientFilters(task, city, stage);
+                if (reportType !== 'FUNNEL_STAGES') return reportTaskMatchesClientFilters(task, city, stage);
+                if (isInternalTask(task)) return false;
+                const client = findReportClientForTask(task, clients);
+                return Boolean(client && (city === 'ALL' || normalizeReportCity(client.city) === city));
             });
             const sourceTasks = getReportSourceTasks(shift, agent);
             const attendanceRecords = getAttendanceReportRecords(start, end, shift, agent);
