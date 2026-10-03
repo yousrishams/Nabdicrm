@@ -774,6 +774,11 @@
                 </div>
             </div>
 
+            <section id="interestedClientsCard" class="bg-white rounded-2xl border border-emerald-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-emerald-100 bg-emerald-50/70 flex justify-between items-center gap-3"><div><h2 class="font-black text-slate-900 text-sm"><i class="fa-solid fa-user-check text-emerald-600 ml-1"></i>العملاء المهتمون</h2><p class="text-[10px] text-slate-500 mt-1">يظل العميل ظاهرًا حتى بعد انتقاله للاجتماع أو العقد.</p></div><b id="interestedClientsCount" class="bg-emerald-600 text-white min-w-10 text-center px-3 py-1.5 rounded-full">0</b></div>
+                <div id="interestedClientsList" class="p-4 flex flex-wrap gap-2"><span class="text-xs text-slate-400">لا يوجد عملاء مهتمون.</span></div>
+            </section>
+
             <section id="dailyNotesCard" class="bg-white rounded-2xl border border-sky-200 shadow-sm overflow-hidden">
                 <div class="p-4 border-b border-sky-100 bg-sky-50/70 flex flex-wrap items-center justify-between gap-3"><div><h2 class="font-black text-slate-900 text-sm"><i class="fa-solid fa-list-check text-sky-600 ml-1"></i>مهام يومي الخاصة</h2><p class="text-[10px] text-slate-500 mt-1">قائمة شخصية لا تظهر لأي موظف آخر.</p></div><div class="flex gap-2 text-[10px] font-black"><span class="bg-white border border-sky-200 text-sky-800 px-2.5 py-1 rounded-full">الإجمالي: <b data-note-total>0</b></span><span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">تم: <b data-note-done>0</b></span><span class="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full">متبقي: <b data-note-remaining>0</b></span></div></div>
                 <form onsubmit="addDailyNote(event,'dailyNoteInput')" class="p-4 flex flex-col sm:flex-row gap-2"><input id="dailyNoteInput" required maxlength="180" class="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold" placeholder="اكتب مهمة اليوم..."><button class="bg-sky-600 text-white rounded-xl px-4 py-2.5 text-xs font-black"><i class="fa-solid fa-plus ml-1"></i>إضافة</button></form>
@@ -1321,6 +1326,7 @@
                                 + إضافة عميل جديد
                             </button>
                         </div>
+                        <input id="formClientSearch" type="search" oninput="filterTaskClientOptions()" class="w-full mb-2 bg-white border border-indigo-200 rounded-xl p-2.5 font-bold text-indigo-900" placeholder="ابحث بالاسم أو الهاتف أو المدينة...">
                         <select id="formClientSelect" onchange="onTaskClientSelectChanged()" class="w-full bg-indigo-50/80 border border-indigo-200 rounded-xl p-2.5 font-bold text-indigo-900 focus:outline-none focus:border-brand-500 cursor-pointer">
                             <option value="">-- اختر عميل مسجل لتشغيل الاستدعاء التلقائي --</option>
                         </select>
@@ -2089,6 +2095,7 @@
                 </table>
                 <div id="attendanceManagerEmpty" class="hidden text-center py-12 text-slate-400 font-bold text-xs"><i class="fa-solid fa-calendar-xmark text-3xl mb-2 block"></i>لا توجد سجلات حضور في الفترة المحددة.</div>
             </div>
+            <div class="mt-4 bg-white border border-rose-100 rounded-2xl p-4"><h4 class="font-black text-sm text-slate-900 mb-3"><i class="fa-solid fa-user-clock text-rose-600 ml-1"></i>أيام الغياب لكل موظف</h4><div id="attendanceAbsenceSummary" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2"></div><p class="text-[10px] text-slate-500 mt-3">يُستبعد يوم الجمعة من أيام العمل المتوقعة.</p></div>
 
             <div class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2 text-xs shrink-0">
                 <span id="attendanceManagerFooter" class="font-bold text-slate-600">السجلات محفوظة بالسحابة بتوقيت مصر.</span>
@@ -2942,12 +2949,13 @@
             if(!employee)return;
             const note=window.dailyNotes[window.getDailyNoteDocumentId()]||{items:[]},items=(note.items||[]).filter(i=>!i.deletedAt),done=items.filter(i=>i.done).length;
             document.querySelectorAll('[data-note-total]').forEach(el=>el.textContent=items.length);document.querySelectorAll('[data-note-done]').forEach(el=>el.textContent=done);document.querySelectorAll('[data-note-remaining]').forEach(el=>el.textContent=items.length-done);
-            const html=items.length?items.map(i=>`<div class="flex items-center gap-2 border rounded-xl p-2.5 ${i.done?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><button type="button" onclick="toggleDailyNote('${i.id}')" class="w-8 h-8 rounded-lg ${i.done?'bg-emerald-600 text-white':'bg-slate-100 text-slate-400'}"><i class="fa-solid fa-check"></i></button><span class="flex-1 text-xs font-bold ${i.done?'line-through text-slate-400':''}">${escapeHtml(i.text)}</span><button type="button" onclick="deleteDailyNote('${i.id}')" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600"><i class="fa-solid fa-trash"></i></button></div>`).join(''):'<div class="text-center text-xs text-slate-400 border border-dashed rounded-xl py-5">ابدأ بكتابة أول مهمة لليوم.</div>';
+            const html=items.length?items.map(i=>`<div class="flex items-center gap-2 border rounded-xl p-2.5 ${i.done?'bg-emerald-50 border-emerald-200':'bg-white border-slate-200'}"><button type="button" onclick="toggleDailyNote('${i.id}')" class="w-8 h-8 rounded-lg ${i.done?'bg-emerald-600 text-white':'bg-slate-100 text-slate-400'}"><i class="fa-solid fa-check"></i></button><span class="flex-1 text-xs font-bold ${i.done?'line-through text-slate-400':''}">${escapeHtml(i.text)}</span><button type="button" onclick="editDailyNote('${i.id}')" class="w-8 h-8 rounded-lg bg-sky-50 text-sky-700" title="تعديل"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="deleteDailyNote('${i.id}')" class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600"><i class="fa-solid fa-trash"></i></button></div>`).join(''):'<div class="text-center text-xs text-slate-400 border border-dashed rounded-xl py-5">ابدأ بكتابة أول مهمة لليوم.</div>';
             document.querySelectorAll('[data-daily-notes-list]').forEach(el=>el.innerHTML=html);
         };
         window.saveDailyNoteDocument=async function(note){const id=window.getDailyNoteDocumentId(),ownerId=window.getDailyNoteOwnerId();if(!id||!ownerId||window.currentUserRole!=='agent')throw new Error('تعذر تحديد حساب الموظف');const payload={...note,id,ownerId,ownerName:window.currentLoggedInAgent,date:window.getLocalDateString(),updatedAt:new Date().toISOString()};await setDoc(doc(dailyNotesColRef,id),payload);window.dailyNotes[id]=payload;window.renderDailyNotes();};
         window.addDailyNote=async function(e,inputId){e.preventDefault();const input=document.getElementById(inputId),text=input.value.trim();if(!text)return;const id=window.getDailyNoteDocumentId(),current=window.dailyNotes[id]||{items:[]};try{await window.saveDailyNoteDocument({...current,items:[...(current.items||[]),{id:'note_'+Date.now(),text,done:false,createdAt:new Date().toISOString()}]});input.value='';showToast('تمت إضافة مهمة اليوم');}catch(error){showToast(error.message||'تعذر حفظ المهمة','error');}};
         window.toggleDailyNote=async function(itemId){const id=window.getDailyNoteDocumentId(),current=window.dailyNotes[id]||{items:[]};try{await window.saveDailyNoteDocument({...current,items:(current.items||[]).map(i=>i.id===itemId?{...i,done:!i.done,completedAt:!i.done?new Date().toISOString():''}:i)});}catch(error){showToast(error.message,'error');}};
+        window.editDailyNote=async function(itemId){const id=window.getDailyNoteDocumentId(),current=window.dailyNotes[id]||{items:[]},item=(current.items||[]).find(i=>i.id===itemId);if(!item)return;const text=prompt('عدّل مهمة اليوم:',item.text||'');if(text===null)return;const clean=text.trim();if(!clean)return showToast('نص المهمة لا يمكن أن يكون فارغًا','error');try{await window.saveDailyNoteDocument({...current,items:(current.items||[]).map(i=>i.id===itemId?{...i,text:clean,editedAt:new Date().toISOString()}:i)});showToast('تم تعديل المهمة');}catch(error){showToast(error.message||'تعذر تعديل المهمة','error');}};
         window.deleteDailyNote=async function(itemId){if(!confirm('حذف هذه المهمة من نوت اليوم؟'))return;const id=window.getDailyNoteDocumentId(),current=window.dailyNotes[id]||{items:[]};try{await window.saveDailyNoteDocument({...current,items:(current.items||[]).map(i=>i.id===itemId?{...i,deletedAt:new Date().toISOString()}:i)});}catch(error){showToast(error.message,'error');}};
         window.attendanceRecords = [];
         window.attendanceCloudReady = false;
@@ -4297,6 +4305,19 @@
             updateClientsCountBadges();
         }
 
+        function filterTaskClientOptions() {
+            const sel = document.getElementById('formClientSelect');
+            if (!sel) return;
+            const query = String(document.getElementById('formClientSearch')?.value || '').normalize('NFKC').trim().toLowerCase();
+            const selected = sel.value;
+            const clients = getClientsAvailableToCurrentUser().filter(function(client) {
+                if (!query) return true;
+                return [client.name, client.phone, client.city, client.contactPerson].some(function(value) { return String(value || '').normalize('NFKC').toLowerCase().includes(query); });
+            });
+            sel.innerHTML = `<option value="">-- ${clients.length ? 'اختر من نتائج البحث' : 'لا توجد نتائج مطابقة'} --</option>` + clients.map(c => `<option value="${c.id}">${c.name} - ${c.phone || 'بدون هاتف'} - (${c.city || 'الرياض'})</option>`).join('');
+            if (clients.some(client => client.id === selected)) sel.value = selected;
+        }
+
         function filterClientDropdownByEntityType() {
             const type = document.getElementById('formEntityType').value;
             const sel = document.getElementById('formClientSelect');
@@ -5402,6 +5423,10 @@
             if (document.getElementById('agentBothContracts')) document.getElementById('agentBothContracts').innerText = periodTasks.filter(isSignedContractAction).length;
             if(document.getElementById('agentDriveSupportContracts')){let projects=[];try{projects=JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects')||'[]');}catch(e){}document.getElementById('agentDriveSupportContracts').innerText=projects.filter(p=>!p.deletedAt&&p.supportPackage?.driveLink&&(activeAgent==='ALL'||window.sameEmployee(p.sender,activeAgent,p.senderId||'',activeEmployee?.id||window.currentLoggedInEmployeeId||''))).length;}
             if (document.getElementById('agentEscalatedTasks')) document.getElementById('agentEscalatedTasks').innerText = periodTasks.filter(t => t.status === 'تصعيد للمدير').length;
+            const interestedClients=(window.clients||[]).filter(c=>!c.deletedAt&&(activeAgent==='ALL'||window.sameEmployee(c.addedBy,activeAgent,c.addedById||'',activeEmployee?.id||window.currentLoggedInEmployeeId||''))&&window.clientReachedFunnelStage(c,'عميل مهتم',window.tasks||[]));
+            const interestedCount=document.getElementById('interestedClientsCount'),interestedList=document.getElementById('interestedClientsList');
+            if(interestedCount)interestedCount.textContent=interestedClients.length;
+            if(interestedList)interestedList.innerHTML=interestedClients.length?interestedClients.map(c=>`<button type="button" onclick="openClientProfileModal('${c.id}')" class="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-user ml-1"></i>${escapeHtml(c.name)}</button>`).join(''):'<span class="text-xs text-slate-400">لا يوجد عملاء مهتمون.</span>';
 
             syncAgentDateControls();
             renderSmartFollowUpCenter();
@@ -6447,15 +6472,15 @@
 
         function getEmployeeAttendanceRecord(employee = getAttendanceEmployee()) {
             if (!employee) return null;
+            const today = window.getLocalDateString();
             const employeeRecords = (window.attendanceRecords || []).filter(record =>
                 String(record.employeeId || '') === String(employee.id || '') ||
                 window.sameEmployee(record.employeeName, employee.name)
             );
             const openRecord = employeeRecords
-                .filter(record => record.status === 'working' || record.status === 'break')
+                .filter(record => record.date === today && (record.status === 'working' || record.status === 'break'))
                 .sort((a, b) => Number(b.updatedAt || b.checkInAt || 0) - Number(a.updatedAt || a.checkInAt || 0))[0];
             if (openRecord) return openRecord;
-            const today = window.getLocalDateString();
             return employeeRecords.find(record => record.date === today) || null;
         }
 
@@ -6590,12 +6615,14 @@
 
         function getAttendanceMetrics(record, now = Date.now()) {
             if (!record) return { workMs: 0, breakMs: 0 };
+            const dailyLimitMs = 6 * 60 * 60 * 1000;
             let sessions = Array.isArray(record.sessions) ? record.sessions : [];
             if (!sessions.length && record.checkInAt) sessions = [{ checkInAt: record.checkInAt, checkOutAt: record.checkOutAt || null }];
             const breaks = Array.isArray(record.breaks) ? record.breaks : [];
             const sessionMs = sessions.reduce((total, session) => {
                 const start = Number(session?.checkInAt || 0);
-                const end = Number(session?.checkOutAt || (record.status === 'checked_out' ? record.checkOutAt : now));
+                const liveEnd = Number(session?.checkOutAt || (record.status === 'checked_out' ? record.checkOutAt : now));
+                const end = session?.checkOutAt ? liveEnd : Math.min(liveEnd, start + dailyLimitMs);
                 return total + (start && end >= start ? end - start : 0);
             }, 0);
             const breakMs = breaks.reduce((total, item) => {
@@ -6603,7 +6630,12 @@
                 const end = Number(item?.endAt || (record.status === 'break' ? now : start));
                 return total + (start && end >= start ? end - start : 0);
             }, 0);
-            return { workMs: Math.max(0, sessionMs - breakMs), breakMs: Math.max(0, breakMs) };
+            return { workMs: Math.min(dailyLimitMs, Math.max(0, sessionMs - breakMs)), breakMs: Math.min(dailyLimitMs, Math.max(0, breakMs)) };
+        }
+
+        function getAttendanceWorkingDates(from, to) {
+            const dates=[];if(!from||!to||from>to)return dates;const today=window.getLocalDateString();let cursor=new Date(from+'T12:00:00Z'),end=new Date((to<today?to:today)+'T12:00:00Z');
+            while(cursor<=end){const value=cursor.toISOString().slice(0,10);if(cursor.getUTCDay()!==5)dates.push(value);cursor.setUTCDate(cursor.getUTCDate()+1);}return dates;
         }
 
         function formatAttendanceDuration(milliseconds) {
@@ -6757,6 +6789,8 @@
             document.getElementById('attendanceBreakCount').textContent = todayRecords.filter(record => record.status === 'break').length;
             document.getElementById('attendanceCheckedOutCount').textContent = filtered.filter(record => record.status === 'checked_out').length;
             document.getElementById('attendanceAbsentCount').textContent = showAbsence ? absentEmployees.length : '—';
+            const workingDates=getAttendanceWorkingDates(from,to),absenceSummary=document.getElementById('attendanceAbsenceSummary');
+            if(absenceSummary)absenceSummary.innerHTML=eligibleEmployees.map(emp=>{const presentDates=new Set(filtered.filter(record=>String(record.employeeId||'')===String(emp.id||'')||window.sameEmployee(record.employeeName,emp.name)).map(record=>record.date));const absent=workingDates.filter(date=>!presentDates.has(date)).length;return `<div class="flex justify-between items-center border border-slate-200 rounded-xl p-3"><div><b class="text-xs text-slate-900">${escapeHtml(emp.name)}</b><span class="block text-[9px] text-slate-500">حضور: ${presentDates.size} من ${workingDates.length} يوم عمل</span></div><b class="text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg">${absent} غياب</b></div>`;}).join('')||'<p class="text-xs text-slate-400">لا يوجد موظفون في النطاق المحدد.</p>';
 
             const recordRows = filtered.map(record => {
                 const metrics = getAttendanceMetrics(record);
@@ -6783,7 +6817,7 @@
             const rows = [...recordRows, ...absentRows];
             body.innerHTML = rows.join('');
             document.getElementById('attendanceManagerEmpty').classList.toggle('hidden', rows.length > 0);
-            document.getElementById('attendanceManagerFooter').textContent = `النتائج: ${filtered.length} سجل حضور${showAbsence ? ` — الغائبون اليوم: ${absentEmployees.length}` : ''} — جميع الأوقات بتوقيت مصر.`;
+            document.getElementById('attendanceManagerFooter').textContent = `النتائج: ${filtered.length} سجل حضور — أيام العمل المحتسبة: ${workingDates.length}${showAbsence ? ` — الغائبون اليوم: ${absentEmployees.length}` : ''} — الحد اليومي للحساب 6 ساعات.`;
             window.renderAttendanceUI();
         };
 
@@ -7713,6 +7747,7 @@
 
         function buildAttendanceInfographic(records) {
             const today = window.getLocalDateString();
+            const workingDates = getAttendanceWorkingDates(window.currentReportContext?.start || today, window.currentReportContext?.end || today);
             const uniqueEmployees = new Set(records.map(function(record) { return record.employeeId || window.normalizeEmployeeName(record.employeeName); }).filter(Boolean));
             const workingNow = records.filter(function(record) { return record.date === today && record.status === 'working'; });
             const breakNow = records.filter(function(record) { return record.date === today && record.status === 'break'; });
@@ -7743,11 +7778,13 @@
                     return sum;
                 }, { workMs: 0, breakMs: 0 });
                 const latest = employeeRecords.slice().sort(function(a, b) { return Number(b.updatedAt || 0) - Number(a.updatedAt || 0); })[0] || {};
+                const presentDates = new Set(employeeRecords.map(function(record){return record.date;}).filter(Boolean));
                 return [
                     latest.employeeName || '-',
                     latest.department || '-',
                     latest.shift || '-',
                     String(employeeRecords.length),
+                    String(Math.max(0, workingDates.length-presentDates.size)),
                     formatAttendanceDuration(totals.workMs),
                     formatAttendanceDuration(totals.breakMs),
                     getAttendanceStatusInfo(latest.status).label
@@ -7755,7 +7792,7 @@
             }).sort(function(a, b) { return a[0].localeCompare(b[0], 'ar'); });
 
             html += reportSection('ملخص حضور الموظفين خلال الفترة', reportTable(
-                ['الموظف', 'القسم', 'الشفت', 'أيام الحضور', 'إجمالي العمل', 'إجمالي الاستراحة', 'آخر حالة'],
+                ['الموظف', 'القسم', 'الشفت', 'أيام الحضور', 'أيام الغياب', 'إجمالي العمل', 'إجمالي الاستراحة', 'آخر حالة'],
                 employeeSummary
             ));
 
@@ -9319,6 +9356,7 @@
             const visibleProjects=!canManageSupport?personalProjects:(scope==='COMPLETED'?completedProjects:scope==='MINE'?activeProjects.filter(p=>p.receivedBy===window.currentLoggedInAgent||(p.tasks||[]).some(t=>t.agent===window.currentLoggedInAgent)):scope==='UNASSIGNED'?activeProjects.filter(p=>p.handoffStatus!=='تم الاستلام'):activeProjects);
             const filtered=visibleProjects.filter(p=>!q||p.clientName.toLowerCase().includes(q)||(p.tasks||[]).some(t=>t.title.toLowerCase().includes(q)));
             document.getElementById('supportProjectsList').innerHTML=filtered.length?filtered.map(p=>{const received=p.handoffStatus==='تم الاستلام',linkReady=p.handoffStatus==='تم إرسال رابط البيانات',c=(window.clients||[]).find(x=>x.id===p.clientId)||{},drive=p.supportPackage?.driveLink||c.supportPackage?.driveLink||'',label=received?'تم الاستلام بواسطة '+p.receivedBy:(linkReady?'تم إرسال رابط البيانات':'عميل جديد — بانتظار رابط البيانات');return `<article class="border ${received?'border-emerald-200':linkReady?'border-sky-300':'border-amber-300'} rounded-2xl overflow-hidden"><div class="${received?'bg-emerald-50':linkReady?'bg-sky-50':'bg-amber-50'} p-4 flex flex-wrap justify-between items-center gap-3"><div><div class="flex items-center gap-2"><b class="text-sm text-slate-950">${p.clientName}</b><span class="px-2 py-1 rounded-full text-[10px] font-black ${received?'bg-emerald-200 text-emerald-900':linkReady?'bg-sky-200 text-sky-900':'bg-amber-200 text-amber-900'}">${label}</span></div><p class="text-[10px] text-slate-600 mt-1">أرسله: ${p.sender||'خدمات العملاء'} · ${p.phone||''}</p></div><div class="flex flex-wrap gap-2">${drive?`<a href="${drive}" target="_blank" rel="noopener noreferrer" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-black"><i class="fa-brands fa-google-drive ml-1"></i>فتح ملفات العميل</a>`:''}<button onclick="closeTechnicalSupportWorkspace();openClientProfileModal('${p.clientId}')" class="bg-white border px-3 py-2 rounded-xl text-xs font-black text-indigo-700">فتح بيانات العميل</button>${window.canDeleteSupportProject()?`<button onclick="deleteSupportProject('${p.id}')" class="bg-rose-50 text-rose-700 border border-rose-200 px-3 py-2 rounded-xl text-xs font-black"><i class="fa-solid fa-trash ml-1"></i>إزالة الملف</button>`:''}${linkReady?`<button onclick="acceptSupportHandoff('${p.id}')" class="bg-sky-600 text-white px-3 py-2 rounded-xl text-xs font-black">استلام وبدء التنفيذ</button>`:received?`<button onclick="openSupportTaskEditor('${p.id}')" class="bg-violet-700 text-white px-3 py-2 rounded-xl text-xs font-black">+ مهمة</button>`:`<span class="bg-amber-100 text-amber-900 px-3 py-2 rounded-xl text-xs font-black">بانتظار خدمات العملاء</span>`}</div></div>${received?`<div class="divide-y">${(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>`<div class="p-3 grid sm:grid-cols-[1fr_120px_140px_auto] gap-2 items-center"><button onclick="openSupportTaskEditor('${p.id}','${t.id}')" class="text-right"><b class="block text-xs">${t.title}</b><span class="text-[10px] text-slate-500">${t.notes||'بدون ملاحظات'}</span></button><span class="text-[10px] font-bold">${t.agent}</span><select onchange="setSupportTaskStatus('${p.id}','${t.id}',this.value)" class="border rounded-lg p-1.5 text-[10px]">${['جديدة','جاري التنفيذ','انتظار العميل','مكتملة','متأخرة'].map(s=>`<option ${s===t.status?'selected':''}>${s}</option>`).join('')}</select>${canManageSupport?`<button onclick="deleteSupportProjectTask('${p.id}','${t.id}')" class="bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2 text-[10px] font-black"><i class="fa-solid fa-trash"></i></button>`:''}</div>`).join('')}</div>`:`<div class="p-4 bg-white text-xs text-slate-600">${linkReady?'وصل رابط الملفات ويمكن لموظف الدعم استلام العميل وبدء التنفيذ.':'تم إشعار الدعم بالعميل، وسيظهر رابط الملفات فور إرساله من خدمات العملاء.'}</div>`}</article>`}).join(''):'<div class="text-center text-xs text-slate-400 py-12">لا توجد ملفات مرسلة إلى الدعم الفني حتى الآن.</div>';
+            document.querySelectorAll('#supportProjectsList button[onclick^="openSupportTaskEditor"]').forEach(button=>{if(/openSupportTaskEditor\('[^']+','[^']+'\)/.test(button.getAttribute('onclick')||'')&&!button.querySelector('[data-edit-label]'))button.insertAdjacentHTML('beforeend','<span data-edit-label class="inline-flex mt-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg px-2 py-1 text-[9px] font-black"><i class="fa-solid fa-pen ml-1"></i>تعديل المهمة</span>');});
             Array.from(document.getElementById('supportProjectsList').children).forEach((article,index)=>{const p=filtered[index];if(!p)return;const actions=article.querySelector('.flex.flex-wrap.gap-2');if(p.handoffStatus==='تم الاستلام'&&actions){const btn=document.createElement('button');btn.className='bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-black';btn.innerHTML='<i class="fa-solid fa-circle-check ml-1"></i>تم الرفع بنجاح';btn.onclick=()=>completeSupportProject(p.id);actions.appendChild(btn);}if(p.handoffStatus==='تم الرفع بنجاح'){const badge=article.querySelector('span.px-2');if(badge){badge.textContent='تم الرفع بنجاح بواسطة '+(p.completedBy||'-');badge.className='px-2 py-1 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900';}const info=article.lastElementChild;if(info)info.innerHTML='<i class="fa-solid fa-box-archive text-emerald-600 ml-1"></i>أُغلق الملف ونُقل للأرشيف — '+(p.completedAt?window.formatEgyptDateTime(p.completedAt):'');}}
             );
             renderSupportEmployeePerformance(all,canManageSupport);
