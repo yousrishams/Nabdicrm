@@ -3379,10 +3379,19 @@
 
         window.saveClientToCloud = async function(clientData) {
             if (!clientData.id) clientData.id = 'lead_' + Date.now();
-            clientData.createdAt = clientData.createdAt || Date.now();
-            clientData.updatedAt = Date.now();
-            clientData.stage = window.normalizeFunnelStage(clientData.stage);
+            const saveTime = Date.now();
             const existingClient=(window.clients||[]).find(c=>c.id===clientData.id);
+            // وقت التسجيل ثابت ولا يتغير عند تعديل العميل أو تسليمه للدعم.
+            // لا نخترع وقتاً للسجلات القديمة التي لا تحتوي على أي مصدر زمني.
+            if (!existingClient) {
+                clientData.createdAt = clientData.createdAt || saveTime;
+                clientData.registeredAt = clientData.registeredAt || clientData.createdAt;
+            } else {
+                clientData.createdAt = existingClient.createdAt || clientData.createdAt;
+                clientData.registeredAt = existingClient.registeredAt || clientData.registeredAt || existingClient.createdAt;
+            }
+            clientData.updatedAt = saveTime;
+            clientData.stage = window.normalizeFunnelStage(clientData.stage);
             // احتفظ بأي بيانات أضيفت من شاشات أخرى (مثل حزمة الدعم الفني)
             // حتى لا يؤدي تعديل بيانات الجهة أو المرفقات إلى مسحها من Firebase.
             clientData = {
@@ -4668,6 +4677,8 @@
                     docs: docsToSave
                 };
 
+                if (isNewClient) clientData.registeredAt = Date.now();
+
                 await window.saveClientToCloud(clientData);
 
                 // عند تسجيل عميل جديد لأول مرة، يتم تلقائياً إضافة إجراء حركي أول بسجله
@@ -4682,7 +4693,7 @@
                         id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                         clientId: clientData.id,
                         time: currentTimeStr,
-                        date: window.currentDateFilter || todayStr,
+                        date: todayStr,
                         shift: empShift,
                         agent: currentAgentName,
                         customer: name,
@@ -4696,6 +4707,7 @@
                         status: 'مكتمل',
                         activityType: 'client_registration',
                         isClientRegistration: true,
+                        createdAt: clientData.registeredAt,
                         affectsFunnel: false,
                         affectsFollowUp: false,
                         clientStatusNote: statusNote,
@@ -5068,6 +5080,31 @@
             }
 
             let clientTasks = (window.tasks || []).filter(t => window.taskMatchesClient(t, client));
+
+            // السجلات القديمة قد تحتوي وقت إنشاء العميل من دون حركة تسجيل مستقلة.
+            // اعرض حركة أرشيفية مشتقة للقراءة فقط حتى يظل سجل الرحلة والعداد صحيحين.
+            if (!clientTasks.some(isClientRegistrationTask)) {
+                const registrationTimestamp = getTimestampMilliseconds(client.registeredAt || client.createdAt);
+                if (registrationTimestamp) {
+                    clientTasks.push({
+                        id: '',
+                        clientId: client.id,
+                        date: window.getLocalDateString(registrationTimestamp),
+                        time: window.getEgyptTimeString(registrationTimestamp),
+                        createdAt: registrationTimestamp,
+                        agent: client.addedBy || 'المدير العام',
+                        agentId: client.addedById || '',
+                        shift: 'غير مسجل',
+                        category: 'تسجيل جهة جديدة',
+                        channel: 'نظام نبضي',
+                        priority: 'عادية',
+                        status: 'مكتمل',
+                        activityType: 'client_registration',
+                        isClientRegistration: true,
+                        notes: 'تم تسجيل بيانات الجهة في النظام (سجل أرشيفي مستخرج من وقت إنشاء العميل).'
+                    });
+                }
+            }
 
             clientTasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -7718,9 +7755,26 @@
             return Number.isNaN(parsed) ? 0 : parsed;
         }
 
+        function getClientRegistrationTask(client, tasks = window.tasks || []) {
+            if (!client) return null;
+            return (tasks || []).filter(function(task) {
+                return task && !task.deletedAt && !isInternalTask(task) && isClientRegistrationTask(task) && window.taskMatchesClient(task, client);
+            }).sort(function(a, b) {
+                return getSmartFollowUpTaskTimestamp(a) - getSmartFollowUpTaskTimestamp(b);
+            })[0] || null;
+        }
+
+        function getClientRegistrationTimestamp(client) {
+            if (!client) return 0;
+            const directTimestamp = getTimestampMilliseconds(client.registeredAt || client.createdAt);
+            if (directTimestamp) return directTimestamp;
+            const registrationTask = getClientRegistrationTask(client);
+            return registrationTask ? getSmartFollowUpTaskTimestamp(registrationTask) : 0;
+        }
+
         function getClientRegistrationDate(client) {
             if (!client) return '';
-            const directTimestamp = getTimestampMilliseconds(client.createdAt);
+            const directTimestamp = getClientRegistrationTimestamp(client);
             if (directTimestamp) return window.getLocalDateString(directTimestamp);
 
             const relatedTasks = (window.tasks || []).filter(function(task) {
@@ -7730,6 +7784,13 @@
             const source = registrationTasks.length ? registrationTasks : relatedTasks;
             if (!source.length) return '';
             return source.map(function(task) { return window.getTaskDateString(task); }).filter(Boolean).sort()[0] || '';
+        }
+
+        function getClientRegistrationTime(client, registrationTask = null) {
+            const timestamp = getClientRegistrationTimestamp(client);
+            if (timestamp) return window.getEgyptTimeString(timestamp);
+            const task = registrationTask || getClientRegistrationTask(client);
+            return task?.time || '';
         }
 
         function getAttendanceReportRecords(start, end, shift, agent) {
@@ -7748,6 +7809,14 @@
         function buildAttendanceInfographic(records) {
             const today = window.getLocalDateString();
             const workingDates = getAttendanceWorkingDates(window.currentReportContext?.start || today, window.currentReportContext?.end || today);
+            const reportShift = window.currentReportContext?.shift || 'ALL';
+            const reportAgent = window.currentReportContext?.agent || 'ALL';
+            const eligibleEmployees = (window.employees || []).filter(function(employee) {
+                return window.getEmployeeAccessLevel(employee) !== 'manager' &&
+                    window.isEmployeeAllowedInSupervisorReports(employee.name) &&
+                    (reportShift === 'ALL' || employee.shift === reportShift) &&
+                    (reportAgent === 'ALL' || window.sameEmployee(employee.name, reportAgent, employee.id || '', window.findEmployeeByName(reportAgent)?.id || ''));
+            });
             const uniqueEmployees = new Set(records.map(function(record) { return record.employeeId || window.normalizeEmployeeName(record.employeeName); }).filter(Boolean));
             const workingNow = records.filter(function(record) { return record.date === today && record.status === 'working'; });
             const breakNow = records.filter(function(record) { return record.date === today && record.status === 'break'; });
@@ -7760,17 +7829,30 @@
                 return total;
             }, { workMs: 0, breakMs: 0, sessions: 0 });
 
+            const totalAbsenceDays = eligibleEmployees.reduce(function(total, employee) {
+                const presentDates = new Set(records.filter(function(record) {
+                    return Boolean(record.employeeId && employee.id && String(record.employeeId) === String(employee.id)) || window.sameEmployee(record.employeeName, employee.name);
+                }).map(function(record) { return record.date; }).filter(Boolean));
+                return total + Math.max(0, workingDates.length - presentDates.size);
+            }, 0);
+
             let html = '<div class="report-kpi-grid">' +
-                reportKpi('fa-calendar-check', 'أيام الحضور', records.length, '#059669') +
-                reportKpi('fa-users', 'الموظفون المسجلون', uniqueEmployees.size, '#2563eb') +
+                reportKpi('fa-calendar-xmark', 'أيام الغياب', totalAbsenceDays, '#dc2626') +
+                reportKpi('fa-users', 'الموظفون في النطاق', eligibleEmployees.length || uniqueEmployees.size, '#2563eb') +
                 reportKpi('fa-user-clock', 'على رأس العمل الآن', workingNow.length, '#0891b2') +
                 reportKpi('fa-mug-hot', 'في استراحة الآن', breakNow.length, '#d97706') +
                 reportKpi('fa-right-from-bracket', 'تم الانصراف', checkedOut.length, '#64748b') +
                 reportKpi('fa-business-time', 'إجمالي العمل الفعلي', formatAttendanceDuration(totalMetrics.workMs), '#6d28d9') +
             '</div>';
 
-            const employeeSummary = Array.from(uniqueEmployees).map(function(employeeKey) {
-                const employeeRecords = records.filter(function(record) { return (record.employeeId || window.normalizeEmployeeName(record.employeeName)) === employeeKey; });
+            const summaryEmployees = eligibleEmployees.length ? eligibleEmployees : Array.from(uniqueEmployees).map(function(employeeKey) {
+                const sample = records.find(function(record) { return (record.employeeId || window.normalizeEmployeeName(record.employeeName)) === employeeKey; }) || {};
+                return { id: sample.employeeId || '', name: sample.employeeName || '-', department: sample.department || '-', shift: sample.shift || '-' };
+            });
+            const employeeSummary = summaryEmployees.map(function(employee) {
+                const employeeRecords = records.filter(function(record) {
+                    return Boolean(record.employeeId && employee.id && String(record.employeeId) === String(employee.id)) || window.sameEmployee(record.employeeName, employee.name);
+                });
                 const totals = employeeRecords.reduce(function(sum, record) {
                     const metrics = getAttendanceMetrics(record);
                     sum.workMs += metrics.workMs;
@@ -7780,14 +7862,14 @@
                 const latest = employeeRecords.slice().sort(function(a, b) { return Number(b.updatedAt || 0) - Number(a.updatedAt || 0); })[0] || {};
                 const presentDates = new Set(employeeRecords.map(function(record){return record.date;}).filter(Boolean));
                 return [
-                    latest.employeeName || '-',
-                    latest.department || '-',
-                    latest.shift || '-',
-                    String(employeeRecords.length),
+                    employee.name || latest.employeeName || '-',
+                    window.getEmployeeDepartment(employee) || latest.department || '-',
+                    employee.shift || latest.shift || '-',
+                    String(presentDates.size),
                     String(Math.max(0, workingDates.length-presentDates.size)),
                     formatAttendanceDuration(totals.workMs),
                     formatAttendanceDuration(totals.breakMs),
-                    getAttendanceStatusInfo(latest.status).label
+                    employeeRecords.length ? getAttendanceStatusInfo(latest.status).label : 'لم يسجل حضور'
                 ];
             }).sort(function(a, b) { return a[0].localeCompare(b[0], 'ar'); });
 
@@ -7851,8 +7933,9 @@
                 const employeeCalls = employeeAnswered + employeeUnanswered;
                 const employeeMeetings = employeeTasks.filter(isMeetingAction).length;
                 const employeeContracts = employeeTasks.filter(isSignedContractAction).length;
-                const employeeNewClients = clients.filter(function(client) { return client.addedBy === name; }).length;
-                const employeeInterested = clients.filter(function(client) { return client.addedBy === name && window.clientReachedFunnelStage(client, 'عميل مهتم', employeeTasks); }).length;
+                const employeeId = window.findEmployeeByName(name)?.id || '';
+                const employeeNewClients = clients.filter(function(client) { return window.sameEmployee(client.addedBy, name, client.addedById || '', employeeId); }).length;
+                const employeeInterested = clients.filter(function(client) { return window.sameEmployee(client.addedBy, name, client.addedById || '', employeeId) && window.clientReachedFunnelStage(client, 'عميل مهتم', employeeTasks); }).length;
                 const employeeInternalTasks = employeeTasks.filter(isInternalTask);
                 const employeeCompletedTasks = employeeInternalTasks.filter(function(task) { return getInternalTaskState(task) === 'مكتملة'; }).length;
                 const responseRate = reportPercent(employeeAnswered, employeeCalls);
@@ -8001,11 +8084,11 @@
                 return task && !task.deletedAt &&
                     window.isEmployeeAllowedInSupervisorReports(task.agent) &&
                     (shift === 'ALL' || task.shift === shift) &&
-                    (agent === 'ALL' || task.agent === agent);
+                    (agent === 'ALL' || window.sameEmployee(task.agent, agent, task.agentId || '', window.findEmployeeByName(agent)?.id || ''));
             });
         }
 
-        function buildNewClientsInfographic(clientsInPeriod, start, end, shift, agent) {
+        function buildNewClientsInfographic(clientsInPeriod, start, end, shift, agent, allScopedClients = clientsInPeriod) {
             const sourceTasks = getReportSourceTasks(shift, agent);
             let details = getNewClientReportDetails(clientsInPeriod, sourceTasks);
             if (shift !== 'ALL') details = details.filter(function(item) { return item.registrationTask?.shift === shift; });
@@ -8014,9 +8097,13 @@
             const withNationalId = details.filter(function(item) { return item.client.nationalId; }).length;
             const entityTypes = new Set(details.map(function(item) { return item.client.entityType || 'غير محدد'; }));
             const cities = new Set(details.map(function(item) { return item.client.city || 'غير محدد'; }));
+            const lifetimeTotal = (allScopedClients || []).length;
+            const missingRegistrationTime = (allScopedClients || []).filter(function(client) { return !getClientRegistrationDate(client); }).length;
 
             let html = '<div class="report-kpi-grid">' +
                 reportKpi('fa-user-plus', 'إجمالي العملاء الجدد', details.length, '#0284c7') +
+                reportKpi('fa-address-book', 'إجمالي عملاء الموظف بكل الفترات', lifetimeTotal, '#0f766e') +
+                reportKpi('fa-circle-exclamation', 'سجلات بلا تاريخ تسجيل', missingRegistrationTime, '#dc2626') +
                 reportKpi('fa-sun', 'مسجلون في الشفت الصباحي', morning, '#d97706') +
                 reportKpi('fa-moon', 'مسجلون في الشفت المسائي', evening, '#6d28d9') +
                 reportKpi('fa-id-card', 'رقم وطني مسجل', withNationalId, '#059669') +
@@ -8028,7 +8115,7 @@
             html += reportSection('العملاء الجدد حسب الموظف', reportTable(
                 ['الموظف', 'عدد العملاء الجدد', 'صباحي', 'مسائي', 'لديهم رقم وطني'],
                 employeeNames.map(function(name) {
-                    const owned = details.filter(function(item) { return (item.client.addedBy || item.registrationTask?.agent || 'المدير العام') === name; });
+                    const owned = details.filter(function(item) { return window.sameEmployee(item.client.addedBy || item.registrationTask?.agent || 'المدير العام', name, item.client.addedById || item.registrationTask?.agentId || '', window.findEmployeeByName(name)?.id || ''); });
                     return [
                         name,
                         owned.length,
@@ -8043,7 +8130,8 @@
                 ['تاريخ ووقت التسجيل', 'الموظف', 'اسم العميل / المنشأة', 'الهاتف', 'الرقم الوطني', 'النوع', 'التخصص', 'المدينة', 'المرحلة الحالية'],
                 details.map(function(item) {
                     const client = item.client;
-                    const time = item.registrationTask?.time ? ' — ' + item.registrationTask.time : '';
+                    const registrationTime = getClientRegistrationTime(client, item.registrationTask);
+                    const time = registrationTime ? ' — ' + registrationTime : ' — الوقت غير متوفر';
                     return [
                         reportDateText(item.registrationDate) + time,
                         client.addedBy || item.registrationTask?.agent || 'المدير العام',
@@ -8119,7 +8207,7 @@
             const sourceTasks = (window.tasks || []).filter(function(task) {
                 return !task.deletedAt &&
                     (shift === 'ALL' || task.shift === shift) &&
-                    (agent === 'ALL' || task.agent === agent) &&
+                    (agent === 'ALL' || window.sameEmployee(task.agent, agent, task.agentId || '', window.findEmployeeByName(agent)?.id || '')) &&
                     reportTaskMatchesClientFilters(task, city || 'ALL', stage || 'ALL');
             });
             const matchingClients = (window.clients || []).filter(function(client) {
@@ -8810,12 +8898,12 @@
                     (!start || taskDate >= start) &&
                     (!end || taskDate <= end) &&
                     (shift === 'ALL' || task.shift === shift) &&
-                    (agent === 'ALL' || task.agent === agent);
+                    (agent === 'ALL' || window.sameEmployee(task.agent, agent, task.agentId || '', window.findEmployeeByName(agent)?.id || ''));
             });
             const allScopedClients = (window.clients || []).filter(function(client) {
                 return client && !client.deletedAt &&
                     window.isEmployeeAllowedInSupervisorReports(client.addedBy) &&
-                    (agent === 'ALL' || client.addedBy === agent) &&
+                    (agent === 'ALL' || window.sameEmployee(client.addedBy, agent, client.addedById || '', window.findEmployeeByName(agent)?.id || '')) &&
                     (city === 'ALL' || normalizeReportCity(client.city) === city) &&
                     (stage === 'ALL' || (reportType === 'FUNNEL_STAGES'
                         ? window.clientReachedFunnelStage(client, stage, periodTasks)
@@ -8868,7 +8956,7 @@
             } else if (reportType === 'SHIFT_AGENT') {
                 content += buildShiftInfographic(tasks, clients, shift, agent);
             } else if (reportType === 'NEW_CLIENTS') {
-                content += buildNewClientsInfographic(clients, start, end, shift, agent);
+                content += buildNewClientsInfographic(clients, start, end, shift, agent, allScopedClients);
             } else if (reportType === 'NEW_CLIENT_FOLLOWUPS') {
                 content += buildNewClientFollowUpsInfographic(clients, start, end, shift, agent);
             } else if (reportType === 'FOLLOW_UPS') {
