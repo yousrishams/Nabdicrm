@@ -1791,14 +1791,14 @@
 
                     <div class="flex items-center gap-1.5 bg-white border border-slate-300 px-2.5 py-1.5 rounded-xl text-xs">
                         <span class="font-bold text-slate-600">المرحلة الحالية:</span>
-                        <select id="filterFunnelStage" onchange="renderLeadsTable()" class="font-bold text-purple-900 bg-transparent focus:outline-none cursor-pointer">
+                        <select id="filterFunnelStage" onchange="resetClientDirectoryPage();renderLeadsTable()" class="font-bold text-purple-900 bg-transparent focus:outline-none cursor-pointer">
                             <option value="ALL">جميع المراحل</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="relative w-full sm:w-72">
-                    <input type="text" id="leadSearchInput" onkeyup="renderLeadsTable()" placeholder="بحث باسم الجهة أو رقم الهاتف أو الموظف المسؤول..."
+                    <input type="text" id="leadSearchInput" oninput="scheduleClientDirectorySearch()" placeholder="بحث باسم الجهة أو رقم الهاتف أو الموظف المسؤول..."
                            class="w-full bg-white border border-slate-300 rounded-xl pr-8 pl-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-brand-500">
                     <i class="fa-solid fa-search absolute right-2.5 top-2.5 text-slate-400 text-xs"></i>
                 </div>
@@ -1830,8 +1830,9 @@
                 </div>
             </div>
 
-            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-600 shrink-0">
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap gap-2 justify-between items-center text-xs text-slate-600 shrink-0">
                 <span class="font-bold"><span id="clientDirectoryCountLabel">إجمالي الجهات المسجلة</span>: <b id="clientsCountBadge" class="text-brand-700">0</b></span>
+                <div id="clientDirectoryPagination" class="flex items-center gap-2"></div>
                 <button type="button" onclick="closeClientDirectoryModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl font-bold cursor-pointer">إغلاق</button>
             </div>
         </div>
@@ -3034,13 +3035,19 @@
             } catch(e) {}
         };
 
+        window.localBackupTimer = null;
         window.saveLocalBackup = function() {
-            try {
-                window.nabdiStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
-                window.nabdiStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
-                window.nabdiStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
-                window.saveAttendanceLocalBackup();
-            } catch(e) {}
+            // تصل تحديثات Firebase تباعاً؛ دمجها في كتابة واحدة يمنع تجميد
+            // الواجهة بسبب تحويل آلاف السجلات إلى JSON عدة مرات متتالية.
+            clearTimeout(window.localBackupTimer);
+            window.localBackupTimer = setTimeout(function() {
+                try {
+                    window.nabdiStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
+                    window.nabdiStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
+                    window.nabdiStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
+                    window.saveAttendanceLocalBackup();
+                } catch(e) {}
+            }, 400);
         };
 
         function cleanRecordForSharedDatabase(record) {
@@ -3271,13 +3278,13 @@
                     .filter(task => !task.deletedAt && !deletedTaskIds.has(task.id));
                 window.supportBulletins = taskList.filter(task => task.taskType === 'support_bulletin' && task.department === 'الدعم الفني');
                 taskList = taskList.filter(task => task.taskType !== 'support_bulletin');
-                if (window.renderSupportBulletins) window.renderSupportBulletins();
+                if (window.renderSupportBulletins && !document.getElementById('supportBulletinsModal')?.classList.contains('hidden')) window.renderSupportBulletins();
                 window.tasks = taskList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 window.attachEmployeeIds();
                 window.saveLocalBackup();
                 window.syncTasksToClients();
                 renderApp();
-                if (window.renderTechnicalSupport) window.renderTechnicalSupport();
+                if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) window.renderTechnicalSupport();
                 if (window.updateTaskNotifications) window.updateTaskNotifications(true);
                 if (window.activeProfileClientId) {
                     renderClientTimelineUI(window.activeProfileClientId);
@@ -3300,8 +3307,8 @@
                 window.attachEmployeeIds();
                 window.saveLocalBackup();
                 window.syncTasksToClients();
-                renderClientSelectInTaskForm();
-                renderLeadsTable();
+                if (!document.getElementById('addTaskModal')?.classList.contains('hidden')) renderClientSelectInTaskForm();
+                if (!document.getElementById('clientDirectoryModal')?.classList.contains('hidden')) renderLeadsTable();
                 updateClientsCountBadges();
                 renderApp();
             }, (error) => {
@@ -3315,7 +3322,7 @@
                 window.nabdiStorage.setItem('nabdi_deleted_support_client_ids',JSON.stringify([...deletedClients]));
                 const mergedRaw = mergeCloudRecords(archivedCloudData.supportProjects, raw).filter(project => !project.deletedAt&&!deletedClients.has(project.clientId));
                 const byClient = new Map(); mergedRaw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
-                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport) window.renderTechnicalSupport();
+                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) window.renderTechnicalSupport();
             });
             listen('dailyNotes', dailyNotesColRef, (snapshot)=>{const notes={};snapshot.forEach(docSnap=>{const data=docSnap.data();notes[docSnap.id]={id:docSnap.id,...data};});window.dailyNotes=notes;window.renderDailyNotes();});
         }
@@ -3351,14 +3358,28 @@
             if (!window.tasks || window.tasks.length === 0) return;
             window.clients = window.clients || [];
             let updatedAny = false;
+            const deletedClientIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_client_ids') || '[]'));
+            const clientsById = new Map();
+            const clientsByName = new Map();
+            const clientsByPhone = new Map();
+            window.clients.forEach(function(client) {
+                if (!client || client.deletedAt) return;
+                if (client.id) clientsById.set(client.id, client);
+                const name = String(client.name || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+                const phone = String(client.phone || '').replace(/\D/g, '');
+                if (name && !clientsByName.has(name)) clientsByName.set(name, client);
+                if (phone.length >= 5 && !clientsByPhone.has(phone)) clientsByPhone.set(phone, client);
+            });
 
             window.tasks.forEach(t => {
                 if (t.taskType === 'internal' || t.deletedAt) return;
-                const deletedClientIds = new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_client_ids') || '[]'));
                 if (t.clientId && deletedClientIds.has(t.clientId)) return;
                 if (!t.customer && !t.phone) return;
-                
-                let client = window.clients.find(c => window.taskMatchesClient(t, c));
+                const taskName = String(t.customer || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+                const taskPhone = String(t.phone || '').replace(/\D/g, '');
+                const client = (t.clientId && clientsById.get(t.clientId)) ||
+                    (taskName && clientsByName.get(taskName)) ||
+                    (!taskName && taskPhone.length >= 5 ? clientsByPhone.get(taskPhone) : null);
 
                 // مستمعات Firebase تربط السجلات للعرض فقط. إنشاء جهة هنا كان
                 // يعيد العميل المحذوف قبل انتهاء حذف متابعاته، وينشئ كتابات
@@ -3371,8 +3392,8 @@
 
             if (updatedAny) {
                 window.saveLocalBackup();
-                renderClientSelectInTaskForm();
-                renderLeadsTable();
+                if (!document.getElementById('addTaskModal')?.classList.contains('hidden')) renderClientSelectInTaskForm();
+                if (!document.getElementById('clientDirectoryModal')?.classList.contains('hidden')) renderLeadsTable();
                 updateClientsCountBadges();
             }
         };
@@ -4746,6 +4767,28 @@
             }
         }
 
+        const CLIENT_DIRECTORY_PAGE_SIZE = 50;
+        window.clientDirectoryPage = 1;
+        window.clientDirectorySearchTimer = null;
+
+        function resetClientDirectoryPage() {
+            window.clientDirectoryPage = 1;
+        }
+
+        function scheduleClientDirectorySearch() {
+            clearTimeout(window.clientDirectorySearchTimer);
+            window.clientDirectorySearchTimer = setTimeout(function() {
+                resetClientDirectoryPage();
+                renderLeadsTable();
+            }, 250);
+        }
+
+        function changeClientDirectoryPage(page) {
+            window.clientDirectoryPage = Math.max(1, Number(page) || 1);
+            renderLeadsTable();
+            document.getElementById('clientDirectoryTable')?.scrollIntoView({ block: 'start' });
+        }
+
         function renderLeadsTable() {
             const filterStage = document.getElementById('filterFunnelStage') ? document.getElementById('filterFunnelStage').value : 'ALL';
             const searchVal = document.getElementById('leadSearchInput') ? document.getElementById('leadSearchInput').value.trim().toLowerCase() : '';
@@ -4784,12 +4827,26 @@
 
             if (filtered.length === 0) {
                 tbody.innerHTML = '';
+                const pagination = document.getElementById('clientDirectoryPagination');
+                if (pagination) pagination.innerHTML = '';
                 if (empty) empty.classList.remove('hidden');
                 return;
             }
             if (empty) empty.classList.add('hidden');
 
-            tbody.innerHTML = filtered.map(c => {
+            const totalPages = Math.max(1, Math.ceil(filtered.length / CLIENT_DIRECTORY_PAGE_SIZE));
+            window.clientDirectoryPage = Math.min(Math.max(1, window.clientDirectoryPage || 1), totalPages);
+            const startIndex = (window.clientDirectoryPage - 1) * CLIENT_DIRECTORY_PAGE_SIZE;
+            const visibleClients = filtered.slice(startIndex, startIndex + CLIENT_DIRECTORY_PAGE_SIZE);
+            const pagination = document.getElementById('clientDirectoryPagination');
+            if (pagination) {
+                pagination.innerHTML = `
+                    <button type="button" onclick="changeClientDirectoryPage(${window.clientDirectoryPage - 1})" ${window.clientDirectoryPage <= 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border font-black disabled:opacity-40">السابق</button>
+                    <span class="font-black">${startIndex + 1}–${Math.min(startIndex + CLIENT_DIRECTORY_PAGE_SIZE, filtered.length)} من ${filtered.length} · صفحة ${window.clientDirectoryPage}/${totalPages}</span>
+                    <button type="button" onclick="changeClientDirectoryPage(${window.clientDirectoryPage + 1})" ${window.clientDirectoryPage >= totalPages ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg border font-black disabled:opacity-40">التالي</button>`;
+            }
+
+            tbody.innerHTML = visibleClients.map(c => {
                 const colors = window.getStageColorClasses(c.stage);
                 const hasFinancials = c.accountNumber || c.iban || c.commission;
                 const docCount = c.docs ? Object.keys(c.docs).length : 0;
@@ -4930,8 +4987,9 @@
         function openClientDirectoryModal(mode = 'directory') {
             configureClientDirectoryView(mode);
             populateFunnelDropdowns();
-            renderLeadsTable();
+            resetClientDirectoryPage();
             document.getElementById('clientDirectoryModal').classList.remove('hidden');
+            renderLeadsTable();
         }
 
         function closeClientDirectoryModal() {
@@ -6892,12 +6950,19 @@
         }
 
         function renderApp() {
-            window.renderDailyNotes();
-            if (!window.isSupportAccount()) renderAgentTasks();
-            else { document.getElementById('agentView')?.classList.add('hidden'); document.getElementById('managerView')?.classList.add('hidden'); }
+            const agentViewVisible = !document.getElementById('agentView')?.classList.contains('hidden');
+            const managerViewVisible = !document.getElementById('managerView')?.classList.contains('hidden');
+            const supportViewVisible = !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden');
+            if (agentViewVisible || supportViewVisible) window.renderDailyNotes();
+            if (window.isSupportAccount()) {
+                document.getElementById('agentView')?.classList.add('hidden');
+                document.getElementById('managerView')?.classList.add('hidden');
+            } else if (agentViewVisible) {
+                renderAgentTasks();
+            }
             const loggedEmployee = window.findEmployeeByName(window.currentLoggedInAgent);
             const isSupportSupervisor = window.currentUserRole === 'agent' && window.isReportingSupervisor(loggedEmployee) && window.getEmployeeDepartment(loggedEmployee) === 'الدعم الفني';
-            if (window.canAccessReportsDashboard && window.canAccessReportsDashboard() && !isSupportSupervisor) {
+            if (managerViewVisible && window.canAccessReportsDashboard && window.canAccessReportsDashboard() && !isSupportSupervisor) {
                 renderManagerDashboard();
             }
             if (!document.getElementById('supportSupervisorView')?.classList.contains('hidden')) {
