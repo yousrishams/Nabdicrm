@@ -4,39 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>منصة نبضي - منظومة المبيعات ورحلة العميل والتقارير الشاملة</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Tailwind is precompiled for production; the browser no longer builds it on every visit. -->
+    <link rel="stylesheet" href="./app-5.8.0.css">
     <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts Cairo -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        cairo: ['Cairo', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            50: '#f5f3ff',
-                            100: '#ede9fe',
-                            200: '#ddd6fe',
-                            300: '#c4b5fd',
-                            400: '#a78bfa',
-                            500: '#8b5cf6',
-                            600: '#6b21a8',
-                            700: '#581c87',
-                            800: '#4c1d95',
-                            900: '#3b0764',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="./vendor/cairo/cairo.css" rel="stylesheet">
+    <meta name="nabdi-app-version" content="5.8.0">
+    <script>window.NABDI_APP_VERSION = '5.8.0';</script>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
@@ -521,6 +496,7 @@
                     <span id="loginSubmitText">تسجيل الدخول والدخول للواجهة</span>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
+                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.0</p>
             </form>
         </div>
     </div>
@@ -2305,10 +2281,12 @@
     </script>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInAnonymously, signInWithCustomToken, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, getDoc, getDocs, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import {
+            initializeApp,
+            getAuth, GoogleAuthProvider, signInAnonymously, signInWithCustomToken, signInWithPopup, signOut, onAuthStateChanged,
+            getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, getDoc, getDocs, onSnapshot, runTransaction,
+            getStorage, storageRef, uploadBytesResumable, getDownloadURL
+        } from "./firebase-11.6.1.bundle.js";
 
         // الاسترداد الآمن: كل الكتابات الجديدة تظل في المسار الأصلي الذي استخدمه
         // النظام منذ البداية، مع قراءة نسخة المسار الجديد ودمجها للعرض فقط.
@@ -2333,7 +2311,6 @@
         const managerEmail = 'yousri.shams@gmail.com';
         window.NABDI_MANAGER_EMAIL = managerEmail;
         window.NABDI_MANAGER_AUTHENTICATED = false;
-        await window.nabdiStorageReady;
         let db;
         try {
             // ذاكرة Firestore الدائمة تمنع تحميل نفس مئات السجلات من الصفر
@@ -3025,7 +3002,8 @@
 
         window.describeCloudSaveError = function(error) {
             const text=String(error?.message||error||'');
-            if(/quota|setItem|INTERNAL ASSERTION FAILED/i.test(text))return 'تعذر تأكيد الحفظ بسبب مساحة التخزين في المتصفح. احتفظ بالبيانات المكتوبة وأغلق تبويبات البرنامج الأخرى، ثم أعد فتح النسخة المحدّثة وتحقق من وجود العملية قبل تكرارها.';
+            if(/resource-exhausted|quota exceeded|quota has been exceeded/i.test(text) || error?.code === 'resource-exhausted')return 'تم بلوغ حصة Firebase السحابية مؤقتاً؛ لم يتم تأكيد الحفظ. لا تكرر العملية حتى تعود الخدمة أو تتم ترقية خطة Firebase.';
+            if(/setItem|INTERNAL ASSERTION FAILED/i.test(text))return 'تعذر تأكيد الحفظ بسبب مساحة التخزين في المتصفح. احتفظ بالبيانات المكتوبة وأغلق تبويبات البرنامج الأخرى، ثم أعد فتح النسخة المحدّثة وتحقق من وجود العملية قبل تكرارها.';
             if(error?.code==='permission-denied')return 'لا توجد صلاحية لحفظ هذه العملية.';
             return 'تعذر تأكيد الحفظ في قاعدة البيانات. احتفظ بالبيانات المكتوبة وتحقق من الاتصال ومن ظهور العملية قبل تكرارها.';
         };
@@ -3036,17 +3014,27 @@
         };
 
         window.localBackupTimer = null;
+        window.localBackupIdleHandle = null;
         window.saveLocalBackup = function() {
             // تصل تحديثات Firebase تباعاً؛ دمجها في كتابة واحدة يمنع تجميد
             // الواجهة بسبب تحويل آلاف السجلات إلى JSON عدة مرات متتالية.
             clearTimeout(window.localBackupTimer);
             window.localBackupTimer = setTimeout(function() {
-                try {
-                    window.nabdiStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
-                    window.nabdiStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
-                    window.nabdiStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
-                    window.saveAttendanceLocalBackup();
-                } catch(e) {}
+                const persistSnapshot = function() {
+                    window.localBackupIdleHandle = null;
+                    try {
+                        window.nabdiStorage.setItem('cs_nabdi_employees', JSON.stringify(window.employees));
+                        window.nabdiStorage.setItem('cs_nabdi_tasks', JSON.stringify(window.tasks));
+                        window.nabdiStorage.setItem('cs_nabdi_clients', JSON.stringify(window.clients));
+                        window.saveAttendanceLocalBackup();
+                    } catch(e) {}
+                };
+                if ('requestIdleCallback' in window) {
+                    if (window.localBackupIdleHandle) cancelIdleCallback(window.localBackupIdleHandle);
+                    window.localBackupIdleHandle = requestIdleCallback(persistSnapshot, { timeout: 1500 });
+                } else {
+                    setTimeout(persistSnapshot, 0);
+                }
             }, 400);
         };
 
@@ -3155,7 +3143,11 @@
         }
 
         async function initCloudSync() {
+            // إظهار النسخة المحلية أولاً يجعل شاشة الدخول قابلة للاستخدام فوراً،
+            // ثم تبدأ المزامنة السحابية في الخلفية بدون حجب الواجهة.
+            await window.nabdiStorageReady;
             window.loadFromLocalStorage();
+            if ((window.employees || []).length) window.employeeDirectoryState = 'cached';
             populateSpecialtiesDropdowns();
             populateFunnelDropdowns();
             renderEmployeeSelects();
@@ -3180,11 +3172,9 @@
                     }
                 }
                 restoreArchivedDataCache();
-                startRealtimeListeners();
-                loadArchivedSharedData().catch(error => console.error('Archive loading failed:', error));
-                setTimeout(() => {
-                    loadRecoveryFallbackIfNeeded().catch(error => console.error('Recovery fallback failed:', error));
-                }, 6000);
+                // قبل تسجيل الدخول نحتاج دليل الموظفين فقط. تحميل العملاء والمهام
+                // والحضور والتقارير كلها كان يستهلك الحصة ويجمّد صفحة الدخول.
+                startRealtimeListeners(window.currentUserRole ? 'workspace' : 'login');
                 setTimeout(() => {
                     if (typeof window.resumePendingClientSync === 'function') {
                         window.resumePendingClientSync();
@@ -3205,24 +3195,33 @@
             }
         }
 
-        function startRealtimeListeners() {
+        function startRealtimeListeners(scope = 'workspace') {
             if (!window.dbUser) return;
+            window.nabdiRealtimeUnsubscribers = window.nabdiRealtimeUnsubscribers || {};
             function listen(name, reference, callback, onError) {
+                if (window.nabdiRealtimeUnsubscribers[name]) return window.nabdiRealtimeUnsubscribers[name];
                 let latestSnapshot;
                 archiveSnapshotRefreshers.set(name, () => {
                     if (latestSnapshot) callback(latestSnapshot);
                 });
-                return onSnapshot(reference, snapshot => {
+                const unsubscribe = onSnapshot(reference, snapshot => {
                     latestSnapshot = snapshot;
                     callback(snapshot);
                 }, error => {
                     console.error(`Failed to load ${name}:`, error);
+                    const errorText = String(error?.code || '') + ' ' + String(error?.message || '');
+                    if (/resource-exhausted|quota/i.test(errorText)) {
+                        window.NABDI_CLOUD_QUOTA_EXCEEDED = true;
+                        window.NABDI_CLOUD_QUOTA_ERROR_AT = Date.now();
+                    }
                     if (onError) onError(error);
                     if (name === 'employees') {
-                        window.employeeDirectoryState = 'error';
+                        window.employeeDirectoryState = (window.employees || []).length ? 'cached' : 'error';
                         renderEmployeeSelects();
                     }
                 });
+                window.nabdiRealtimeUnsubscribers[name] = unsubscribe;
+                return unsubscribe;
             }
 
             listen('employees', employeesColRef, (snapshot) => {
@@ -3243,6 +3242,8 @@
                 if (window.hasManagerPermissions && window.hasManagerPermissions()) renderEmployeeListUI();
                 renderApp();
             });
+
+            if (scope === 'login') return;
 
             listen('attendance', attendanceColRef, (snapshot) => {
                 const records = [];
@@ -3326,6 +3327,10 @@
             });
             listen('dailyNotes', dailyNotesColRef, (snapshot)=>{const notes={};snapshot.forEach(docSnap=>{const data=docSnap.data();notes[docSnap.id]={id:docSnap.id,...data};});window.dailyNotes=notes;window.renderDailyNotes();});
         }
+
+        window.startWorkspaceRealtimeListeners = function() {
+            startRealtimeListeners('workspace');
+        };
 
         window.syncSupportProjectsCloud = async function(projects) {
             if (!window.dbUser) return;
@@ -3462,8 +3467,8 @@
             else window.clients.unshift(clientData);
 
             window.saveLocalBackup();
-            renderClientSelectInTaskForm();
-            renderLeadsTable();
+            if (!document.getElementById('addTaskModal')?.classList.contains('hidden')) renderClientSelectInTaskForm();
+            if (!document.getElementById('clientDirectoryModal')?.classList.contains('hidden')) renderLeadsTable();
             updateClientsCountBadges();
             renderApp();
 
@@ -6159,6 +6164,9 @@
                 switchRole(isTechnicalSupport && isSupervisor ? 'manager' : 'agent');
             }
 
+            if (typeof window.startWorkspaceRealtimeListeners === 'function') {
+                window.startWorkspaceRealtimeListeners();
+            }
             renderApp();
             updateTaskNotifications(false);
         }
@@ -6949,7 +6957,25 @@
             renderAgentTasks();
         }
 
+        let renderAppFrame = null;
+
         function renderApp() {
+            // Firebase قد يرسل عدة مجموعات متتابعة في اللحظة نفسها. إعادة رسم
+            // الواجهة مرة واحدة في الإطار التالي تمنع التقطيع عند الفتح والحفظ.
+            if (renderAppFrame !== null) return;
+            const run = function() {
+                renderAppFrame = null;
+                renderAppNow();
+            };
+            renderAppFrame = typeof requestAnimationFrame === 'function'
+                ? requestAnimationFrame(run)
+                : setTimeout(run, 0);
+        }
+
+        function renderAppNow() {
+            // خلف شاشة الدخول نحمّل أسماء الموظفين فقط، ولا نبني جداول العملاء
+            // والمهام والتقارير كاملة قبل أن يختار المستخدم حسابه.
+            if (!window.currentUserRole) return;
             const agentViewVisible = !document.getElementById('agentView')?.classList.contains('hidden');
             const managerViewVisible = !document.getElementById('managerView')?.classList.contains('hidden');
             const supportViewVisible = !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden');
@@ -7178,14 +7204,48 @@
             }).join('');
         }
 
+        let chartLibraryPromise = null;
+        let pendingChartTasks = null;
+        let pendingChartRender = false;
+
+        function ensureChartLibrary() {
+            if (window.Chart) return Promise.resolve(window.Chart);
+            if (chartLibraryPromise) return chartLibraryPromise;
+            chartLibraryPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = './vendor/chart/chart-4.4.7.umd.min.js';
+                script.async = true;
+                script.onload = () => resolve(window.Chart);
+                script.onerror = () => reject(new Error('تعذر تحميل مكتبة الرسوم البيانية.'));
+                document.head.appendChild(script);
+            });
+            return chartLibraryPromise;
+        }
+
         function renderCharts(dayTasks) {
+            if (!window.Chart) {
+                pendingChartTasks = dayTasks;
+                if (!pendingChartRender) {
+                    pendingChartRender = true;
+                    ensureChartLibrary().then(() => {
+                        pendingChartRender = false;
+                        const latestTasks = pendingChartTasks || [];
+                        pendingChartTasks = null;
+                        if (!document.getElementById('managerView')?.classList.contains('hidden')) renderCharts(latestTasks);
+                    }).catch(error => {
+                        pendingChartRender = false;
+                        console.warn(error);
+                    });
+                }
+                return;
+            }
             const emps = (window.employees || []).filter(emp => window.getEmployeeAccessLevel(emp) !== 'manager').map(e => e.name);
             const empTaskCounts = emps.map(name => dayTasks.filter(t => t.agent === name).length);
 
             const ctx1 = document.getElementById('teamPerformanceChart');
             if (ctx1) {
                 if (teamChartInstance) teamChartInstance.destroy();
-                teamChartInstance = new Chart(ctx1, {
+                teamChartInstance = new window.Chart(ctx1, {
                     type: 'bar',
                     data: {
                         labels: emps.length > 0 ? emps : ['لا يوجد موظفين'],
@@ -7217,7 +7277,7 @@
                 ];
 
                 if (categoryChartInstance) categoryChartInstance.destroy();
-                categoryChartInstance = new Chart(ctx2, {
+                categoryChartInstance = new window.Chart(ctx2, {
                     type: 'doughnut',
                     data: {
                         labels: categories,
