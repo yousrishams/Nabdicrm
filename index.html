@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="./vendor/cairo/cairo.css" rel="stylesheet">
-    <meta name="nabdi-app-version" content="5.8.0">
-    <script>window.NABDI_APP_VERSION = '5.8.0';</script>
+    <meta name="nabdi-app-version" content="5.8.1">
+    <script>window.NABDI_APP_VERSION = '5.8.1';</script>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
@@ -496,7 +496,7 @@
                     <span id="loginSubmitText">تسجيل الدخول والدخول للواجهة</span>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.0</p>
+                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.1</p>
             </form>
         </div>
     </div>
@@ -3323,7 +3323,7 @@
                 window.nabdiStorage.setItem('nabdi_deleted_support_client_ids',JSON.stringify([...deletedClients]));
                 const mergedRaw = mergeCloudRecords(archivedCloudData.supportProjects, raw).filter(project => !project.deletedAt&&!deletedClients.has(project.clientId));
                 const byClient = new Map(); mergedRaw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
-                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) window.renderTechnicalSupport();
+                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); renderApp(); if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) window.renderTechnicalSupport();
             });
             listen('dailyNotes', dailyNotesColRef, (snapshot)=>{const notes={};snapshot.forEach(docSnap=>{const data=docSnap.data();notes[docSnap.id]={id:docSnap.id,...data};});window.dailyNotes=notes;window.renderDailyNotes();});
         }
@@ -6994,6 +6994,8 @@
             if (!document.getElementById('supportSupervisorView')?.classList.contains('hidden')) {
                 renderSupportSupervisorDashboard();
             }
+            if (supportViewVisible && window.renderTechnicalSupport) window.renderTechnicalSupport();
+            if (!document.getElementById('dailySummaryModal')?.classList.contains('hidden') && document.getElementById('reportTypeSelect')?.value==='SUPPORT_PERFORMANCE') generateReportContent();
             if (window.renderAttendanceUI) window.renderAttendanceUI();
         }
 
@@ -7003,12 +7005,8 @@
             const team = window.getCurrentSupervisorTeam().filter(emp => window.getEmployeeDepartment(emp) === 'الدعم الفني');
             const teamNames = new Set(team.map(emp => window.normalizeEmployeeName(emp.name)));
             const today = window.getLocalDateString();
-            const tasks = (window.tasks || []).filter(task =>
-                isInternalTask(task) &&
-                task.department === 'الدعم الفني' &&
-                teamNames.has(window.normalizeEmployeeName(task.agent))
-            );
-            const state = task => getInternalTaskState(task, today);
+            const tasks = window.getSupportWorkItems().filter(task=>teamNames.has(window.normalizeEmployeeName(task.agent)));
+            const state = task => task.performanceState;
             let projects = [];
             try { projects = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]').filter(project => !project.deletedAt); } catch (error) {}
 
@@ -7017,7 +7015,7 @@
                 supportSupNewCount: tasks.filter(task => state(task) === 'جديدة').length,
                 supportSupAcceptedCount: tasks.filter(task => state(task) === 'تم الاستلام').length,
                 supportSupActiveCount: tasks.filter(task => state(task) === 'جاري التنفيذ').length,
-                supportSupLateCount: tasks.filter(task => isInternalTaskLate(task, today)).length,
+                supportSupLateCount: tasks.filter(task => task.performanceLate).length,
                 supportSupDoneCount: tasks.filter(task => state(task) === 'مكتملة').length,
                 supportSupProjectsCount: projects.filter(project => project.handoffStatus !== 'تم الرفع بنجاح').length
             };
@@ -7036,7 +7034,7 @@
                         <td class="p-3 text-center font-black text-indigo-600">${owned.filter(task => state(task) === 'تم الاستلام').length}</td>
                         <td class="p-3 text-center font-black text-amber-600">${owned.filter(task => state(task) === 'جاري التنفيذ').length}</td>
                         <td class="p-3 text-center font-black text-emerald-700">${done}</td>
-                        <td class="p-3 text-center font-black text-rose-600">${owned.filter(task => isInternalTaskLate(task, today)).length}</td>
+                        <td class="p-3 text-center font-black text-rose-600">${owned.filter(task => task.performanceLate).length}</td>
                         <td class="p-3 text-center font-black text-violet-700">${reportPercent(done, owned.length)}%</td>
                     </tr>`;
                 }).join('') : '<tr><td colspan="9" class="p-8 text-center text-slate-400 font-bold">لا يوجد موظفون في قسم الدعم الفني.</td></tr>';
@@ -7044,7 +7042,7 @@
 
             const recent = document.getElementById('supportSupervisorRecentTasks');
             if (recent) {
-                const latestTasks = tasks.slice().sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0)).slice(0, 12);
+                const latestTasks = tasks.filter(t=>t.internal).sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0)).slice(0, 12);
                 recent.innerHTML = latestTasks.length ? latestTasks.map(task => {
                     const taskState = state(task);
                     const lastAction = task.activityLog?.[task.activityLog.length - 1];
@@ -7589,16 +7587,7 @@
             }
 
             if (reportType === 'SUPPORT_PERFORMANCE') {
-                let projects = [];
-                try { projects = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
-                projects = projects.filter(function(project) {
-                    const stamp = project.sentAt || project.createdAt || 0;
-                    const date = stamp ? window.getLocalDateString(stamp) : '';
-                    const supervisorScopeMatch = window.currentUserRole !== 'agent' || [project.sender, project.receivedBy, project.completedBy].concat((project.tasks || []).map(function(task) { return task.agent; })).some(window.isEmployeeAllowedInSupervisorReports);
-                    return (!date || ((!context.start || date >= context.start) && (!context.end || date <= context.end))) &&
-                        supervisorScopeMatch &&
-                        (context.agent === 'ALL' || project.receivedBy === context.agent || project.completedBy === context.agent || (project.tasks || []).some(function(task) { return task.agent === context.agent; }));
-                });
+                let projects = window.getSupportReportProjects(context.start,context.end,context.agent,context.shift||'ALL');
                 if (label === 'بانتظار رابط البيانات') projects = projects.filter(function(project) { return ['بانتظار رابط البيانات', 'بانتظار الاستلام'].includes(project.handoffStatus); });
                 else if (label === 'الرابط جاهز للاستلام') projects = projects.filter(function(project) { return project.handoffStatus === 'تم إرسال رابط البيانات'; });
                 else if (label === 'جاري التنفيذ') projects = projects.filter(function(project) { return project.handoffStatus === 'تم الاستلام'; });
@@ -8517,17 +8506,56 @@
             return html;
         }
 
-        function buildSupportInfographic(start, end, agent) {
-            let projects = [];
-            try { projects = JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects') || '[]'); } catch (e) {}
-            projects = projects.filter(function(p) {
-                const stamp = p.sentAt || p.createdAt || 0;
-                const projectDate = stamp ? window.getLocalDateString(stamp) : '';
-                const dateMatch = !projectDate || ((!start || projectDate >= start) && (!end || projectDate <= end));
-                const agentMatch = agent === 'ALL' || p.receivedBy === agent || p.completedBy === agent || (p.tasks || []).some(function(t) { return t.agent === agent; });
-                const supervisorScopeMatch = window.currentUserRole !== 'agent' || [p.sender, p.receivedBy, p.completedBy].concat((p.tasks || []).map(function(task) { return task.agent; })).some(window.isEmployeeAllowedInSupervisorReports);
-                return dateMatch && agentMatch && supervisorScopeMatch;
+        // One source for support task counts, employee performance, and execution reports.
+        window.getSupportWorkItems = function() {
+            let projects=[];
+            try { projects=JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects')||'[]'); } catch(e) {}
+            const internal=(window.tasks||[]).filter(t=>isInternalTask(t)&&t.department==='الدعم الفني'&&!t.deletedAt)
+                .map(t=>({...t,internal:true,performanceState:getInternalTaskState(t),performanceLate:isInternalTaskLate(t)}));
+            const projectTasks=projects.filter(p=>!p.deletedAt).flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>{
+                const done=window.isCompletedStatus(t.status);
+                return {...t,pid:p.id,clientName:p.clientName,internal:false,
+                    agent:t.agent||p.receivedBy||'',createdAt:t.createdAt||p.receivedAt||p.sentAt||p.createdAt||'',
+                    completedAt:t.completedAt||(done?p.completedAt:'')||'',
+                    performanceState:done?'مكتملة':t.status||'جديدة',
+                    performanceLate:!done&&(t.status==='متأخرة'||Boolean(t.due&&t.due<window.getLocalDateString()))};
+            }));
+            const unique=new Map();
+            [...internal,...projectTasks].forEach(t=>unique.set((t.internal?'internal:':'project:'+t.pid+':')+t.id,t));
+            return [...unique.values()];
+        };
+        window.supportRecordInPeriod = function(record,start,end) {
+            if(!start&&!end)return true;
+            const stamps=[record.sentAt,record.createdAt,record.receivedAt,record.acceptedAt,record.startedAt,record.completedAt,record.updatedAt,
+                ...(record.activityLog||[]).map(a=>a.at)];
+            return stamps.some(stamp=>{
+                if(!stamp)return false;
+                const date=window.getLocalDateString(stamp);
+                return Boolean(date&&(!start||date>=start)&&(!end||date<=end));
             });
+        };
+        window.getSupportReportProjects = function(start,end,agent='ALL',shift='ALL') {
+            let projects=[];try{projects=JSON.parse(window.nabdiStorage.getItem('nabdi_support_projects')||'[]');}catch(e){}
+            return projects.filter(p=>!p.deletedAt).filter(p=>{
+                const tasks=(p.tasks||[]).filter(t=>!t.deletedAt);
+                const names=[p.receivedBy,p.completedBy,...tasks.map(t=>t.agent)].filter(Boolean);
+                return (window.currentUserRole!=='agent'||names.some(window.isEmployeeAllowedInSupervisorReports))&&
+                    (agent==='ALL'||names.some(n=>window.sameEmployee(n,agent)))&&
+                    (shift==='ALL'||names.some(n=>window.findEmployeeByName(n)?.shift===shift))&&
+                    (window.supportRecordInPeriod(p,start,end)||tasks.some(t=>window.supportRecordInPeriod(t,start,end)));
+            });
+        };
+        window.recordSupportTaskStatus = function(task,status) {
+            const now=new Date().toISOString(),previous=task.status;
+            task.createdAt=task.createdAt||now;task.updatedAt=now;task.status=status;
+            if(window.isCompletedStatus(status)) {
+                task.completedAt=task.completedAt||now;task.completedBy=task.completedBy||window.currentLoggedInAgent||'';
+            } else {task.completedAt='';task.completedBy='';}
+            if(previous!==status)task.activityLog=[...(task.activityLog||[]),{at:now,by:window.currentLoggedInAgent||'',type:'تغيير الحالة',comment:(previous||'جديدة')+' ← '+status}];
+        };
+
+        function buildSupportInfographic(start, end, agent, shift = 'ALL') {
+            const projects = window.getSupportReportProjects(start,end,agent,shift);
             const waitingLink = projects.filter(function(p) { return ['بانتظار رابط البيانات','بانتظار الاستلام'].includes(p.handoffStatus); }).length;
             const linkSent = projects.filter(function(p) { return p.handoffStatus === 'تم إرسال رابط البيانات'; }).length;
             const received = projects.filter(function(p) { return p.handoffStatus === 'تم الاستلام'; }).length;
@@ -8549,14 +8577,20 @@
                 { icon: 'fa-gears', label: 'متوسط الاستلام حتى الإنهاء', name: avgExecute + ' ساعة', value: completed + ' مكتمل' },
                 { icon: 'fa-percent', label: 'نسبة الإغلاق', name: reportPercent(completed, projects.length) + '%', value: completed + ' من ' + projects.length }
             ]));
-            const supportAgents = (window.employees || []).filter(function(e) { return window.getEmployeeDepartment(e) === 'الدعم الفني'; }).map(function(e) {
-                const owned = projects.filter(function(p) { return p.receivedBy === e.name; });
-                const done = projects.filter(function(p) { return p.completedBy === e.name; });
-                const active = owned.filter(function(p) { return p.handoffStatus === 'تم الاستلام'; });
-                const agentAvg = avg(done.map(function(p) { return durationHours(p.receivedAt, p.completedAt); }));
-                return [e.name, owned.length, active.length, done.length, agentAvg + ' ساعة'];
+            const work=window.getSupportWorkItems().filter(t=>window.isEmployeeAllowedInSupervisorReports(t.agent)&&
+                (agent==='ALL'||window.sameEmployee(t.agent,agent))&&(shift==='ALL'||(t.shift||window.findEmployeeByName(t.agent)?.shift)===shift)&&window.supportRecordInPeriod(t,start,end));
+            const names=[...new Set(work.map(t=>t.agent).filter(Boolean))];
+            const supportAgents=names.map(name=>{
+                const owned=work.filter(t=>window.sameEmployee(t.agent,name)),done=owned.filter(t=>t.performanceState==='مكتملة').length;
+                return [name,owned.length,owned.length-done,done,reportPercent(done,owned.length)+'%'];
             });
-            html += reportSection('أداء موظفي الدعم الفني', reportTable(['الموظف','ملفات استلمها','جاري التنفيذ','تم رفعها','متوسط التنفيذ'], supportAgents));
+            html += reportSection('أداء موظفي الدعم الفني',reportTable(['الموظف','إجمالي المهام','غير مكتملة','مكتملة','نسبة الإنجاز'],supportAgents));
+            html += reportSection('سجل تنفيذ مهام الدعم ونتائجها',reportTable(
+                ['الموظف','العميل / النوع','المهمة','الحالة','وقت الإنهاء','النتيجة / آخر إجراء'],
+                work.map(t=>[t.agent||'-',t.clientName||'مهمة داخلية',t.title||t.notes||'-',t.performanceState,
+                    t.completedAt?window.formatEgyptDateTime(t.completedAt):'غير مسجل',t.finalResult||t.activityLog?.slice(-1)[0]?.comment||t.notes||'-'])
+            ));
+            html += '<div class="report-note">تشمل الفترة الأعمال التي سُجل لها إنشاء أو استلام أو تنفيذ أو تحديث خلالها. الأعمال القديمة بلا تاريخ موثوق تظهر عند إلغاء فلتر التاريخ. نسبة الإنجاز = المهام المكتملة ÷ إجمالي المهام المعروضة.</div>';
             html += reportSection('سجل تسليم وتنفيذ العملاء', reportTable(
                 ['العميل','خدمات العملاء','حالة الملف','مستلم الدعم','وقت الاستلام','من أنهى','وقت الإنهاء'],
                 projects.map(function(p) { return [p.clientName||'-',p.sender||'-',p.handoffStatus||'-',p.receivedBy||'-',p.receivedAt?window.formatEgyptDateTime(p.receivedAt):'-',p.completedBy||'-',p.completedAt?window.formatEgyptDateTime(p.completedAt):'-']; })
@@ -9095,7 +9129,7 @@
             } else if (reportType === 'INTERNAL_TASKS') {
                 content += buildInternalTasksInfographic(periodTasks);
             } else if (reportType === 'SUPPORT_PERFORMANCE') {
-                content += buildSupportInfographic(start, end, agent);
+                content += buildSupportInfographic(start, end, agent, shift);
             } else if (reportType === 'CONTRACTS') {
                 content += buildContractsInfographic(tasks.filter(function(task) { return isSentContractAction(task) || isSignedContractAction(task); }), contractType);
             } else {
@@ -9379,7 +9413,7 @@
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">بانتظار استلام الدعم</span><b id="supportProjectsCount" class="block text-2xl text-violet-700 mt-1">0</b></div>
                 <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">ملفات تم استلامها</span><b id="supportOpenCount" class="block text-2xl text-amber-600 mt-1">0</b></div>
-                <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">تم رفعها بنجاح</span><b id="supportDoneCount" class="block text-2xl text-emerald-600 mt-1">0</b></div>
+                <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">ملفات عملاء مغلقة</span><b id="supportDoneCount" class="block text-2xl text-emerald-600 mt-1">0</b></div>
                 <div class="bg-white rounded-2xl border p-4"><span class="text-xs font-bold text-slate-500">المهام المتأخرة</span><b id="supportLateCount" class="block text-2xl text-rose-600 mt-1">0</b></div>
             </div>
             <section id="supportDailyNotesCard" class="bg-white rounded-3xl border border-sky-200 shadow-sm overflow-hidden">
@@ -9431,6 +9465,7 @@
             const next=Array.isArray(v)?v:[],previous=loadSupport(),previousById=new Map(previous.filter(p=>p&&p.id).map(p=>[p.id,JSON.stringify(p)]));
             const changed=next.filter(p=>p&&p.id&&previousById.get(p.id)!==JSON.stringify(p));
             window.nabdiStorage.setItem('nabdi_support_projects',JSON.stringify(next));
+            if(window.currentUserRole)renderApp();
             // اكتب السجل الذي تغيّر فقط؛ لا تعِد كتابة جميع مشاريع الدعم عند كل فتح.
             if(changed.length&&window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(changed);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));}
         }
@@ -9501,7 +9536,7 @@
         window.completeSupportProject=function(pid){
             if(!confirm('تأكيد أن جميع بيانات وخدمات العميل تم رفعها بنجاح؟'))return;
             let projects=loadSupport(),p=projects.find(x=>x.id===pid);if(!p)return;if(p.handoffStatus!=='تم الاستلام'){if(window.showToast)showToast('يجب استلام الملف أولاً','error');return;}if(!window.canManageSupportDepartment()&&!window.sameEmployee(p.receivedBy,window.currentLoggedInAgent)){if(window.showToast)showToast('يمكنك إنهاء الملفات المستلمة باسمك فقط','error');return;}
-            p.handoffStatus='تم الرفع بنجاح';p.completedBy=window.currentLoggedInAgent||'المدير العام';p.completedAt=new Date().toISOString();(p.tasks||[]).forEach(t=>t.status='مكتملة');saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم إغلاق العميل ونقله إلى أرشيف المكتمل');
+            p.handoffStatus='تم الرفع بنجاح';p.completedBy=window.currentLoggedInAgent||'المدير العام';p.completedAt=new Date().toISOString();(p.tasks||[]).filter(t=>!t.deletedAt).forEach(t=>window.recordSupportTaskStatus(t,'مكتملة'));saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم إغلاق العميل ونقله إلى أرشيف المكتمل');
         };
         window.openSupportTaskEditor=function(projectId='',taskId=''){
             const logged=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent);if(!taskId&&!window.canManageSupportDepartment()){if(window.showToast)showToast('إسناد المهام متاح من واجهة إشراف الدعم فقط','error');return;}
@@ -9519,9 +9554,9 @@
             let pid=document.getElementById('supportTaskProjectId').value, project=projects.find(p=>p.id===pid); if(!project){project=projects.find(p=>p.clientId===cid)||{id:'sp_'+Date.now(),clientId:cid,clientName:client.name,phone:client.phone||'',createdAt:new Date().toISOString(),tasks:[]}; if(!projects.includes(project))projects.push(project);}
             const id=document.getElementById('supportTaskId').value||'st_'+Date.now(), data={id,title:document.getElementById('supportTaskTitle').value,agent:document.getElementById('supportTaskAgent').value,due:document.getElementById('supportTaskDue').value,status:document.getElementById('supportTaskStatus').value,priority:document.getElementById('supportTaskPriority').value,notes:document.getElementById('supportTaskNotes').value};
             if(project.handoffStatus!=='تم الاستلام'){project.handoffStatus='تم الاستلام';project.receivedBy=data.agent;project.receivedAt=new Date().toISOString();}
-            const ix=project.tasks.findIndex(t=>t.id===id); ix>=0?project.tasks[ix]=data:project.tasks.push(data); saveSupport(projects); closeSupportTaskEditor(); renderTechnicalSupport(); if(window.showToast)showToast('تم حفظ مهمة الدعم الفني بنجاح');
+            const ix=project.tasks.findIndex(t=>t.id===id),previous=ix>=0?project.tasks[ix]:{}; const updated={...previous,...data,status:previous.status}; window.recordSupportTaskStatus(updated,data.status); ix>=0?project.tasks[ix]=updated:project.tasks.push(updated); saveSupport(projects); closeSupportTaskEditor(); renderTechnicalSupport(); if(window.showToast)showToast('تم حفظ مهمة الدعم الفني بنجاح');
         };
-        window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(!t)return;if(!window.canManageSupportDepartment()&&t.agent!==window.currentLoggedInAgent){if(window.showToast)showToast('يمكنك تحديث مهامك فقط','error');return;}t.status=status;saveSupport(p);renderTechnicalSupport();};
+        window.setSupportTaskStatus=function(pid,tid,status){let p=loadSupport(),pr=p.find(x=>x.id===pid),t=pr?.tasks.find(x=>x.id===tid);if(!t)return;if(!window.canManageSupportDepartment()&&t.agent!==window.currentLoggedInAgent){if(window.showToast)showToast('يمكنك تحديث مهامك فقط','error');return;}window.recordSupportTaskStatus(t,status);saveSupport(p);renderTechnicalSupport();};
         window.deleteSupportProjectTask=function(pid,tid){if(!window.canManageSupportDepartment()){if(window.showToast)showToast('حذف مهام الدعم متاح من واجهة الإشراف فقط','error');return;}if(!confirm('هل تريد حذف مهمة الدعم نهائيًا؟'))return;let projects=loadSupport(),project=projects.find(p=>p.id===pid);if(!project)return;const task=(project.tasks||[]).find(t=>t.id===tid);if(task){task.deletedAt=new Date().toISOString();task.deletedBy=window.currentLoggedInAgent||'المدير العام';}saveSupport(projects);renderTechnicalSupport();if(window.showToast)showToast('تم حذف مهمة الدعم');};
         window.deleteSupportProject=function(pid){
             if(!window.canDeleteSupportProject()){if(window.showToast)showToast('إزالة الملف متاحة لموظفي الدعم والمدير فقط','error');return;}
@@ -9546,9 +9581,7 @@
             }).join(''):'<div class="col-span-full text-center text-xs text-slate-400 py-6">لا توجد مهام دعم داخلية.</div>';
         };
         window.renderSupportEmployeePerformance=function(projectTasks,canManage){
-            const internal=(window.tasks||[]).filter(task=>task.taskType==='internal'&&task.department==='الدعم الفني'&&!task.deletedAt).map(task=>({...task,performanceState:getInternalTaskState(task),performanceLate:isInternalTaskLate(task),internal:true}));
-            const projectRows=(projectTasks||[]).map(task=>({...task,performanceState:window.isCompletedStatus(task.status)?'مكتملة':task.status==='تم الاستلام'?'تم الاستلام':task.status==='جديدة'?'جديدة':task.status||'جديدة',performanceLate:!window.isCompletedStatus(task.status)&&Boolean(task.due&&task.due<window.getLocalDateString())}));
-            const visible=[...internal,...projectRows].filter(task=>task.agent&&task.agent!=='غير موزعة'&&(canManage||window.sameEmployee(task.agent,window.currentLoggedInAgent,task.agentId||'',window.currentLoggedInEmployeeId||'')));
+            const visible=window.getSupportWorkItems().filter(task=>task.agent&&task.agent!=='غير موزعة'&&(canManage||window.sameEmployee(task.agent,window.currentLoggedInAgent,task.agentId||'',window.currentLoggedInEmployeeId||'')));
             const groups=new Map();visible.forEach(task=>{const key=window.normalizeEmployeeName(task.agent);if(!groups.has(key))groups.set(key,{name:task.agent,tasks:[]});groups.get(key).tasks.push(task);});
             document.getElementById('supportLeaderboard').innerHTML=[...groups.values()].map(group=>{
                 const done=group.tasks.filter(task=>task.performanceState==='مكتملة').length,total=group.tasks.length,rate=Math.round(done/total*100);
@@ -9560,7 +9593,7 @@
             window.renderDailyNotes();
             renderSupportInternalTasks();
             const supportUser=(window.employees||[]).find(e=>e.name===window.currentLoggedInAgent),canManageSupport=window.canManageSupportDepartment();
-            const projects=loadSupport().filter(p=>!p.deletedAt), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=window.getLocalDateString();
+            const projects=loadSupport().filter(p=>!p.deletedAt).filter(p=>canManageSupport||p.handoffStatus!=='تم الرفع بنجاح'||[p.receivedBy,p.completedBy,...(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>t.agent)].some(n=>window.sameEmployee(n,window.currentLoggedInAgent))), q=(document.getElementById('supportSearch')?.value||'').toLowerCase(), all=projects.flatMap(p=>(p.tasks||[]).filter(t=>!t.deletedAt).map(t=>({...t,pid:p.id,clientName:p.clientName}))), today=window.getLocalDateString();
             const open=all.filter(t=>!window.isCompletedStatus(t.status)), late=open.filter(t=>t.status==='متأخرة'||(t.due&&t.due<today));
             const pending=projects.filter(p=>!['تم الاستلام','تم الرفع بنجاح'].includes(p.handoffStatus)),receivedProjects=projects.filter(p=>p.handoffStatus==='تم الاستلام'),completedProjects=projects.filter(p=>p.handoffStatus==='تم الرفع بنجاح'); ['supportOpenTasksBadge'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=pending.length}); document.getElementById('supportProjectsCount').textContent=pending.length; document.getElementById('supportOpenCount').textContent=receivedProjects.length; document.getElementById('supportDoneCount').textContent=completedProjects.length; document.getElementById('supportLateCount').textContent=late.length;
             const scope=document.getElementById('supportScopeFilter')?.value||'ALL';
