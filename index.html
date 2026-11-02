@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="./vendor/cairo/cairo.css" rel="stylesheet">
-    <meta name="nabdi-app-version" content="5.8.1">
-    <script>window.NABDI_APP_VERSION = '5.8.1';</script>
+    <meta name="nabdi-app-version" content="5.8.2">
+    <script>window.NABDI_APP_VERSION = '5.8.2';</script>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
@@ -496,7 +496,7 @@
                     <span id="loginSubmitText">تسجيل الدخول والدخول للواجهة</span>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.1</p>
+                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.2</p>
             </form>
         </div>
     </div>
@@ -1272,6 +1272,7 @@
 
             <form id="taskForm" onsubmit="handleSaveTask(event)" class="p-5 space-y-3.5 text-xs overflow-y-auto custom-scrollbar">
                 <input type="hidden" id="taskId" value="">
+                <input type="hidden" id="formClientId" value="">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
@@ -1464,7 +1465,7 @@
 
                 <div class="pt-3 flex justify-end gap-2 border-t border-slate-100">
                     <button type="button" onclick="closeAddTaskModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer">إلغاء</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ وإرسال للسحابة</button>
+                    <button id="taskSaveButton" type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-400 disabled:cursor-wait text-white font-bold rounded-xl shadow-md cursor-pointer">حفظ وإرسال للسحابة</button>
                 </div>
             </form>
         </div>
@@ -3323,7 +3324,7 @@
                 window.nabdiStorage.setItem('nabdi_deleted_support_client_ids',JSON.stringify([...deletedClients]));
                 const mergedRaw = mergeCloudRecords(archivedCloudData.supportProjects, raw).filter(project => !project.deletedAt&&!deletedClients.has(project.clientId));
                 const byClient = new Map(); mergedRaw.forEach(p => { const key=p.clientId||p.id,old=byClient.get(key);if(!old||(new Date(p.sentAt||p.createdAt||0).getTime()>=new Date(old.sentAt||old.createdAt||0).getTime()))byClient.set(key,p); });
-                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); renderApp(); if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) window.renderTechnicalSupport();
+                const list=Array.from(byClient.values()); window.nabdiStorage.setItem('nabdi_support_projects', JSON.stringify(list)); if (!document.getElementById('supportSupervisorView')?.classList.contains('hidden')) renderSupportSupervisorDashboard(); if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) window.renderTechnicalSupport();
             });
             listen('dailyNotes', dailyNotesColRef, (snapshot)=>{const notes={};snapshot.forEach(docSnap=>{const data=docSnap.data();notes[docSnap.id]={id:docSnap.id,...data};});window.dailyNotes=notes;window.renderDailyNotes();});
         }
@@ -3613,6 +3614,7 @@
                 : (window.tasks || []).find(task => task.id === taskData.id);
             const isEditingOwnAction = Boolean(existingStoredTask && window.currentUserRole === 'agent' &&
                 window.sameEmployee(existingStoredTask.agent, window.currentLoggedInAgent));
+            let clientSyncPromise = null;
 
             if (taskData.customer && taskData.taskType !== 'internal') {
                 let matchedClient = (window.clients || []).find(c => window.taskMatchesClient(taskData, c));
@@ -3647,7 +3649,7 @@
                         createdAt: Date.now()
                     };
                     window.recordClientFunnelStage(matchedClient, stageForTask, taskData.createdAt, taskData.id);
-                    await window.saveClientToCloud(matchedClient);
+                    clientSyncPromise = window.saveClientToCloud(matchedClient);
                 } else {
                     taskData.clientId = matchedClient.id;
                     const nextStatusNote = String(taskData.clientStatusNote || '').trim();
@@ -3661,7 +3663,7 @@
                             matchedClient.statusUpdatedAt = Date.now();
                             matchedClient.statusUpdatedBy = taskData.agent || window.currentLoggedInAgent || 'المدير العام';
                         }
-                        await window.saveClientToCloud(matchedClient);
+                        clientSyncPromise = window.saveClientToCloud(matchedClient);
                     }
                 }
             }
@@ -3683,7 +3685,18 @@
 
             window.saveLocalBackup();
             renderApp();
-            if(window.renderTechnicalSupport)window.renderTechnicalSupport();
+            if (window.renderTechnicalSupport && !document.getElementById('technicalSupportWorkspace')?.classList.contains('hidden')) {
+                window.renderTechnicalSupport();
+            }
+
+            // تحديث مرحلة العميل لا يعطّل تثبيت الإجراء. لو تعثر التحديث تظل
+            // المكالمة محفوظة، ويظهر تنبيه مستقل بدلاً من فقد سجل العمل كله.
+            if (clientSyncPromise && typeof clientSyncPromise.catch === 'function') {
+                clientSyncPromise.catch(error => {
+                    console.error('Client stage sync after task save failed:', error);
+                    if (window.showToast) window.showToast('تم حفظ الإجراء، لكن تحديث مرحلة العميل سيتطلب إعادة المحاولة.', 'info');
+                });
+            }
 
             return taskData;
         };
@@ -4327,6 +4340,8 @@
             const sel = document.getElementById('formClientSelect');
             if (!sel) return;
 
+            const stableClientId = String(document.getElementById('formClientId')?.value || sel.value || '').trim();
+
             const clients = getClientsAvailableToCurrentUser();
             if (clients.length === 0) {
                 sel.innerHTML = '<option value="">لا يوجد عملاء تابعون لهذا الحساب حتى الآن</option>';
@@ -4337,20 +4352,41 @@
             sel.innerHTML = `<option value="">-- ${listLabel} --</option>` +
                 clients.map(c => `<option value="${c.id}">${c.name} - [المرحلة: ${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
 
+            if (stableClientId && clients.some(client => String(client.id) === stableClientId)) {
+                sel.value = stableClientId;
+                const hidden = document.getElementById('formClientId');
+                if (hidden) hidden.value = stableClientId;
+            }
+
             updateClientsCountBadges();
+        }
+
+        function getStableTaskClientId() {
+            return String(document.getElementById('formClientId')?.value || document.getElementById('formClientSelect')?.value || '').trim();
+        }
+
+        function setStableTaskClientId(clientId) {
+            const value = String(clientId || '').trim();
+            const hidden = document.getElementById('formClientId');
+            const select = document.getElementById('formClientSelect');
+            if (hidden) hidden.value = value;
+            if (select && Array.from(select.options || []).some(option => String(option.value) === value)) select.value = value;
+            return value;
         }
 
         function filterTaskClientOptions() {
             const sel = document.getElementById('formClientSelect');
             if (!sel) return;
             const query = String(document.getElementById('formClientSearch')?.value || '').normalize('NFKC').trim().toLowerCase();
-            const selected = sel.value;
-            const clients = getClientsAvailableToCurrentUser().filter(function(client) {
+            const selected = getStableTaskClientId();
+            let clients = getClientsAvailableToCurrentUser().filter(function(client) {
                 if (!query) return true;
                 return [client.name, client.phone, client.city, client.contactPerson].some(function(value) { return String(value || '').normalize('NFKC').toLowerCase().includes(query); });
             });
+            const selectedClient = getClientsAvailableToCurrentUser().find(client => String(client.id) === selected);
+            if (selectedClient && !clients.some(client => String(client.id) === selected)) clients.unshift(selectedClient);
             sel.innerHTML = `<option value="">-- ${clients.length ? 'اختر من نتائج البحث' : 'لا توجد نتائج مطابقة'} --</option>` + clients.map(c => `<option value="${c.id}">${c.name} - ${c.phone || 'بدون هاتف'} - (${c.city || 'الرياض'})</option>`).join('');
-            if (clients.some(client => client.id === selected)) sel.value = selected;
+            if (clients.some(client => String(client.id) === selected)) sel.value = selected;
         }
 
         function filterClientDropdownByEntityType() {
@@ -4358,7 +4394,10 @@
             const sel = document.getElementById('formClientSelect');
             if (!sel) return;
 
-            const clients = getClientsAvailableToCurrentUser().filter(c => !type || c.entityType === type);
+            const selected = getStableTaskClientId();
+            let clients = getClientsAvailableToCurrentUser().filter(c => !type || c.entityType === type);
+            const selectedClient = getClientsAvailableToCurrentUser().find(client => String(client.id) === selected);
+            if (selectedClient && !clients.some(client => String(client.id) === selected)) clients.unshift(selectedClient);
             if (clients.length === 0) {
                 sel.innerHTML = '<option value="">لا يوجد من عملائك عميل يطابق نوع المنشأة</option>';
                 return;
@@ -4366,10 +4405,12 @@
 
             sel.innerHTML = '<option value="">-- اختر عميلاً من العملاء التابعين لك --</option>' +
                 clients.map(c => `<option value="${c.id}">${c.name} - [${c.stage || 'جديد'}] - (${c.city || 'الرياض'})</option>`).join('');
+            if (selected && clients.some(client => String(client.id) === selected)) sel.value = selected;
         }
 
         function onTaskClientSelectChanged() {
             const clientId = document.getElementById('formClientSelect').value;
+            setStableTaskClientId(clientId);
             if (!clientId) return;
 
             const client = (window.clients || []).find(c => c.id === clientId);
@@ -5737,7 +5778,6 @@
             const editingOwnAction = editingTask && window.currentUserRole === 'agent' && !(window.hasManagerPermissions && window.hasManagerPermissions()) &&
                 window.sameEmployee(editingTask.agent, window.currentLoggedInAgent);
             if (preselectedClient && !editingOwnAction && rejectUnauthorizedClientAction(preselectedClient)) return false;
-            renderClientSelectInTaskForm();
 
             const loggedEmp = (window.employees || []).find(e => e.name === window.currentLoggedInAgent);
             let assignable = (window.employees || []).filter(e => window.getEmployeeDepartment(e) === 'خدمات العملاء');
@@ -5747,6 +5787,9 @@
 
             form.reset();
             document.getElementById('taskId').value = '';
+            setStableTaskClientId('');
+            document.getElementById('formClientSearch').value = '';
+            renderClientSelectInTaskForm();
             document.getElementById('formDate').value = window.currentDateFilter;
             document.getElementById('formNextFollowUpDate').value = '';
             document.getElementById('formNextFollowUpTime').value = '';
@@ -5761,7 +5804,7 @@
             if (clientIdToPreselect) {
                 const client = (window.clients || []).find(c => c.id === clientIdToPreselect);
                 if (client) {
-                    document.getElementById('formClientSelect').value = client.id;
+                    setStableTaskClientId(client.id);
                     document.getElementById('formCustomer').value = client.name;
                     document.getElementById('formPhone').value = client.phone || '';
                     document.getElementById('formEntityType').value = client.entityType || 'عيادة';
@@ -5783,12 +5826,14 @@
 
         async function handleSaveTask(e) {
             e.preventDefault();
+            const saveButton = document.getElementById('taskSaveButton');
+            if (saveButton?.disabled) return;
             const taskId = document.getElementById('taskId').value;
             const existingTask = taskId ? window.findTaskByRecordId(taskId) : null;
             const taskDate = document.getElementById('formDate').value || window.currentDateFilter;
             const shift = document.getElementById('formShift').value;
             const agent = document.getElementById('formAgent').value;
-            const selectedClientId = document.getElementById('formClientSelect').value;
+            let selectedClientId = getStableTaskClientId();
             const customer = document.getElementById('formCustomer').value.trim();
             const phone = document.getElementById('formPhone').value.trim();
             const entityType = document.getElementById('formEntityType').value;
@@ -5803,6 +5848,18 @@
             const alsoWhatsapp = !taskId && Boolean(document.getElementById('formAlsoWhatsapp')?.checked) && isPhoneCategory(category);
             const nextFollowUpDate = document.getElementById('formNextFollowUpDate').value;
             const nextFollowUpTime = document.getElementById('formNextFollowUpTime').value;
+
+            // تحديثات Firebase قد تعيد بناء القائمة أثناء كتابة الموظف. إذا
+            // ظلت بيانات العميل المستدعاة في النموذج نستعيد معرّفه تلقائياً.
+            if (!selectedClientId && customer) {
+                const normalizedPhone = String(phone || '').replace(/\D/g, '');
+                const matched = getClientsAvailableToCurrentUser().find(client => {
+                    const sameName = String(client.name || '').normalize('NFKC').trim().toLowerCase() === customer.normalize('NFKC').trim().toLowerCase();
+                    const samePhone = normalizedPhone && String(client.phone || '').replace(/\D/g, '') === normalizedPhone;
+                    return sameName || samePhone;
+                });
+                if (matched) selectedClientId = setStableTaskClientId(matched.id);
+            }
 
             if (window.currentUserRole === 'agent' && !(window.hasManagerPermissions && window.hasManagerPermissions())) {
                 if (!window.sameEmployee(agent, window.currentLoggedInAgent)) {
@@ -5846,37 +5903,52 @@
                 updatedAt: Date.now()
             };
 
-            const savedPrimaryTask = await window.saveTaskToCloud(taskData);
-            let whatsappSaved = false;
-            if (alsoWhatsapp) {
-                const whatsappTask = {
-                    ...taskData,
-                    id: `task_${Date.now()}_wa_${Math.random().toString(36).slice(2, 7)}`,
-                    createdAt: Date.now() + 1,
-                    updatedAt: Date.now() + 1,
-                    category: 'إرسال واتساب',
-                    channel: 'واتساب',
-                    status: 'مكتمل',
-                    notes: `واتساب إضافي بعد المكالمة — ${notes}`,
-                    clientStatusNote: '',
-                    affectsFunnel: false,
-                    affectsFollowUp: false,
-                    relatedTaskId: savedPrimaryTask.id,
-                    nextFollowUpDate: '',
-                    nextFollowUpTime: ''
-                };
-                await window.saveTaskToCloud(whatsappTask);
-                whatsappSaved = true;
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.dataset.originalText = saveButton.textContent;
+                saveButton.textContent = 'جارٍ تثبيت الإجراء…';
             }
-            showToast(whatsappSaved ? "تم حفظ المكالمة وواتساب كإجرائين مستقلين!" : "تم حفظ الإجراء والمتابعة بالسحابة بنجاح!");
-            closeAddTaskModal();
-            if (window.activeProfileClientId) renderClientTimelineUI(window.activeProfileClientId);
-            if (category === 'إرسال البيانات إلى الدعم الفني') {
-                window.syncSupportProjectsFromFunnel(false);
-                showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
-            } else if (category === 'إرفاق رابط Google Drive بالبيانات') {
-                const matchedClient = (window.clients || []).find(c => c.id === selectedClientId || (phone && c.phone === phone) || c.name === customer);
-                if (matchedClient) setTimeout(() => window.openSupportHandoffForm(matchedClient.id), 150);
+            try {
+                const savedPrimaryTask = await window.saveTaskToCloud(taskData);
+                let whatsappSaved = false;
+                if (alsoWhatsapp) {
+                    const whatsappTask = {
+                        ...taskData,
+                        id: `task_${Date.now()}_wa_${Math.random().toString(36).slice(2, 7)}`,
+                        createdAt: Date.now() + 1,
+                        updatedAt: Date.now() + 1,
+                        category: 'إرسال واتساب',
+                        channel: 'واتساب',
+                        status: 'مكتمل',
+                        notes: `واتساب إضافي بعد المكالمة — ${notes}`,
+                        clientStatusNote: '',
+                        affectsFunnel: false,
+                        affectsFollowUp: false,
+                        relatedTaskId: savedPrimaryTask.id,
+                        nextFollowUpDate: '',
+                        nextFollowUpTime: ''
+                    };
+                    await window.saveTaskToCloud(whatsappTask);
+                    whatsappSaved = true;
+                }
+                showToast(whatsappSaved ? "تم تثبيت المكالمة وواتساب كإجرائين مستقلين." : "تم تثبيت الإجراء في السحابة بنجاح.");
+                closeAddTaskModal();
+                if (window.activeProfileClientId) renderClientTimelineUI(window.activeProfileClientId);
+                if (category === 'إرسال البيانات إلى الدعم الفني') {
+                    window.syncSupportProjectsFromFunnel(false);
+                    showToast('ظهر العميل لدى فريق الدعم — بانتظار رابط البيانات', 'info');
+                } else if (category === 'إرفاق رابط Google Drive بالبيانات') {
+                    const matchedClient = (window.clients || []).find(c => c.id === selectedClientId || (phone && c.phone === phone) || c.name === customer);
+                    if (matchedClient) setTimeout(() => window.openSupportHandoffForm(matchedClient.id), 150);
+                }
+            } catch (error) {
+                console.error('Task save failed:', error);
+                showToast(error?.message || 'تعذر حفظ الإجراء. ظل النموذج مفتوحًا لإعادة المحاولة دون فقد البيانات.', 'error');
+            } finally {
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.textContent = saveButton.dataset.originalText || 'حفظ وإرسال للسحابة';
+                }
             }
         }
 
@@ -5924,7 +5996,7 @@
                 document.getElementById('formDate').value = t.date || window.currentDateFilter;
                 document.getElementById('formShift').value = t.shift || 'شفت صباحي';
                 document.getElementById('formAgent').value = t.agent;
-                document.getElementById('formClientSelect').value = t.clientId || taskClient?.id || '';
+                setStableTaskClientId(t.clientId || taskClient?.id || '');
                 document.getElementById('formCustomer').value = t.customer;
                 document.getElementById('formPhone').value = t.phone || '';
                 document.getElementById('formEntityType').value = t.entityType || 'عيادة';
@@ -9465,7 +9537,7 @@
             const next=Array.isArray(v)?v:[],previous=loadSupport(),previousById=new Map(previous.filter(p=>p&&p.id).map(p=>[p.id,JSON.stringify(p)]));
             const changed=next.filter(p=>p&&p.id&&previousById.get(p.id)!==JSON.stringify(p));
             window.nabdiStorage.setItem('nabdi_support_projects',JSON.stringify(next));
-            if(window.currentUserRole)renderApp();
+            if(!document.getElementById('supportSupervisorView')?.classList.contains('hidden'))renderSupportSupervisorDashboard();
             // اكتب السجل الذي تغيّر فقط؛ لا تعِد كتابة جميع مشاريع الدعم عند كل فتح.
             if(changed.length&&window.syncSupportProjectsCloud){const sync=window.syncSupportProjectsCloud(changed);if(sync&&sync.catch)sync.catch(error=>window.showToast&&showToast(error.message||'تعذر حفظ تحديث الدعم سحابياً','error'));}
         }
