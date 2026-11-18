@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="./vendor/cairo/cairo.css" rel="stylesheet">
-    <meta name="nabdi-app-version" content="5.8.2">
-    <script>window.NABDI_APP_VERSION = '5.8.2';</script>
+    <meta name="nabdi-app-version" content="5.8.3">
+    <script>window.NABDI_APP_VERSION = '5.8.3';</script>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
@@ -496,7 +496,7 @@
                     <span id="loginSubmitText">تسجيل الدخول والدخول للواجهة</span>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.2</p>
+                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.3</p>
             </form>
         </div>
     </div>
@@ -2873,7 +2873,10 @@
         };
         window.taskMatchesClient = function(task, client) {
             if (!task || !client) return false;
-            if (task.clientId) return task.clientId === client.id;
+            if (task.clientId) {
+                const clientIds = new Set([client.id, ...(client._duplicateIds || [])].filter(Boolean).map(String));
+                return clientIds.has(String(task.clientId));
+            }
 
             const taskName = String(task.customer || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
             const clientName = String(client.name || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -2901,13 +2904,43 @@
                 const key = 'entity:' + name + '|city:' + city + '|phone:' + phone;
                 if (!name && phone.length < 5) return;
                 const previous = map.get(key);
-                if (!previous) map.set(key, {...client, _duplicateIds: [client.id].filter(Boolean)});
+                if (!previous) map.set(key, {
+                    ...client,
+                    _duplicateIds: Array.from(new Set([...(client._duplicateIds || []), client.id].filter(Boolean))),
+                    _ownerRefs: Array.from(new Map([
+                        ...(client._ownerRefs || []),
+                        { id: client.addedById || '', name: client.addedBy || '' }
+                    ].filter(owner => owner.id || owner.name).map(owner => [`${owner.id}|${window.normalizeEmployeeName(owner.name)}`, owner])).values())
+                });
                 else {
                     const clientTime = Number(client.updatedAt || client.createdAt || 0);
                     const previousTime = Number(previous.updatedAt || previous.createdAt || 0);
                     const newer = clientTime >= previousTime ? client : previous;
                     const older = newer === client ? previous : client;
-                    map.set(key, {...older, ...newer, docs: {...(older.docs||{}), ...(newer.docs||{})}, _duplicateIds: Array.from(new Set([...(previous._duplicateIds||[previous.id]), client.id].filter(Boolean)))});
+                    const ownerRefs = [
+                        ...(previous._ownerRefs || []),
+                        { id: previous.addedById || '', name: previous.addedBy || '' },
+                        ...(client._ownerRefs || []),
+                        { id: client.addedById || '', name: client.addedBy || '' }
+                    ].filter(owner => owner.id || owner.name);
+                    const stageHistory = [...(older.stageHistory || []), ...(newer.stageHistory || [])];
+                    const uniqueHistory = Array.from(new Map(stageHistory.map(entry => {
+                        const value = typeof entry === 'string' ? { stage: entry } : entry;
+                        return [`${value?.stage || ''}|${value?.at || value?.date || ''}|${value?.taskId || ''}`, entry];
+                    })).values());
+                    map.set(key, {
+                        ...older,
+                        ...newer,
+                        docs: {...(older.docs||{}), ...(newer.docs||{})},
+                        stageHistory: uniqueHistory,
+                        _duplicateIds: Array.from(new Set([
+                            ...(previous._duplicateIds || [previous.id]),
+                            ...(client._duplicateIds || [client.id]),
+                            previous.id,
+                            client.id
+                        ].filter(Boolean))),
+                        _ownerRefs: Array.from(new Map(ownerRefs.map(owner => [`${owner.id}|${window.normalizeEmployeeName(owner.name)}`, owner])).values())
+                    });
                 }
             });
             return Array.from(map.values());
@@ -3434,7 +3467,7 @@
                 await waitForFirebaseUser();
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'clients', clientData.id);
                 const syncTime = Date.now();
-                const { _duplicateIds, ...cloudClientData } = {
+                const { _duplicateIds, _ownerRefs, ...cloudClientData } = {
                     ...clientData,
                     // التسجيل أو التعديل الصريح يعيد تفعيل السجل إذا كان يحمل
                     // علامة حذف قديمة لنفس المعرّف الحتمي.
@@ -4309,7 +4342,19 @@
         window.clientBelongsToEmployee = function(client, employee) {
             if (!client || !employee) return false;
             if (client.addedById && employee.id && client.addedById === employee.id) return true;
-            return window.sameEmployee(client.addedBy, employee.name, client.addedById || '', employee.id || '');
+            if (window.sameEmployee(client.addedBy, employee.name, client.addedById || '', employee.id || '')) return true;
+            return (client._ownerRefs || []).some(owner =>
+                window.sameEmployee(owner.name, employee.name, owner.id || '', employee.id || '')
+            );
+        };
+
+        window.findClientByAnyId = function(clientId) {
+            const key = String(clientId || '').trim();
+            if (!key) return null;
+            return (window.clients || []).find(client =>
+                String(client.id || '') === key ||
+                (client._duplicateIds || []).some(id => String(id) === key)
+            ) || null;
         };
 
         window.canCurrentUserActOnClient = function(client) {
@@ -5043,11 +5088,11 @@
         }
 
         function openClientProfileModal(clientId) {
-            const client = (window.clients || []).find(c => c.id === clientId);
+            const client = window.findClientByAnyId(clientId);
             if (!client) return;
             const canModifyClient = window.canCurrentUserActOnClient(client);
 
-            window.activeProfileClientId = clientId;
+            window.activeProfileClientId = client.id;
             populateFunnelDropdowns();
 
             document.getElementById('profClientName').innerText = client.name;
@@ -5150,7 +5195,7 @@
                 };
             }
 
-            renderClientTimelineUI(clientId);
+            renderClientTimelineUI(client.id);
             document.getElementById('clientProfileModal').classList.remove('hidden');
         }
 
@@ -5173,7 +5218,7 @@
         }
 
         function renderClientTimelineUI(clientId) {
-            const client = (window.clients || []).find(c => c.id === clientId);
+            const client = window.findClientByAnyId(clientId);
             if (!client) return;
 
             const stageBadge = document.getElementById('profStageBadge');
