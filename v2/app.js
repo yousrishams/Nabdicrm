@@ -469,4 +469,3 @@ document.addEventListener('click', e => {
 })();
 
 
-if (new URLSearchParams(location.search).get('debug') === '1') window.__v2 = { state, startApp, render, setTab };
