@@ -468,3 +468,5 @@ document.addEventListener('click', e => {
   if (emp) startApp(emp);
 })();
 
+
+if (new URLSearchParams(location.search).get('debug') === '1') window.__v2 = { state, startApp, render, setTab };
