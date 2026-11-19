@@ -487,9 +487,153 @@ function renderAllLog() {
   $('allLogList').innerHTML = list.map(t => `<div class="item" data-logtask="${esc(t._docId)}"><div class="t">${esc(t.customer || '')} <span class="tag">${esc(t.category || '')}</span></div><div class="s">${esc(t.agent || '')} · ${esc(t.time || '')} · ${esc(t.phone || '')}</div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}</div>`).join('') || '<div class="empty">مفيش إجراءات</div>';
 }
 function showEmployeeDay(empId) {
-  $('allLogDate').value = $('teamDate').value || cairoDate();
+  $('allLogDate').value = (state.tab === 'dash' && D.last ? D.last.to : $('teamDate').value) || cairoDate();
   $('allLogEmp').value = empId;
   setTab('alllog');
+}
+
+
+// ---------------- لوحة التحكم (مدير / مشرف) ----------------
+const D = { range: 'today', cache: new Map(), data: null, busy: 0 };
+const addDays = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const daysBetween = (a, b) => { const out = []; for (let d = a; d <= b && out.length < 400; d = addDays(d, 1)) out.push(d); return out; };
+const fmt = n => Number(n || 0).toLocaleString('en-US');
+const hrsTxt = ms => { const h = Math.floor(ms / 36e5), m = Math.round((ms % 36e5) / 6e4); return h ? (m ? `${h} س ${m} د` : `${h} ساعة`) : `${m} د`; };
+const pct = (a, b) => b ? Math.round(a * 100 / b) : 0;
+function dashPeriod() {
+  const t = cairoDate();
+  switch (D.range) {
+    case 'yest': return [addDays(t, -1), addDays(t, -1)];
+    case '7': return [addDays(t, -6), t];
+    case 'month': return [t.slice(0, 8) + '01', t];
+    case 'last': { const f = addDays(t.slice(0, 8) + '01', -1); return [f.slice(0, 8) + '01', f]; }
+    case 'custom': { let f = $('dashFrom').value || t, to = $('dashTo').value || f; if (f > to) [f, to] = [to, f]; return [f, to]; }
+    default: return [t, t];
+  }
+}
+const CAT = { call: 'مكالمة هاتفية', na: 'مكالمة لم يتم الرد عليها', wa: 'إرسال واتساب', meet: 'عقد اجتماع', meetSet: 'الاتفاق على الاجتماع', sent: 'إرسال العقد', signed: 'توقيع العقد', interested: 'عميل مهتم' };
+function dashEmployees() {
+  const lvl = accessOf(state.me), dept = $('dashDept').value;
+  return state.employees.filter(e => accessOf(e) !== 'manager' && (lvl === 'manager' ? (!dept || e.department === dept) : e.department === state.me.department));
+}
+async function loadDash() {
+  const [from, to] = dashPeriod();
+  const key = from + '_' + to;
+  const myRun = ++D.busy;
+  $('dashNote').textContent = 'جاري تحميل الأرقام…';
+  try {
+    let pack = D.cache.get(key);
+    const live = to >= cairoDate();
+    if (!pack || live && Date.now() - pack.at > 120000) {
+      const [ts, at, cs] = await Promise.all([
+        getDocs(query(col('tasks'), where('date', '>=', from), where('date', '<=', to))),
+        getDocs(query(col('attendance'), where('date', '>=', from), where('date', '<=', to))).catch(() => null),
+        getDocs(query(col('clients'), where('createdAt', '>=', new Date(from + 'T00:00:00+02:00').getTime()), where('createdAt', '<=', new Date(to + 'T23:59:59+02:00').getTime()))).catch(() => null)
+      ]);
+      pack = { at: Date.now(), tasks: [], att: [], clients: [] };
+      ts.forEach(d => { const t = d.data(); if (!t.deletedAt && t.taskType !== 'internal' && t.category !== 'مهمة داخلية') pack.tasks.push(t); });
+      at?.forEach(d => pack.att.push(d.data()));
+      cs?.forEach(d => { const c = d.data(); if (!c.deletedAt) pack.clients.push(c); });
+      D.cache.set(key, pack);
+    }
+    if (myRun !== D.busy) return;
+    D.data = { from, to, ...pack };
+    renderDash();
+  } catch (e) { $('dashNote').textContent = 'تعذر تحميل الأرقام: ' + e.message; }
+}
+function empMatcher() {
+  const byId = new Map(), byName = new Map();
+  for (const e of state.employees) { byId.set(e.id, e); byName.set(normName(e.name), e); }
+  return (id, name) => (id && byId.get(id)) || byName.get(normName(name)) || null;
+}
+function computeDash() {
+  const { from, to, tasks, att, clients } = D.data;
+  const emps = dashEmployees(), allowed = new Set(emps.map(e => e.id));
+  const empSel = $('dashEmp').value;
+  const match = empMatcher();
+  const keep = e => e && allowed.has(e.id) && (!empSel || e.id === empSel);
+  const T = tasks.filter(t => keep(match(t.agentId, t.agent)));
+  const A = att.filter(r => keep(match(r.employeeId, r.employeeName)));
+  const C = clients.filter(c => keep(match(c.addedById, c.addedBy)));
+  const count = (arr, cat) => arr.filter(t => t.category === cat).length;
+  const days = daysBetween(from, to);
+  const rows = emps.filter(e => !empSel || e.id === empSel).map(e => {
+    const ts = T.filter(t => match(t.agentId, t.agent)?.id === e.id);
+    const as = A.filter(r => match(r.employeeId, r.employeeName)?.id === e.id);
+    const work = as.reduce((s, r) => s + attMetrics(r).work, 0);
+    const calls = count(ts, CAT.call), na = count(ts, CAT.na);
+    return { e, n: ts.length, calls, na, rate: pct(calls, calls + na), wa: count(ts, CAT.wa), meet: count(ts, CAT.meet) + count(ts, CAT.meetSet), sent: count(ts, CAT.sent), signed: count(ts, CAT.signed), newC: C.filter(c => match(c.addedById, c.addedBy)?.id === e.id).length, daysP: as.filter(r => r.checkInAt).length, work, clientsTouched: new Set(ts.map(t => t.clientId || plain(t.customer))).size };
+  }).sort((x, y) => y.n - x.n || y.signed - x.signed);
+  const byDay = days.map(d => { const ts = T.filter(t => t.date === d); return { d, n: ts.length, calls: count(ts, CAT.call), na: count(ts, CAT.na), wa: count(ts, CAT.wa) }; });
+  const funnel = STAGES.map(s => ({ s, n: T.filter(t => normStage(t.category) === s && (LEGACY[t.category] || t.category) === s).length })).filter(x => x.n);
+  const cityMap = new Map(); T.forEach(t => { const c = t.city || 'غير محدد'; cityMap.set(c, (cityMap.get(c) || 0) + 1); });
+  const cities = [...cityMap].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const calls = count(T, CAT.call), na = count(T, CAT.na);
+  const activeEmps = rows.filter(r => r.n).length;
+  return { from, to, days, T, rows, byDay, funnel, cities, k: { n: T.length, calls, na, rate: pct(calls, calls + na), wa: count(T, CAT.wa), meet: count(T, CAT.meet) + count(T, CAT.meetSet), sent: count(T, CAT.sent), signed: count(T, CAT.signed), newC: C.length, touched: new Set(T.map(t => t.clientId || plain(t.customer))).size, avg: activeEmps ? Math.round(T.length / activeEmps / Math.max(1, days.length) * 10) / 10 : 0, activeEmps } };
+}
+function trendSvg(byDay) {
+  const W = 640, H = 220, pl = 34, pb = 26, pt = 10, n = byDay.length;
+  const max = Math.max(5, ...byDay.map(x => x.n));
+  const step = Math.ceil(max / 4); const top = step * 4;
+  const bw = (W - pl - 8) / n, y = v => pt + (H - pt - pb) * (1 - v / top);
+  let g = '';
+  for (let i = 0; i <= 4; i++) { const v = step * i; g += `<line x1="${pl}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="#eee9f5"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10" fill="#8a85a0" text-anchor="end">${v}</text>`; }
+  const lblEvery = Math.ceil(n / 10);
+  byDay.forEach((x, i) => {
+    const x0 = pl + i * bw + bw * 0.15, w = Math.max(2, bw * 0.7);
+    const seg = [[x.calls, '#16a34a'], [x.na, '#f59e0b'], [x.wa, '#2563eb'], [x.n - x.calls - x.na - x.wa, '#7c5cc4']];
+    let acc = 0;
+    seg.forEach(([v, c]) => { if (v > 0) { g += `<rect x="${x0}" y="${y(acc + v)}" width="${w}" height="${y(acc) - y(acc + v)}" fill="${c}" rx="1.5"><title>${x.d}: ${v}</title></rect>`; acc += v; } });
+    if (n <= 14 && x.n) g += `<text x="${x0 + w / 2}" y="${y(x.n) - 4}" font-size="10" text-anchor="middle" fill="#4b4863" font-weight="700">${x.n}</text>`;
+    if (i % lblEvery === 0) g += `<text x="${x0 + w / 2}" y="${H - 8}" font-size="10" text-anchor="middle" fill="#8a85a0">${x.d.slice(8)}/${x.d.slice(5, 7)}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" direction="ltr">${g}</svg><div class="legend"><span style="--c:#16a34a">مكالمات رد</span><span style="--c:#f59e0b">لم يرد</span><span style="--c:#2563eb">واتساب</span><span style="--c:#7c5cc4">باقي الإجراءات</span></div>`;
+}
+const barsHtml = (items, color = 'var(--p2)') => { const max = Math.max(1, ...items.map(x => x.v)); return `<div class="bars">${items.map(x => `<div class="bar"><span class="n" title="${esc(x.l)}">${esc(x.l)}</span><span class="tr"><i style="width:${x.v * 100 / max}%;background:${x.c || color}"></i></span><span class="v">${fmt(x.v)}</span></div>`).join('') || '<div class="empty">مفيش بيانات</div>'}</div>`; };
+const rateCls = r => r >= 60 ? 'good' : r >= 40 ? 'mid' : 'low';
+function renderDash() {
+  if (!D.data) return;
+  const r = computeDash(); D.last = r;
+  const k = r.k;
+  const kp = (label, v, c, sub = '') => `<div class="kpi" style="--c:${c}"><span>${label}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  $('dashNote').textContent = r.from === r.to ? `يوم ${r.from}` : `من ${r.from} إلى ${r.to} (${r.days.length} يوم)`;
+  $('dashKpis').innerHTML = kp('إجمالي الإجراءات', fmt(k.n), '#5A3B8B', `${k.activeEmps} موظف شغال · متوسط ${k.avg} للموظف في اليوم`) + kp('مكالمات تم الرد', fmt(k.calls), '#16a34a') + kp('لم يرد', fmt(k.na), '#f59e0b') + kp('نسبة الرد', k.rate + '%', '#0d9488') + kp('واتساب', fmt(k.wa), '#2563eb') + kp('اجتماعات', fmt(k.meet), '#9333ea') + kp('عقود اتبعتت', fmt(k.sent), '#ea580c') + kp('عقود اتوقعت', fmt(k.signed), '#dc2626') + kp('عملاء جدد', fmt(k.newC), '#0891b2') + kp('عملاء اتكلموا', fmt(k.touched), '#64748b');
+  $('dashTrend').innerHTML = r.byDay.some(x => x.n) ? trendSvg(r.byDay) : '<div class="empty">مفيش إجراءات في الفترة دي</div>';
+  $('dashFunnel').innerHTML = barsHtml(r.funnel.map((x, i) => ({ l: x.s, v: x.n, c: `hsl(${265 - i * 14} 55% ${48 + i * 2}%)` })));
+  $('dashEmpBars').innerHTML = barsHtml(r.rows.filter(x => x.n).map(x => ({ l: x.e.name, v: x.n })));
+  $('dashCities').innerHTML = barsHtml(r.cities.map(([l, v]) => ({ l, v })), '#0d9488');
+  const tot = f => r.rows.reduce((s, x) => s + x[f], 0);
+  const tCalls = tot('calls'), tNa = tot('na');
+  $('dashTable').innerHTML = '<tr><th>الموظف</th><th>أيام الحضور</th><th>ساعات الشغل</th><th>الإجراءات</th><th>عملاء اتكلموا</th><th>مكالمات رد</th><th>لم يرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود اتبعتت</th><th>عقود اتوقعت</th><th>عملاء جدد</th></tr>' +
+    r.rows.map((x, i) => `<tr data-emp="${esc(x.e.id)}" style="cursor:pointer"><td><span class="medal ${x.n && i < 3 ? 'm' + (i + 1) : ''}">${i + 1}</span><b>${esc(x.e.name)}</b><div class="small muted">${esc(x.e.department || '')}</div></td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td><b>${fmt(x.n)}</b></td><td>${x.clientsTouched}</td><td>${x.calls}</td><td>${x.na}</td><td><span class="rate ${rateCls(x.rate)}">${x.calls + x.na ? x.rate + '%' : '—'}</span></td><td>${x.wa}</td><td>${x.meet}</td><td>${x.sent}</td><td><b>${x.signed}</b></td><td>${x.newC}</td></tr>`).join('') +
+    `<tr class="tot"><th>الإجمالي</th><th>${tot('daysP')}</th><th>${hrsTxt(tot('work'))}</th><th>${fmt(tot('n'))}</th><th>${k.touched}</th><th>${tCalls}</th><th>${tNa}</th><th>${pct(tCalls, tCalls + tNa)}%</th><th>${tot('wa')}</th><th>${tot('meet')}</th><th>${tot('sent')}</th><th>${tot('signed')}</th><th>${tot('newC')}</th></tr>`;
+}
+function dashExcel() {
+  const r = D.last; if (!r) return;
+  const cell = v => `<td>${esc(v)}</td>`, head = v => `<th style="background:#5A3B8B;color:#fff">${esc(v)}</th>`;
+  const hrs = ms => Math.round(ms / 36e5 * 10) / 10;
+  const sum = `<table border="1"><tr><th colspan="13" style="font-size:16px">تقرير أداء الفريق — ${esc(r.from)} إلى ${esc(r.to)}</th></tr><tr>${['الموظف', 'القسم', 'أيام الحضور', 'ساعات الشغل', 'الإجراءات', 'عملاء اتكلموا', 'مكالمات رد', 'لم يرد', 'نسبة الرد %', 'واتساب', 'اجتماعات', 'عقود اتبعتت', 'عقود اتوقعت'].map(head).join('')}</tr>` +
+    r.rows.map(x => `<tr>${[x.e.name, x.e.department || '', x.daysP, hrs(x.work), x.n, x.clientsTouched, x.calls, x.na, x.rate, x.wa, x.meet, x.sent, x.signed].map(cell).join('')}</tr>`).join('') + '</table>';
+  const det = `<br><table border="1"><tr><th colspan="11" style="font-size:16px">تفاصيل الإجراءات</th></tr><tr>${['التاريخ', 'الوقت', 'الموظف', 'العميل', 'الجوال', 'المدينة', 'الإجراء', 'القناة', 'الملاحظات', 'المتابعة الجاية', 'ساعة المتابعة'].map(head).join('')}</tr>` +
+    [...r.T].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(t => `<tr>${[t.date, t.time, t.agent, t.customer, t.phone, t.city, t.category, t.channel, t.notes, t.nextFollowUpDate, t.nextFollowUpTime].map(v => `<td style="mso-number-format:'\\@'">${esc(v || '')}</td>`).join('')}</tr>`).join('') + '</table>';
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>التقرير</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body dir="rtl" style="font-family:Arial">${sum}${det}</body></html>`;
+  const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `تقرير-نبضي-${r.from}_${r.to}.xls`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function setupDash() {
+  const lvl = accessOf(state.me);
+  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
+  $('dashDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(state.me.department || '')}</option>`;
+  const fillEmp = () => { $('dashEmp').innerHTML = '<option value="">كل الموظفين</option>' + dashEmployees().map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join(''); };
+  fillEmp();
+  $('dashFrom').value = $('dashTo').value = cairoDate();
+  $('dashRange').onclick = e => { const b = e.target.closest('button[data-r]'); if (!b) return; D.range = b.dataset.r; $('dashRange').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); $('dashCustom').classList.toggle('hidden', D.range !== 'custom'); loadDash(); };
+  $('dashFrom').onchange = $('dashTo').onchange = loadDash;
+  $('dashDept').onchange = () => { fillEmp(); renderDash(); };
+  $('dashEmp').onchange = renderDash;
+  $('dashXls').onclick = dashExcel;
+  $('dashPrint').onclick = () => window.print();
 }
 
 // ---------------- التشغيل ----------------
@@ -497,9 +641,12 @@ function startApp(emp) {
   state.me = emp;
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
   $('whoName').textContent = emp.name;
+  $('whoAvatar').textContent = String(emp.name || '؟').trim().charAt(0);
   const lvl = accessOf(emp);
   if (lvl !== 'employee') {
     $('teamTabBtn').classList.remove('hidden');
+    document.querySelectorAll('.mgrsup,.mgrsec').forEach(b => b.classList.remove('hidden'));
+    setupDash();
     const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
     $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
     $('teamDate').value = cairoDate();
@@ -508,11 +655,13 @@ function startApp(emp) {
     if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (!['team', 'allclients', 'alllog'].includes(b.dataset.tab)) b.classList.add('hidden'); });
-    $('attBtn').classList.add('hidden'); $('syncBar').textContent = 'دخول المدير';
-    setTab('team');
+    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'team', 'allclients', 'alllog'].includes(b.dataset.tab)) b.classList.add('hidden'); });
+    document.querySelector('.agentsec').classList.add('hidden');
+    $('attBtn').classList.add('hidden'); $('syncBar').textContent = '';
+    setTab('dash');
     return;
   }
+  setTab('today');
   syncMsg();
   loadAttendance();
   syncCollection('clients').catch(e => { $('syncBar').textContent = 'تعذر تحميل العملاء: ' + e.message; $('syncBar').classList.add('err'); });
@@ -521,9 +670,11 @@ function startApp(emp) {
 function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ['today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  document.body.classList.remove('menu');
+  ['dash', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
+  if (tab === 'dash') loadDash();
   if (tab === 'alllog') startAllLog(); else if (all.dayUnsub) { all.dayUnsub(); all.dayUnsub = null; }
   render();
 }
@@ -533,6 +684,8 @@ $('loginBtn').onclick = login;
 $('googleBtn').onclick = googleLogin;
 $('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 $('logoutBtn').onclick = logout;
+$('menuBtn').onclick = () => document.body.classList.toggle('menu');
+$('backdrop').onclick = () => document.body.classList.remove('menu');
 document.querySelectorAll('.tab').forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
 document.querySelectorAll('[data-close]').forEach(b => { b.onclick = () => $(b.dataset.close).classList.add('hidden'); });
 $('newActionBtn').onclick = () => openAction(null);

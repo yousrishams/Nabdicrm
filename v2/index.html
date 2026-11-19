@@ -3,20 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="nabdi-app-version" content="2.0.0-beta">
-<title>نبضي CRM — النسخة 2 (تجريبية)</title>
+<meta name="nabdi-app-version" content="2.1.0">
+<meta name="theme-color" content="#5A3B8B">
+<title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=205">
+<link rel="stylesheet" href="./app.css?v=206">
 </head>
 <body>
-<div id="beta" class="beta">نسخة تجريبية 2.0 — الشغل بيتحفظ في نفس قاعدة البيانات الحقيقية</div>
+
 
 <!-- الدخول -->
 <section id="loginView" class="center">
   <div class="card login">
-    <div class="brand"><i class="fa-solid fa-heart-pulse"></i> نبضي CRM</div>
-    <p class="muted">اختار اسمك واكتب رمزك</p>
+    <div class="brand big"><span class="logo"><i class="fa-solid fa-heart-pulse"></i></span> نبضي CRM</div>
+    <p class="muted">أهلاً بيك — اختار اسمك واكتب رمزك</p>
     <label>الموظف</label>
     <select id="loginEmp"><option value="">جاري التحميل…</option></select>
     <label>الرمز</label>
@@ -30,22 +31,52 @@
 <!-- التطبيق -->
 <section id="appView" class="hidden">
   <header class="top">
-    <div class="brand"><i class="fa-solid fa-heart-pulse"></i> نبضي</div>
-    <nav>
-      <button data-tab="today" class="tab on">شغلي النهارده</button>
-      <button data-tab="clients" class="tab">عملائي</button>
-      <button data-tab="log" class="tab">سجل اليوم</button>
-      <button data-tab="team" class="tab hidden" id="teamTabBtn">الفريق</button>
-      <button data-tab="allclients" class="tab hidden mgr">كل العملاء</button>
-      <button data-tab="alllog" class="tab hidden mgr">سجل الإجراءات</button>
-    </nav>
-    <div class="who"><button id="attBtn" class="btn att sm">الحضور</button> <span id="whoName"></span> <button id="logoutBtn" class="btn ghost sm">خروج</button></div>
+    <button id="menuBtn" class="iconbtn" aria-label="القائمة"><i class="fa-solid fa-bars"></i></button>
+    <div class="brand"><span class="logo"><i class="fa-solid fa-heart-pulse"></i></span> نبضي <small>CRM</small></div>
+    <div class="who"><button id="attBtn" class="btn att sm">الحضور</button><span class="avatar" id="whoAvatar"></span><span id="whoName" class="whoname"></span><button id="logoutBtn" class="iconbtn" title="خروج"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </header>
+  <aside class="side" id="side">
+    <nav>
+      <div class="navlbl mgrsec hidden">الإدارة</div>
+      <button data-tab="dash" class="tab hidden mgrsup"><i class="fa-solid fa-chart-pie"></i><span>لوحة التحكم</span></button>
+      <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>الفريق النهارده</span></button>
+      <button data-tab="allclients" class="tab hidden mgr"><i class="fa-solid fa-address-book"></i><span>كل العملاء</span></button>
+      <button data-tab="alllog" class="tab hidden mgr"><i class="fa-solid fa-list-check"></i><span>سجل الإجراءات</span></button>
+      <div class="navlbl agentsec">شغلي</div>
+      <button data-tab="today" class="tab on"><i class="fa-solid fa-house"></i><span>شغلي النهارده</span></button>
+      <button data-tab="clients" class="tab"><i class="fa-solid fa-user-group"></i><span>عملائي</span></button>
+      <button data-tab="log" class="tab"><i class="fa-solid fa-clock-rotate-left"></i><span>سجل اليوم</span></button>
+    </nav>
+    <div class="sidefoot muted small">نبضي CRM · النسخة 2</div>
+  </aside>
   <div id="syncBar" class="sync"></div>
 
   <main>
+    <!-- لوحة التحكم -->
+    <section id="tab-dash" class="hidden">
+      <div class="pagehead"><h1>لوحة التحكم</h1>
+        <div class="tools"><button class="btn line sm" id="dashXls"><i class="fa-solid fa-file-excel"></i> تنزيل Excel</button><button class="btn line sm" id="dashPrint"><i class="fa-solid fa-print"></i> طباعة</button></div></div>
+      <div class="card filters">
+        <div class="seg" id="dashRange">
+          <button data-r="today" class="on">النهارده</button><button data-r="yest">امبارح</button><button data-r="7">آخر 7 أيام</button><button data-r="month">الشهر ده</button><button data-r="last">الشهر اللي فات</button><button data-r="custom">فترة محددة</button>
+        </div>
+        <div class="frow"><div id="dashCustom" class="frow hidden"><label>من</label><input type="date" id="dashFrom"><label>إلى</label><input type="date" id="dashTo"></div>
+        <label>القسم</label><select id="dashDept"></select><label>الموظف</label><select id="dashEmp"></select></div>
+        <div class="muted small" id="dashNote"></div>
+      </div>
+      <div class="kpis big" id="dashKpis"></div>
+      <div class="grid2c">
+        <div class="card"><h3><i class="fa-solid fa-chart-column"></i> الإجراءات يوم بيوم</h3><div id="dashTrend" class="chart"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-filter"></i> مراحل البيع في الفترة</h3><div id="dashFunnel"></div></div>
+      </div>
+      <div class="card"><h3><i class="fa-solid fa-ranking-star"></i> أداء الموظفين</h3><div style="overflow:auto"><table class="tbl" id="dashTable"></table></div></div>
+      <div class="grid2c">
+        <div class="card"><h3><i class="fa-solid fa-chart-bar"></i> إجراءات كل موظف</h3><div id="dashEmpBars"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-location-dot"></i> أكتر المدن</h3><div id="dashCities"></div></div>
+      </div>
+    </section>
     <!-- شغلي النهارده -->
-    <section id="tab-today">
+    <section id="tab-today" class="hidden">
       <div class="kpis" id="kpis"></div>
       <div class="actions-row">
         <button class="btn primary" id="newActionBtn"><i class="fa-solid fa-plus"></i> تسجيل إجراء / عميل جديد</button>
@@ -76,6 +107,7 @@
     </section>
     <!-- الفريق (مدير / مشرف) -->
     <section id="tab-team" class="hidden">
+      <div class="pagehead"><h1>الفريق النهارده</h1></div>
       <div class="card">
         <div class="grid2"><div><label>اليوم</label><input id="teamDate" type="date"></div><div><label>القسم</label><select id="teamDept"></select></div></div>
         <div class="muted small" id="teamNote"></div>
@@ -83,6 +115,7 @@
       </div>
     </section>
     <section id="tab-allclients" class="hidden">
+      <div class="pagehead"><h1>كل العملاء</h1></div>
       <div class="card">
         <input id="allSearch" placeholder="ابحث بالاسم أو رقم الجوال في كل العملاء…">
         <div class="muted small" id="allCount"></div>
@@ -90,6 +123,7 @@
       </div>
     </section>
     <section id="tab-alllog" class="hidden">
+      <div class="pagehead"><h1>سجل الإجراءات</h1></div>
       <div class="card">
         <div class="grid2"><div><label>اليوم</label><input id="allLogDate" type="date"></div><div><label>الموظف</label><select id="allLogEmp"></select></div></div>
         <div class="muted small" id="allLogNote"></div>
@@ -159,7 +193,8 @@
   </div>
 </div>
 
+<div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=205"></script>
+<script type="module" src="./app.js?v=206"></script>
 </body>
 </html>
