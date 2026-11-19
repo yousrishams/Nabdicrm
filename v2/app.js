@@ -81,7 +81,7 @@ function authReady() {
     let done = false;
     const stop = onAuthStateChanged(auth, user => { if (user && !done) { done = true; stop(); resolve(user); } else if (!user) signInAnonymously(auth).catch(() => {}); });
     if (auth.currentUser) return;
-    signInAnonymously(auth).catch(err => { $('loginMsg').textContent = 'تعذر الاتصال: ' + err.message; $('loginMsg').className = 'msg err'; });
+    signInAnonymously(auth).catch(err => { $('loginMsg').textContent = 'تعذّر الاتصال: ' + err.message; $('loginMsg').className = 'msg err'; });
   });
 }
 
@@ -92,16 +92,16 @@ async function loadEmployees() {
   if (snap) snap.forEach(d => { const e = { ...d.data(), id: d.data().id || d.id, _docId: d.id }; if (!e.deletedAt && e.name) list.push(e); });
   list.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
   state.employees = list;
-  $('loginEmp').innerHTML = '<option value="">— اختار اسمك —</option>' + list.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
+  $('loginEmp').innerHTML = '<option value="">— اختر اسمك —</option>' + list.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
 }
 
 async function login() {
   const emp = state.employees.find(e => e.id === $('loginEmp').value);
   const pin = $('loginPin').value.trim();
   const msg = $('loginMsg');
-  if (!emp) { msg.textContent = 'اختار اسمك الأول'; msg.className = 'msg err'; return; }
-  if (!String(emp.pin || '').trim()) { msg.textContent = 'مفيش رمز متسجل لحسابك — كلّم المدير'; msg.className = 'msg err'; return; }
-  if (pin !== String(emp.pin).trim()) { msg.textContent = 'الرمز غلط'; msg.className = 'msg err'; return; }
+  if (!emp) { msg.textContent = 'يرجى اختيار اسمك أولًا'; msg.className = 'msg err'; return; }
+  if (!String(emp.pin || '').trim()) { msg.textContent = 'لا يوجد رمز دخول مسجّل لحسابك، يرجى التواصل مع الإدارة'; msg.className = 'msg err'; return; }
+  if (pin !== String(emp.pin).trim()) { msg.textContent = 'رمز الدخول غير صحيح'; msg.className = 'msg err'; return; }
   $('loginBtn').disabled = true;
   try { await staffSignIn(emp, pin); } catch (e) { console.warn('staff auth skipped', e?.code || e); }
   $('loginBtn').disabled = false;
@@ -116,10 +116,10 @@ async function googleLogin() {
   const msg = $('loginMsg');
   try {
     const cred = await signInWithPopup(auth, new GoogleAuthProvider());
-    if (String(cred.user.email || '').toLowerCase() !== MANAGER_EMAIL) { await signOut(auth); msg.textContent = 'الحساب ده مش مصرح له كمدير'; msg.className = 'msg err'; return; }
+    if (String(cred.user.email || '').toLowerCase() !== MANAGER_EMAIL) { await signOut(auth); msg.textContent = 'هذا الحساب غير مصرّح له بدخول الإدارة'; msg.className = 'msg err'; return; }
     sessionStorage.setItem('v2_emp', 'manager');
     startApp(MANAGER_ME);
-  } catch (e) { msg.textContent = 'تعذر الدخول بجوجل: ' + (e.code || e.message); msg.className = 'msg err'; }
+  } catch (e) { msg.textContent = 'تعذّر الدخول بحساب Google: ' + (e.code || e.message); msg.className = 'msg err'; }
 }
 async function logout() { sessionStorage.removeItem('v2_emp'); try { await signOut(auth); } catch (e) {} location.reload(); }
 
@@ -139,7 +139,7 @@ function putDoc(map, d) { const data = d.data(); map.set(d.id, { ...data, id: da
 function syncMsg() {
   const bar = $('syncBar');
   if (bar.classList.contains('err')) return;
-  bar.textContent = (state.synced.tasks && state.synced.clients) ? `متزامن — ${state.clients.size} عميل، ${state.tasks.size} إجراء` : 'جاري تحميل بياناتك…';
+  bar.textContent = (state.synced.tasks && state.synced.clients) ? `تمت المزامنة — ${state.clients.size} عميل، ${state.tasks.size} إجراء` : 'جارٍ تحميل بياناتك…';
 }
 async function syncCollection(name) {
   const map = state[name];
@@ -171,7 +171,7 @@ async function syncCollection(name) {
     if (!snap.metadata.fromCache) localStorage.setItem(metaKey, JSON.stringify({ marker, fullAt: meta.fullAt }));
     $('syncBar').classList.remove('err'); syncMsg();
     if (changed) render();
-  }, err => { $('syncBar').textContent = 'انقطع الاتصال بقاعدة البيانات — الحفظ ممكن يتأخر: ' + err.message; $('syncBar').classList.add('err'); });
+  }, err => { $('syncBar').textContent = 'انقطع الاتصال بقاعدة البيانات، وقد يتأخر الحفظ: ' + err.message; $('syncBar').classList.add('err'); });
 }
 
 // ---------------- المنطق ----------------
@@ -209,7 +209,7 @@ function renderToday() {
   const todays = liveTasks().filter(t => t.date === today);
   const k = (label, v) => `<div class="kpi"><b>${v}</b><span>${label}</span></div>`;
   const newClients = liveClients().filter(c => c.createdAt && cairoDate(new Date(c.createdAt)) === today).length;
-  $('kpis').innerHTML = k('إجراءات النهارده', todays.length) + k('مكالمات تم الرد', todays.filter(t => t.category === 'مكالمة هاتفية').length) + k('لم يرد', todays.filter(t => t.category === 'مكالمة لم يتم الرد عليها').length) + k('واتساب', todays.filter(t => t.category === 'إرسال واتساب').length) + k('اجتماعات', todays.filter(t => t.category === 'عقد اجتماع').length) + k('عملاء جدد', newClients);
+  $('kpis').innerHTML = k('إجراءات اليوم', todays.length) + k('مكالمات تم الرد عليها', todays.filter(t => t.category === 'مكالمة هاتفية').length) + k('لم يتم الرد', todays.filter(t => t.category === 'مكالمة لم يتم الرد عليها').length) + k('واتساب', todays.filter(t => t.category === 'إرسال واتساب').length) + k('اجتماعات', todays.filter(t => t.category === 'عقد اجتماع').length) + k('عملاء جدد', newClients);
   const late = [], due = [], next = [], noAns = [];
   const in14 = cairoDate(new Date(Date.now() + 14 * 864e5));
   for (const t of latestByClient().values()) {
@@ -219,8 +219,8 @@ function renderToday() {
   }
   const by = f => (a, b) => String(f(a)).localeCompare(String(f(b)));
   late.sort(by(t => t.nextFollowUpDate)); due.sort(by(t => t.nextFollowUpTime || '99')); next.sort(by(t => t.nextFollowUpDate)); noAns.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const fill = (id, cid, arr, f) => { $(cid).textContent = arr.length; $(id).innerHTML = arr.length ? arr.slice(0, 200).map(t => itemHtml(t, f(t))).join('') : '<div class="empty">مفيش</div>'; };
-  fill('listLate', 'cLate', late, t => `· كان المفروض ${esc(t.nextFollowUpDate)}`);
+  const fill = (id, cid, arr, f) => { $(cid).textContent = arr.length; $(id).innerHTML = arr.length ? arr.slice(0, 200).map(t => itemHtml(t, f(t))).join('') : '<div class="empty">لا يوجد</div>'; };
+  fill('listLate', 'cLate', late, t => `· كان موعدها ${esc(t.nextFollowUpDate)}`);
   fill('listToday', 'cToday', due, t => t.nextFollowUpTime ? `· الساعة ${esc(t.nextFollowUpTime)}` : '');
   fill('listNoAnswer', 'cNoAnswer', noAns, t => `· آخر محاولة ${esc(t.date || '')}`);
   fill('listNext', 'cNext', next, t => `· ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}`);
@@ -232,13 +232,13 @@ function renderClients() {
   if (q) list = list.filter(c => plain(c.name).includes(q) || (qd.length >= 3 && digits(c.phone).includes(qd)));
   list.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
   $('clientCount').textContent = `${list.length} عميل`;
-  $('clientList').innerHTML = list.length ? list.slice(0, 300).map(c => `<div class="item" data-client="${esc(c._docId)}"><div class="t">${esc(c.name)} <span class="tag">${esc(normStage(c.stage))}</span></div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')} · ${esc(c.entityType || '')}</div>${c.statusNote ? `<div class="s">${esc(c.statusNote)}</div>` : ''}</div>`).join('') : '<div class="empty">مفيش عملاء</div>';
+  $('clientList').innerHTML = list.length ? list.slice(0, 300).map(c => `<div class="item" data-client="${esc(c._docId)}"><div class="t">${esc(c.name)} <span class="tag">${esc(normStage(c.stage))}</span></div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')} · ${esc(c.entityType || '')}</div>${c.statusNote ? `<div class="s">${esc(c.statusNote)}</div>` : ''}</div>`).join('') : '<div class="empty">لا يوجد عملاء</div>';
 }
 function renderLog() {
   if (!$('logDate').value) $('logDate').value = cairoDate();
   const d = $('logDate').value;
   const list = liveTasks().filter(t => t.date === d).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  $('logList').innerHTML = list.length ? list.map(t => itemHtml(t, `· ${esc(t.time || '')}`)).join('') : '<div class="empty">مفيش إجراءات في اليوم ده</div>';
+  $('logList').innerHTML = list.length ? list.map(t => itemHtml(t, `· ${esc(t.time || '')}`)).join('') : '<div class="empty">لا توجد إجراءات في هذا اليوم</div>';
 }
 
 function openClient(c) {
@@ -250,9 +250,9 @@ function openClient(c) {
     <div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')}</div>
     <p><span class="tag">${esc(normStage(c.stage))}</span> ${c.statusNote ? esc(c.statusNote) : ''}</p>
     <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm"><i class="fa-solid fa-phone"></i> ${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm"><i class="fa-brands fa-whatsapp"></i> واتساب</a>` : ''}
-    <button class="btn primary sm" id="clientAction">تسجيل إجراء</button> <button class="btn line sm" id="clientHandoff"><i class="fa-solid fa-headset"></i> ${c.supportPackage ? 'تحديث بيانات الدعم' : 'إرسال للدعم الفني'}</button></p>
+    <button class="btn primary sm" id="clientAction">تسجيل إجراء</button> <button class="btn line sm" id="clientHandoff"><i class="fa-solid fa-headset"></i> ${c.supportPackage ? 'تحديث بيانات الدعم' : 'إحالة إلى الدعم الفني'}</button></p>
     <h3>سجل الإجراءات (${ts.length})</h3>
-    <div class="list timeline">${ts.length ? ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة الجاية: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') : '<div class="empty">مفيش إجراءات لسه</div>'}</div>`;
+    <div class="list timeline">${ts.length ? ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">موعد المتابعة التالية: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') : '<div class="empty">لا توجد إجراءات بعد</div>'}</div>`;
   $('clientModal').classList.remove('hidden');
   $('clientAction').onclick = () => { $('clientModal').classList.add('hidden'); openAction(c); };
   $('clientHandoff').onclick = () => openHandoff(c);
@@ -278,7 +278,7 @@ function searchMatches() {
   const q = plain($('aSearch').value), qd = digits($('aSearch').value);
   if (q.length < 2) { $('aMatches').innerHTML = ''; return; }
   const list = liveClients().filter(c => plain(c.name).includes(q) || (qd.length >= 3 && digits(c.phone).includes(qd))).slice(0, 8);
-  $('aMatches').innerHTML = list.map(c => `<div class="item" data-pick="${esc(c._docId)}"><div class="t">${esc(c.name)}</div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')}</div></div>`).join('') || '<div class="empty">مش لاقي عميل بالاسم ده عندك — اكتب بياناته تحت كعميل جديد</div>';
+  $('aMatches').innerHTML = list.map(c => `<div class="item" data-pick="${esc(c._docId)}"><div class="t">${esc(c.name)}</div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')}</div></div>`).join('') || '<div class="empty">لا يوجد عميل بهذا الاسم لديك — أدخل بياناته أدناه كعميل جديد</div>';
 }
 function phoneVariants(p) {
   const d = digits(p); if (!d) return [];
@@ -298,20 +298,20 @@ async function saveAction() {
   const category = $('aCategory').value, notes = $('aNotes').value.trim(), statusNote = $('aStatusNote').value.trim();
   const nextDate = $('aNextDate').value, nextTime = $('aNextTime').value;
   msg.className = 'msg err';
-  if (nextTime && !nextDate) { msg.textContent = 'اختار تاريخ المتابعة الأول'; return; }
-  if (nextDate && nextDate < today) { msg.textContent = 'تاريخ المتابعة مينفعش يبقى قبل النهارده'; return; }
-  btn.disabled = true; btn.textContent = 'جاري الحفظ…'; msg.textContent = '';
+  if (nextTime && !nextDate) { msg.textContent = 'يرجى تحديد تاريخ المتابعة أولًا'; return; }
+  if (nextDate && nextDate < today) { msg.textContent = 'لا يمكن أن يكون تاريخ المتابعة قبل اليوم'; return; }
+  btn.disabled = true; btn.textContent = 'جارٍ الحفظ…'; msg.textContent = '';
   try {
     let client = state.actionClient ? { ...state.actionClient } : null;
     let isNew = false;
     if (!client) {
       const name = $('aName').value.trim(), phone = $('aPhone').value.trim();
-      if (!name || digits(phone).length < 8) throw new Error('اكتب اسم الجهة ورقم جوال صحيح، أو اختار عميل من عملائك');
-      const existing = await withTimeout(findExistingClient(name, phone), 10000, 'الاتصال بطيء — جرّب تاني');
+      if (!name || digits(phone).length < 8) throw new Error('يرجى إدخال اسم الجهة ورقم جوال صحيح، أو اختيار عميل من قائمتك');
+      const existing = await withTimeout(findExistingClient(name, phone), 10000, 'الاتصال بطيء، يرجى المحاولة مرة أخرى');
       const mine = existing.find(c => owns('clients', c));
       const other = existing.find(c => !owns('clients', c));
       if (mine) client = { ...mine };
-      else if (other) throw new Error(`العميل ده متسجل قبل كده باسم ${other.addedBy || 'موظف تاني'} — مينفعش تسجله أو تعمل عليه إجراء.`);
+      else if (other) throw new Error(`هذا العميل مسجّل مسبقًا باسم ${other.addedBy || 'موظف آخر'}، ولا يمكن تسجيله أو إضافة إجراء عليه.`);
       else {
         isNew = true;
         const city = $('aCity').value;
@@ -321,7 +321,7 @@ async function saveAction() {
     const taskId = 'task_' + now;
     const task = { id: taskId, clientId: client.id, time: cairoTime(), date: today, shift: me.shift || '', agent: me.name, agentId: me.id, customer: client.name, phone: client.phone || '', entityType: client.entityType || '', specialty: client.specialty || '', city: client.city || '', category, channel: $('aChannel').value, priority: $('aPriority').value, status: $('aStatus').value, notes, clientStatusNote: statusNote, nextFollowUpDate: nextDate, nextFollowUpTime: nextTime, createdAt: now, updatedAt: now, source: 'v2' };
     // الإجراء الأول — ده الأهم
-    await withTimeout(setDoc(doc(col('tasks'), taskId), task), 12000, 'الحفظ اتأخر — اتأكد من النت وجرّب تاني. الإجراء ما اتحفظش.');
+    await withTimeout(setDoc(doc(col('tasks'), taskId), task), 12000, 'تأخر الحفظ ولم يُحفظ الإجراء، يرجى التأكد من الاتصال بالإنترنت والمحاولة مرة أخرى.');
     state.tasks.set(taskId, { ...task, _docId: taskId });
     // تحديث مرحلة العميل
     const newStage = stageFor(category, client.stage);
@@ -335,13 +335,13 @@ async function saveAction() {
     if ($('aAlsoWa').checked && category === 'مكالمة هاتفية') {
       const wid = `task_${now + 1}_wa_${Math.random().toString(36).slice(2, 7)}`;
       const wa = { ...task, id: wid, createdAt: now + 1, updatedAt: now + 1, category: 'إرسال واتساب', channel: 'واتساب', status: 'مكتمل', notes: `واتساب إضافي بعد المكالمة — ${notes}`, clientStatusNote: '', affectsFunnel: false, affectsFollowUp: false, relatedTaskId: taskId, nextFollowUpDate: '', nextFollowUpTime: '' };
-      try { await withTimeout(setDoc(doc(col('tasks'), wid), wa), 12000, 'timeout'); state.tasks.set(wid, { ...wa, _docId: wid }); } catch (e) { toast('المكالمة اتحفظت، بس الواتساب الإضافي ما اتحفظش — سجّله تاني', 'err'); }
+      try { await withTimeout(setDoc(doc(col('tasks'), wid), wa), 12000, 'timeout'); state.tasks.set(wid, { ...wa, _docId: wid }); } catch (e) { toast('تم حفظ المكالمة، لكن لم يُحفظ إجراء الواتساب الإضافي، يرجى تسجيله مرة أخرى', 'err'); }
     }
     $('actionModal').classList.add('hidden');
-    toast(clientOk ? '✓ الإجراء اتحفظ' : '✓ الإجراء اتحفظ، بس مرحلة العميل ما اتحدثتش — هتتحدث مع الإجراء الجاي', 'ok');
+    toast(clientOk ? '✓ تم حفظ الإجراء' : '✓ تم حفظ الإجراء، ولم تُحدَّث مرحلة العميل وستُحدَّث مع الإجراء التالي', 'ok');
     render();
   } catch (e) {
-    msg.textContent = e.message || 'الحفظ فشل — البيانات لسه في الفورم، جرّب تاني';
+    msg.textContent = e.message || 'تعذّر الحفظ، والبيانات ما زالت في النموذج، يرجى المحاولة مرة أخرى';
   } finally { btn.disabled = false; btn.textContent = 'حفظ الإجراء'; }
 }
 
@@ -367,7 +367,7 @@ function renderAttendance() {
   const st = attRecord?.status || 'not_started';
   const btn = $('attBtn'); btn.className = 'btn att sm ' + st; btn.textContent = st === 'not_started' ? 'تسجيل الحضور' : ATT_LABEL[st];
   const m = attMetrics(attRecord);
-  $('attInfo').innerHTML = `الحالة: <b>${ATT_LABEL[st]}</b> · ساعات الشغل: <b>${dur(m.work)}</b> · الاستراحة: <b>${dur(m.brk)}</b>${attRecord?.checkInAt ? ` · الحضور: ${esc(cairoTime(new Date(attRecord.checkInAt)))}` : ''}`;
+  $('attInfo').innerHTML = `الحالة: <b>${ATT_LABEL[st]}</b> · ساعات العمل: <b>${dur(m.work)}</b> · الاستراحة: <b>${dur(m.brk)}</b>${attRecord?.checkInAt ? ` · الحضور: ${esc(cairoTime(new Date(attRecord.checkInAt)))}` : ''}`;
   $('attIn').disabled = st === 'working' || st === 'break';
   $('attBreak').disabled = st !== 'working';
   $('attBack').disabled = st !== 'break';
@@ -379,29 +379,29 @@ async function attAction(kind) {
   try {
     const today = cairoDate(), now = Date.now(), me = state.me;
     const ref = doc(col('attendance'), attId(today));
-    const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء — جرّب تاني');
+    const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء، يرجى المحاولة مرة أخرى');
     let r = snap.exists() ? snap.data() : null;
     if (kind === 'in') {
-      if (r && (r.status === 'working' || r.status === 'break')) throw new Error('الحضور متسجل بالفعل');
+      if (r && (r.status === 'working' || r.status === 'break')) throw new Error('تم تسجيل الحضور مسبقًا');
       r = r || { id: attId(today), employeeId: me.id, employeeName: me.name, department: me.department || '', shift: me.shift || 'غير محدد', date: today, sessions: [], breaks: [], createdAt: now };
       r.sessions = Array.isArray(r.sessions) ? r.sessions : []; r.breaks = Array.isArray(r.breaks) ? r.breaks : [];
       r.sessions.push({ checkInAt: now, checkOutAt: null }); r.checkInAt = r.checkInAt || now; r.checkOutAt = null; r.status = 'working';
     } else if (kind === 'break') {
-      if (!r || r.status !== 'working') throw new Error('سجّل الحضور الأول');
+      if (!r || r.status !== 'working') throw new Error('يرجى تسجيل الحضور أولًا');
       r.breaks = Array.isArray(r.breaks) ? r.breaks : []; r.breaks.push({ startAt: now, endAt: null }); r.status = 'break';
     } else if (kind === 'back') {
-      if (!r || r.status !== 'break') throw new Error('مفيش استراحة مفتوحة');
+      if (!r || r.status !== 'break') throw new Error('لا توجد استراحة مفتوحة');
       const ob = [...(r.breaks || [])].reverse().find(x => x && !x.endAt); if (ob) ob.endAt = now; r.status = 'working';
     } else if (kind === 'out') {
-      if (!r || !['working', 'break'].includes(r.status)) throw new Error('مفيش دوام مفتوح');
+      if (!r || !['working', 'break'].includes(r.status)) throw new Error('لا يوجد دوام مفتوح');
       const ob = [...(r.breaks || [])].reverse().find(x => x && !x.endAt); if (ob) ob.endAt = now;
       const os = [...(r.sessions || [])].reverse().find(x => x && !x.checkOutAt); if (os) os.checkOutAt = now;
       r.checkOutAt = now; r.status = 'checked_out';
     }
     r.lastActivityAt = now; r.updatedAt = now; r.employeeName = me.name; r.shift = me.shift || r.shift || 'غير محدد';
-    await withTimeout(setDoc(ref, JSON.parse(JSON.stringify(r)), { merge: true }), 12000, 'الحفظ اتأخر — ما اتسجلش، جرّب تاني');
-    attRecord = r; msg.className = 'msg ok'; msg.textContent = '✓ اتسجل';
-    toast({ in: '✓ اتسجل الحضور', break: '✓ بداية الاستراحة', back: '✓ رجعت من الاستراحة', out: '✓ اتسجل الانصراف' }[kind], 'ok');
+    await withTimeout(setDoc(ref, JSON.parse(JSON.stringify(r)), { merge: true }), 12000, 'تأخر الحفظ ولم يُسجَّل، يرجى المحاولة مرة أخرى');
+    attRecord = r; msg.className = 'msg ok'; msg.textContent = '✓ تم التسجيل';
+    toast({ in: '✓ تم تسجيل الحضور', break: '✓ بداية الاستراحة', back: '✓ تم إنهاء الاستراحة', out: '✓ تم تسجيل الانصراف' }[kind], 'ok');
   } catch (e) { msg.textContent = e.message; }
   finally { renderAttendance(); }
 }
@@ -421,7 +421,7 @@ function startTeam() {
   const d = $('teamDate').value || cairoDate();
   const data = { tasks: new Map(), att: new Map() };
   const draw = () => renderTeam(data, d);
-  teamUnsubs.push(onSnapshot(query(col('tasks'), where('date', '==', d)), snap => { data.tasks.clear(); snap.forEach(x => { const t = x.data(); if (!t.deletedAt) data.tasks.set(x.id, t); }); draw(); }, err => { $('teamNote').textContent = 'تعذر التحميل: ' + err.message; }));
+  teamUnsubs.push(onSnapshot(query(col('tasks'), where('date', '==', d)), snap => { data.tasks.clear(); snap.forEach(x => { const t = x.data(); if (!t.deletedAt) data.tasks.set(x.id, t); }); draw(); }, err => { $('teamNote').textContent = 'تعذّر التحميل: ' + err.message; }));
   teamUnsubs.push(onSnapshot(query(col('attendance'), where('date', '==', d)), snap => { data.att.clear(); snap.forEach(x => data.att.set(x.id, x.data())); draw(); }, () => {}));
 }
 function renderTeam(data, d) {
@@ -435,8 +435,8 @@ function renderTeam(data, d) {
     return { e, ts, st, m, calls: c('مكالمة هاتفية'), na: c('مكالمة لم يتم الرد عليها'), wa: c('إرسال واتساب'), meet: c('عقد اجتماع'), contract: c('إرسال العقد') + c('توقيع العقد') };
   }).sort((x, y) => y.ts.length - x.ts.length);
   const tot = k => rows.reduce((s, r) => s + (typeof r[k] === 'number' ? r[k] : r[k].length), 0);
-  $('teamNote').textContent = `يوم ${d} — ${rows.length} موظف — ${tot('ts')} إجراء`;
-  $('teamTable').innerHTML = '<tr><th>الموظف</th><th>الحضور</th><th>ساعات</th><th>إجراءات</th><th>مكالمات رد</th><th>لم يرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود</th></tr>' +
+  $('teamNote').textContent = `تاريخ ${d} — ${rows.length} موظف — ${tot('ts')} إجراء`;
+  $('teamTable').innerHTML = '<tr><th>الموظف</th><th>الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>تم الرد</th><th>لم يتم الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود</th></tr>' +
     rows.map(r => `<tr data-emp="${esc(r.e.id)}" style="cursor:pointer"><td><b>${esc(r.e.name)}</b><div class="small muted">${esc(r.e.department || '')} · ${esc(r.e.shift || '')}</div></td><td><span class="st ${r.st}">${ATT_LABEL[r.st]}</span></td><td>${dur(r.m.work)}</td><td><b>${r.ts.length}</b></td><td>${r.calls}</td><td>${r.na}</td><td>${r.wa}</td><td>${r.meet}</td><td>${r.contract}</td></tr>`).join('') +
     `<tr><th>الإجمالي</th><th></th><th></th><th>${tot('ts')}</th><th>${tot('calls')}</th><th>${tot('na')}</th><th>${tot('wa')}</th><th>${tot('meet')}</th><th>${tot('contract')}</th></tr>`;
 }
@@ -446,10 +446,10 @@ function renderTeam(data, d) {
 const all = { clients: new Map(), loaded: false, dayTasks: new Map(), dayUnsub: null };
 async function loadAllClients() {
   if (all.loaded) return renderAllClients();
-  $('allCount').textContent = 'جاري التحميل…';
+  $('allCount').textContent = 'جارٍ التحميل…';
   try { (await getDocsFromCache(col('clients'))).forEach(d => putDoc(all.clients, d)); } catch (e) {}
   renderAllClients();
-  try { (await getDocs(col('clients'))).forEach(d => putDoc(all.clients, d)); all.loaded = true; } catch (e) { $('allCount').textContent = 'تعذر التحميل: ' + e.message; }
+  try { (await getDocs(col('clients'))).forEach(d => putDoc(all.clients, d)); all.loaded = true; } catch (e) { $('allCount').textContent = 'تعذّر التحميل: ' + e.message; }
   renderAllClients();
 }
 function renderAllClients() {
@@ -458,7 +458,7 @@ function renderAllClients() {
   if (q) list = list.filter(c => plain(c.name).includes(q) || (qd.length >= 3 && digits(c.phone).includes(qd)));
   list.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
   $('allCount').textContent = `${list.length} عميل`;
-  $('allList').innerHTML = list.slice(0, 200).map(c => `<div class="item" data-allclient="${esc(c._docId)}"><div class="t">${esc(c.name)} <span class="tag">${esc(normStage(c.stage))}</span></div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')} · تبع: <b>${esc(c.addedBy || '—')}</b></div>${c.statusNote ? `<div class="s">${esc(c.statusNote)}</div>` : ''}</div>`).join('') || '<div class="empty">مفيش نتايج</div>';
+  $('allList').innerHTML = list.slice(0, 200).map(c => `<div class="item" data-allclient="${esc(c._docId)}"><div class="t">${esc(c.name)} <span class="tag">${esc(normStage(c.stage))}</span></div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')} · المسؤول: <b>${esc(c.addedBy || '—')}</b></div>${c.statusNote ? `<div class="s">${esc(c.statusNote)}</div>` : ''}</div>`).join('') || '<div class="empty">لا توجد نتائج</div>';
 }
 async function openAnyClient(c) {
   if (!c) return;
@@ -467,17 +467,17 @@ async function openAnyClient(c) {
   for (const id of ids) { try { (await getDocs(query(col('tasks'), where('clientId', '==', id)))).forEach(d => putDoc(found, d)); } catch (e) {} }
   const ts = [...found.values()].filter(t => !t.deletedAt).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const ph = digits(c.phone); const wa = ph ? `https://wa.me/${ph.startsWith('0') ? '966' + ph.slice(1) : ph}` : '';
-  $('clientBody').innerHTML = `<h2>${esc(c.name)}</h2><div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')} · تبع: <b>${esc(c.addedBy || '—')}</b></div>
+  $('clientBody').innerHTML = `<h2>${esc(c.name)}</h2><div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')} · المسؤول: <b>${esc(c.addedBy || '—')}</b></div>
     <p><span class="tag">${esc(normStage(c.stage))}</span> ${c.statusNote ? esc(c.statusNote) : ''}</p>
     <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm">${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm">واتساب</a>` : ''}</p>
-    <h3>سجل الإجراءات (${ts.length})</h3><div class="list timeline">${ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') || '<div class="empty">مفيش إجراءات</div>'}</div>`;
+    <h3>سجل الإجراءات (${ts.length})</h3><div class="list timeline">${ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') || '<div class="empty">لا توجد إجراءات</div>'}</div>`;
   $('clientModal').classList.remove('hidden');
 }
 function startAllLog() {
   if (all.dayUnsub) all.dayUnsub();
   const d = $('allLogDate').value || cairoDate();
-  $('allLogNote').textContent = 'جاري التحميل…';
-  all.dayUnsub = onSnapshot(query(col('tasks'), where('date', '==', d)), snap => { all.dayTasks.clear(); snap.forEach(x => putDoc(all.dayTasks, x)); renderAllLog(); }, e => { $('allLogNote').textContent = 'تعذر التحميل: ' + e.message; });
+  $('allLogNote').textContent = 'جارٍ التحميل…';
+  all.dayUnsub = onSnapshot(query(col('tasks'), where('date', '==', d)), snap => { all.dayTasks.clear(); snap.forEach(x => putDoc(all.dayTasks, x)); renderAllLog(); }, e => { $('allLogNote').textContent = 'تعذّر التحميل: ' + e.message; });
 }
 function renderAllLog() {
   const empId = $('allLogEmp').value; const e = state.employees.find(x => x.id === empId);
@@ -485,7 +485,7 @@ function renderAllLog() {
   if (e) list = list.filter(t => (t.agentId && t.agentId === e.id) || normName(t.agent) === normName(e.name));
   list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   $('allLogNote').textContent = `${list.length} إجراء`;
-  $('allLogList').innerHTML = list.map(t => `<div class="item" data-logtask="${esc(t._docId)}"><div class="t">${esc(t.customer || '')} <span class="tag">${esc(t.category || '')}</span></div><div class="s">${esc(t.agent || '')} · ${esc(t.time || '')} · ${esc(t.phone || '')}</div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}</div>`).join('') || '<div class="empty">مفيش إجراءات</div>';
+  $('allLogList').innerHTML = list.map(t => `<div class="item" data-logtask="${esc(t._docId)}"><div class="t">${esc(t.customer || '')} <span class="tag">${esc(t.category || '')}</span></div><div class="s">${esc(t.agent || '')} · ${esc(t.time || '')} · ${esc(t.phone || '')}</div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}</div>`).join('') || '<div class="empty">لا توجد إجراءات</div>';
 }
 function showEmployeeDay(empId) {
   if (accessOf(state.me) === 'employee') { $('logDate').value = D.last?.to || cairoDate(); setTab('log'); return; }
@@ -514,8 +514,8 @@ function dashPeriod() {
   }
 }
 const CAT = { call: 'مكالمة هاتفية', na: 'مكالمة لم يتم الرد عليها', wa: 'إرسال واتساب', meet: 'عقد اجتماع', meetSet: 'الاتفاق على الاجتماع', sent: 'إرسال العقد', signed: 'توقيع العقد', interested: 'عميل مهتم' };
-function dashEmployees() {
-  const lvl = accessOf(state.me), dept = $('dashDept').value;
+function dashEmployees(dept = $('dashDept').value) {
+  const lvl = accessOf(state.me);
   if (lvl === 'employee') return [state.me];
   return state.employees.filter(e => accessOf(e) !== 'manager' && (lvl === 'manager' ? (!dept || e.department === dept) : e.department === state.me.department));
 }
@@ -547,24 +547,23 @@ async function loadDash() {
   const [from, to] = dashPeriod();
   const n = daysBetween(from, to).length, pTo = addDays(from, -1), pFrom = addDays(from, -n);
   const myRun = ++D.busy;
-  $('dashNote').textContent = 'جاري تحميل الأرقام…';
+  $('dashNote').textContent = 'جارٍ تحميل البيانات…';
   try {
     const [pack, prev] = await Promise.all([loadPack(from, to), loadPack(pFrom, pTo).catch(() => null)]);
     if (myRun !== D.busy) return;
     D.data = { from, to, ...pack };
     D.prev = prev ? { from: pFrom, to: pTo, ...prev } : null;
     renderDash();
-  } catch (e) { $('dashNote').textContent = 'تعذر تحميل الأرقام: ' + e.message; }
+  } catch (e) { $('dashNote').textContent = 'تعذّر تحميل البيانات: ' + e.message; }
 }
 function empMatcher() {
   const byId = new Map(), byName = new Map();
   for (const e of state.employees) { byId.set(e.id, e); byName.set(normName(e.name), e); }
   return (id, name) => (id && byId.get(id)) || byName.get(normName(name)) || null;
 }
-function computeDash(data = D.data) {
+function computeDash(data = D.data, dept = $('dashDept').value, empSel = $('dashEmp').value) {
   const { from, to, tasks, att, clients } = data;
-  const emps = dashEmployees(), allowed = new Set(emps.map(e => e.id));
-  const empSel = $('dashEmp').value;
+  const emps = dashEmployees(dept), allowed = new Set(emps.map(e => e.id));
   const match = empMatcher();
   const keep = e => e && allowed.has(e.id) && (!empSel || e.id === empSel);
   const T = tasks.filter(t => keep(match(t.agentId, t.agent)));
@@ -585,7 +584,7 @@ function computeDash(data = D.data) {
   const cities = [...cityMap].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const calls = count(T, CAT.call), na = count(T, CAT.na);
   const activeEmps = rows.filter(r => r.n).length;
-  return { from, to, days, T, rows, byDay, funnel, cities, k: { n: T.length, calls, na, rate: pct(calls, calls + na), wa: count(T, CAT.wa), meet: count(T, CAT.meet) + count(T, CAT.meetSet), sent: count(T, CAT.sent), signed: count(T, CAT.signed), newC: C.length, touched: new Set(T.map(t => t.clientId || plain(t.customer))).size, avg: activeEmps ? Math.round(T.length / activeEmps / Math.max(1, days.length) * 10) / 10 : 0, activeEmps } };
+  return { from, to, days, T, A, C, match, rows, byDay, funnel, cities, k: { n: T.length, calls, na, rate: pct(calls, calls + na), wa: count(T, CAT.wa), meet: count(T, CAT.meet) + count(T, CAT.meetSet), sent: count(T, CAT.sent), signed: count(T, CAT.signed), newC: C.length, touched: new Set(T.map(t => t.clientId || plain(t.customer))).size, avg: activeEmps ? Math.round(T.length / activeEmps / Math.max(1, days.length) * 10) / 10 : 0, activeEmps } };
 }
 function trendSvg(byDay) {
   const W = 640, H = 220, pl = 34, pb = 26, pt = 10, n = byDay.length;
@@ -605,7 +604,7 @@ function trendSvg(byDay) {
   });
   return `<svg viewBox="0 0 ${W} ${H}" direction="ltr">${g}</svg><div class="legend"><span style="--c:#16a34a">مكالمات رد</span><span style="--c:#f59e0b">لم يرد</span><span style="--c:#2563eb">واتساب</span><span style="--c:#7c5cc4">باقي الإجراءات</span></div>`;
 }
-const barsHtml = (items, color = 'var(--p2)') => { const max = Math.max(1, ...items.map(x => x.v)); return `<div class="bars">${items.map(x => `<div class="bar"><span class="n" title="${esc(x.l)}">${esc(x.l)}</span><span class="tr"><i style="width:${x.v * 100 / max}%;background:${x.c || color}"></i></span><span class="v">${fmt(x.v)}</span></div>`).join('') || '<div class="empty">مفيش بيانات</div>'}</div>`; };
+const barsHtml = (items, color = 'var(--p2)') => { const max = Math.max(1, ...items.map(x => x.v)); return `<div class="bars">${items.map(x => `<div class="bar"><span class="n" title="${esc(x.l)}">${esc(x.l)}</span><span class="tr"><i style="width:${x.v * 100 / max}%;background:${x.c || color}"></i></span><span class="v">${fmt(x.v)}</span></div>`).join('') || '<div class="empty">لا توجد بيانات</div>'}</div>`; };
 const rateCls = r => r >= 60 ? 'good' : r >= 40 ? 'mid' : 'low';
 function renderDash() {
   if (!D.data) return;
@@ -613,16 +612,16 @@ function renderDash() {
   const k = r.k, pk = D.prev ? computeDash(D.prev).k : null;
   const dl = f => { if (!pk) return ''; const a = k[f], b = pk[f]; if (!b && !a) return ''; if (!b) return '<span class="delta up">جديد</span>'; const d = Math.round((a - b) * 100 / b); return d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)}%</span>` : '<span class="delta">=</span>'; };
   const kp = (label, v, c, sub = '', f = '') => `<div class="kpi" style="--c:${c}"><span>${label}</span><b>${v}${f ? dl(f) : ''}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
-  $('dashNote').textContent = r.from === r.to ? `يوم ${r.from}` : `من ${r.from} إلى ${r.to} (${r.days.length} يوم)`;
-  if (pk) $('dashNote').textContent += ` · الأسهم مقارنة بالفترة اللي قبلها (${D.prev.from === D.prev.to ? D.prev.from : D.prev.from + ' إلى ' + D.prev.to})`;
-  $('dashKpis').innerHTML = kp('إجمالي الإجراءات', fmt(k.n), '#5A3B8B', accessOf(state.me) === 'employee' ? `متوسط ${Math.round(k.n / Math.max(1, r.days.length) * 10) / 10} في اليوم` : `${k.activeEmps} موظف شغال · متوسط ${k.avg} للموظف في اليوم`, 'n') + kp('مكالمات تم الرد', fmt(k.calls), '#16a34a', '', 'calls') + kp('لم يرد', fmt(k.na), '#f59e0b') + kp('نسبة الرد', k.rate + '%', '#0d9488', '', 'rate') + kp('واتساب', fmt(k.wa), '#2563eb', '', 'wa') + kp('اجتماعات', fmt(k.meet), '#9333ea', '', 'meet') + kp('عقود اتبعتت', fmt(k.sent), '#ea580c', '', 'sent') + kp('عقود اتوقعت', fmt(k.signed), '#dc2626', '', 'signed') + kp('عملاء جدد', fmt(k.newC), '#0891b2', '', 'newC') + kp('عملاء اتكلموا', fmt(k.touched), '#64748b', '', 'touched');
-  $('dashTrend').innerHTML = r.byDay.some(x => x.n) ? trendSvg(r.byDay) : '<div class="empty">مفيش إجراءات في الفترة دي</div>';
+  $('dashNote').textContent = r.from === r.to ? `تاريخ ${r.from}` : `من ${r.from} إلى ${r.to} (${r.days.length} يوم)`;
+  if (pk) $('dashNote').textContent += ` · المقارنة بالفترة السابقة (${D.prev.from === D.prev.to ? D.prev.from : D.prev.from + ' إلى ' + D.prev.to})`;
+  $('dashKpis').innerHTML = kp('إجمالي الإجراءات', fmt(k.n), '#5A3B8B', accessOf(state.me) === 'employee' ? `بمتوسط ${Math.round(k.n / Math.max(1, r.days.length) * 10) / 10} يوميًا` : `${k.activeEmps} موظف نشط · بمتوسط ${k.avg} لكل موظف يوميًا`, 'n') + kp('مكالمات تم الرد عليها', fmt(k.calls), '#16a34a', '', 'calls') + kp('لم يتم الرد', fmt(k.na), '#f59e0b') + kp('نسبة الرد', k.rate + '%', '#0d9488', '', 'rate') + kp('واتساب', fmt(k.wa), '#2563eb', '', 'wa') + kp('اجتماعات', fmt(k.meet), '#9333ea', '', 'meet') + kp('عقود مُرسلة', fmt(k.sent), '#ea580c', '', 'sent') + kp('عقود موقّعة', fmt(k.signed), '#dc2626', '', 'signed') + kp('عملاء جدد', fmt(k.newC), '#0891b2', '', 'newC') + kp('عملاء تم التواصل معهم', fmt(k.touched), '#64748b', '', 'touched');
+  $('dashTrend').innerHTML = r.byDay.some(x => x.n) ? trendSvg(r.byDay) : '<div class="empty">لا توجد إجراءات في الفترة دي</div>';
   $('dashFunnel').innerHTML = barsHtml(r.funnel.map((x, i) => ({ l: x.s, v: x.n, c: `hsl(${265 - i * 14} 55% ${48 + i * 2}%)` })));
   $('dashEmpBars').innerHTML = barsHtml(r.rows.filter(x => x.n).map(x => ({ l: x.e.name, v: x.n })));
   $('dashCities').innerHTML = barsHtml(r.cities.map(([l, v]) => ({ l, v })), '#0d9488');
   const tot = f => r.rows.reduce((s, x) => s + x[f], 0);
   const tCalls = tot('calls'), tNa = tot('na');
-  $('dashTable').innerHTML = '<tr><th>الموظف</th><th>أيام الحضور</th><th>ساعات الشغل</th><th>الإجراءات</th><th>عملاء اتكلموا</th><th>مكالمات رد</th><th>لم يرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود اتبعتت</th><th>عقود اتوقعت</th><th>عملاء جدد</th></tr>' +
+  $('dashTable').innerHTML = '<tr><th>الموظف</th><th>أيام الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>عملاء تم التواصل معهم</th><th>تم الرد</th><th>لم يتم الرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود مُرسلة</th><th>عقود موقّعة</th><th>عملاء جدد</th></tr>' +
     r.rows.map((x, i) => `<tr data-emp="${esc(x.e.id)}" style="cursor:pointer"><td><span class="medal ${x.n && i < 3 ? 'm' + (i + 1) : ''}">${i + 1}</span><b>${esc(x.e.name)}</b><div class="small muted">${esc(x.e.department || '')}</div></td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td><b>${fmt(x.n)}</b></td><td>${x.clientsTouched}</td><td>${x.calls}</td><td>${x.na}</td><td><span class="rate ${rateCls(x.rate)}">${x.calls + x.na ? x.rate + '%' : '—'}</span></td><td>${x.wa}</td><td>${x.meet}</td><td>${x.sent}</td><td><b>${x.signed}</b></td><td>${x.newC}</td></tr>`).join('') +
     `<tr class="tot"><th>الإجمالي</th><th>${tot('daysP')}</th><th>${hrsTxt(tot('work'))}</th><th>${fmt(tot('n'))}</th><th>${k.touched}</th><th>${tCalls}</th><th>${tNa}</th><th>${pct(tCalls, tCalls + tNa)}%</th><th>${tot('wa')}</th><th>${tot('meet')}</th><th>${tot('sent')}</th><th>${tot('signed')}</th><th>${tot('newC')}</th></tr>`;
 }
@@ -630,9 +629,9 @@ function dashExcel() {
   const r = D.last; if (!r) return;
   const cell = v => `<td>${esc(v)}</td>`, head = v => `<th style="background:#5A3B8B;color:#fff">${esc(v)}</th>`;
   const hrs = ms => Math.round(ms / 36e5 * 10) / 10;
-  const sum = `<table border="1"><tr><th colspan="13" style="font-size:16px">تقرير أداء الفريق — ${esc(r.from)} إلى ${esc(r.to)}</th></tr><tr>${['الموظف', 'القسم', 'أيام الحضور', 'ساعات الشغل', 'الإجراءات', 'عملاء اتكلموا', 'مكالمات رد', 'لم يرد', 'نسبة الرد %', 'واتساب', 'اجتماعات', 'عقود اتبعتت', 'عقود اتوقعت'].map(head).join('')}</tr>` +
+  const sum = `<table border="1"><tr><th colspan="13" style="font-size:16px">تقرير أداء الفريق — ${esc(r.from)} إلى ${esc(r.to)}</th></tr><tr>${['الموظف', 'القسم', 'أيام الحضور', 'ساعات العمل', 'الإجراءات', 'عملاء تم التواصل معهم', 'تم الرد', 'لم يتم الرد', 'نسبة الرد %', 'واتساب', 'اجتماعات', 'عقود مُرسلة', 'عقود موقّعة'].map(head).join('')}</tr>` +
     r.rows.map(x => `<tr>${[x.e.name, x.e.department || '', x.daysP, hrs(x.work), x.n, x.clientsTouched, x.calls, x.na, x.rate, x.wa, x.meet, x.sent, x.signed].map(cell).join('')}</tr>`).join('') + '</table>';
-  const det = `<br><table border="1"><tr><th colspan="11" style="font-size:16px">تفاصيل الإجراءات</th></tr><tr>${['التاريخ', 'الوقت', 'الموظف', 'العميل', 'الجوال', 'المدينة', 'الإجراء', 'القناة', 'الملاحظات', 'المتابعة الجاية', 'ساعة المتابعة'].map(head).join('')}</tr>` +
+  const det = `<br><table border="1"><tr><th colspan="11" style="font-size:16px">تفاصيل الإجراءات</th></tr><tr>${['التاريخ', 'الوقت', 'الموظف', 'العميل', 'الجوال', 'المدينة', 'الإجراء', 'القناة', 'الملاحظات', 'موعد المتابعة التالية', 'ساعة المتابعة'].map(head).join('')}</tr>` +
     [...r.T].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(t => `<tr>${[t.date, t.time, t.agent, t.customer, t.phone, t.city, t.category, t.channel, t.notes, t.nextFollowUpDate, t.nextFollowUpTime].map(v => `<td style="mso-number-format:'\\@'">${esc(v || '')}</td>`).join('')}</tr>`).join('') + '</table>';
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>التقرير</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body dir="rtl" style="font-family:Arial">${sum}${det}</body></html>`;
   const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel' });
@@ -640,10 +639,10 @@ function dashExcel() {
 }
 function setupDash() {
   const lvl = accessOf(state.me);
-  if (lvl === 'employee') { $('dashDept').closest('.frow').querySelectorAll('#dashDept,#dashEmp').forEach(x => x.classList.add('hidden')); $('dashDept').previousElementSibling.classList.add('hidden'); $('dashEmp').previousElementSibling.classList.add('hidden'); document.querySelector('#tab-dash h1').textContent = 'تقريري'; $('dashEmpBars').closest('.card').classList.add('hidden'); $('dashTable').closest('.card').querySelector('h3').lastChild.textContent = ' أدائي بالتفصيل'; }
+  if (lvl === 'employee') { $('dashDept').closest('.frow').querySelectorAll('#dashDept,#dashEmp').forEach(x => x.classList.add('hidden')); $('dashDept').previousElementSibling.classList.add('hidden'); $('dashEmp').previousElementSibling.classList.add('hidden'); document.querySelector('#tab-dash h1').textContent = 'تقرير أدائي'; $('dashEmpBars').closest('.card').classList.add('hidden'); $('dashTable').closest('.card').querySelector('h3').lastChild.textContent = ' تفاصيل أدائي'; }
   const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
-  $('dashDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(state.me.department || '')}</option>`;
-  const fillEmp = () => { $('dashEmp').innerHTML = '<option value="">كل الموظفين</option>' + dashEmployees().map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join(''); };
+  $('dashDept').innerHTML = lvl === 'manager' ? '<option value="">جميع الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(state.me.department || '')}</option>`;
+  const fillEmp = () => { $('dashEmp').innerHTML = '<option value="">جميع الموظفين</option>' + dashEmployees().map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join(''); };
   fillEmp();
   $('dashFrom').value = $('dashTo').value = cairoDate();
   $('dashRange').onclick = e => { const b = e.target.closest('button[data-r]'); if (!b) return; D.range = b.dataset.r; $('dashRange').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); $('dashCustom').classList.toggle('hidden', D.range !== 'custom'); loadDash(); };
@@ -672,7 +671,7 @@ function startSupport() {
     snap.docChanges().forEach(ch => { if (ch.type === 'removed') S.projects.delete(ch.doc.id); else { const d = ch.doc.data(); S.projects.set(ch.doc.id, { ...d, id: d.id || ch.doc.id, _docId: ch.doc.id }); } });
     supBadge();
     if (state.tab === 'support') renderSupport();
-  }, e => { $('supList').innerHTML = `<div class="card empty">تعذر تحميل ملفات الدعم: ${esc(e.message)}</div>`; });
+  }, e => { $('supList').innerHTML = `<div class="card empty">تعذّر تحميل ملفات الدعم: ${esc(e.message)}</div>`; });
 }
 const liveProjects = () => [...S.projects.values()].filter(p => !p.deletedAt);
 const liveSTasks = p => (p.tasks || []).filter(t => !t.deletedAt);
@@ -686,7 +685,7 @@ function renderSupport() {
   const mineP = p => normName(p.receivedBy) === normName(me) || liveSTasks(p).some(t => normName(t.agent) === normName(me) && !isDoneSt(t.status));
   const k = { wait: all.filter(p => p.handoffStatus === 'تم إرسال رابط البيانات').length, recv: all.filter(p => p.handoffStatus === 'تم الاستلام').length, done: all.filter(p => p.handoffStatus === 'تم الرفع بنجاح').length, ret: all.filter(p => p.handoffStatus === 'مرتجع لخدمات العملاء').length, late: all.reduce((s, p) => s + (p.handoffStatus === 'تم الاستلام' ? liveSTasks(p).filter(taskLate).length : 0), 0) };
   const kp = (l, v, c) => `<div class="kpi" style="--c:${c}"><span>${l}</span><b>${v}</b></div>`;
-  $('supKpis').innerHTML = kp('بانتظار الاستلام', k.wait, '#2563eb') + kp('تحت التنفيذ', k.recv, '#7c3aed') + kp('مهام متأخرة', k.late, '#dc2626') + kp('مرتجع للمبيعات', k.ret, '#f59e0b') + kp('تم التسليم', k.done, '#16a34a');
+  $('supKpis').innerHTML = kp('بانتظار الاستلام', k.wait, '#2563eb') + kp('تحت التنفيذ', k.recv, '#7c3aed') + kp('مهام متأخرة', k.late, '#dc2626') + kp('مُعادة للمبيعات', k.ret, '#f59e0b') + kp('تم التسليم للعميل', k.done, '#16a34a');
   const q = plain($('supSearch').value), qd = digits($('supSearch').value);
   let list = all.filter(p => {
     switch (S.scope) {
@@ -702,15 +701,15 @@ function renderSupport() {
   const order = { 'تم إرسال رابط البيانات': 0, 'تم الاستلام': 1, 'بانتظار رابط البيانات': 2, 'مرتجع لخدمات العملاء': 3, 'تم الرفع بنجاح': 4 };
   list.sort((x, y) => (order[x.handoffStatus] ?? 5) - (order[y.handoffStatus] ?? 5) || String(y.sentAt || '').localeCompare(String(x.sentAt || '')));
   $('supAddTask').classList.toggle('hidden', !canManageSupport());
-  $('supList').innerHTML = list.length ? list.slice(0, 150).map(projHtml).join('') : '<div class="card empty">مفيش ملفات هنا</div>';
+  $('supList').innerHTML = list.length ? list.slice(0, 150).map(projHtml).join('') : '<div class="card empty">لا توجد ملفات</div>';
   // لوحة الإنجاز
   const board = new Map();
   for (const p of all) for (const t of liveSTasks(p)) {
-    const n = t.agent || 'غير موزعة'; const r = board.get(n) || { n, done: 0, open: 0, late: 0 };
+    const n = t.agent || 'غير مُسندة'; const r = board.get(n) || { n, done: 0, open: 0, late: 0 };
     if (isDoneSt(t.status)) r.done++; else { r.open++; if (taskLate(t)) r.late++; } board.set(n, r);
   }
   const rows = [...board.values()].sort((a, b) => b.done - a.done);
-  $('supBoard').innerHTML = rows.length ? rows.map(r => `<div class="item" style="cursor:default"><div class="t">${esc(r.n)}</div><div class="s">مكتملة <b class="rate good">${r.done}</b> · مفتوحة <b>${r.open}</b> · متأخرة <b class="rate low">${r.late}</b> · الإنجاز <b>${pct(r.done, r.done + r.open)}%</b></div></div>`).join('') : '<div class="empty">لسه مفيش مهام</div>';
+  $('supBoard').innerHTML = rows.length ? rows.map(r => `<div class="item" style="cursor:default"><div class="t">${esc(r.n)}</div><div class="s">منجزة <b class="rate good">${r.done}</b> · مفتوحة <b>${r.open}</b> · متأخرة <b class="rate low">${r.late}</b> · الإنجاز <b>${pct(r.done, r.done + r.open)}%</b></div></div>`).join('') : '<div class="empty">لا توجد مهام بعد</div>';
 }
 function projHtml(p) {
   const ts = liveSTasks(p), done = ts.filter(t => isDoneSt(t.status)).length, cls = HS[p.handoffStatus] || 'wait';
@@ -722,30 +721,30 @@ function projHtml(p) {
   if (open) {
     body = `<div class="pb">
       <div class="pkg">${pk.driveLink ? `<div><b>ملفات العميل</b><a href="${esc(pk.driveLink)}" target="_blank" rel="noopener" class="btn line sm"><i class="fa-brands fa-google-drive"></i> فتح الملفات</a></div>` : ''}${pk.products ? `<div><b>المنتجات والخدمات</b>${esc(pk.products)}</div>` : ''}${pk.doctors ? `<div><b>الدكاترة والصور</b>${esc(pk.doctors)}</div>` : ''}${pk.schedules ? `<div><b>المواعيد</b>${esc(pk.schedules)}</div>` : ''}${pk.notes ? `<div><b>ملاحظات التسليم</b>${esc(pk.notes)}</div>` : ''}${p.returnedReason ? `<div><b>سبب الإرجاع</b>${esc(p.returnedReason)}</div>` : ''}</div>
-      ${ts.length ? ts.map(t => `<div class="stask"><div><div class="tt ${isDoneSt(t.status) ? 'done' : ''}">${esc(t.title)}</div><div class="small muted">${esc(t.agent || 'غير موزعة')}${t.due ? ` · التسليم ${esc(t.due)}` : ''}${taskLate(t) ? ' · <b class="red">متأخرة</b>' : ''}${t.priority && t.priority !== 'عادية' ? ` · <b class="amber">${esc(t.priority)}</b>` : ''}${t.notes ? ` · ${esc(t.notes)}` : ''}</div></div>
+      ${ts.length ? ts.map(t => `<div class="stask"><div><div class="tt ${isDoneSt(t.status) ? 'done' : ''}">${esc(t.title)}</div><div class="small muted">${esc(t.agent || 'غير مُسندة')}${t.due ? ` · التسليم ${esc(t.due)}` : ''}${taskLate(t) ? ' · <b class="red">متأخرة</b>' : ''}${t.priority && t.priority !== 'عادية' ? ` · <b class="amber">${esc(t.priority)}</b>` : ''}${t.notes ? ` · ${esc(t.notes)}` : ''}</div></div>
         <select data-stst="${esc(p._docId)}|${esc(t.id)}" ${canEditTask(t) && p.handoffStatus === 'تم الاستلام' ? '' : 'disabled'}>${[...new Set([...ST_STATUSES, t.status || 'جديدة'])].map(s => `<option ${s === (t.status || 'جديدة') ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
-        ${mgr ? `<button class="iconbtn" data-stedit="${esc(p._docId)}|${esc(t.id)}" title="تعديل"><i class="fa-solid fa-pen"></i></button>` : '<span></span>'}</div>`).join('') : '<div class="empty">المهام هتتفتح أول ما الملف يتستلم</div>'}
+        ${mgr ? `<button class="iconbtn" data-stedit="${esc(p._docId)}|${esc(t.id)}" title="تعديل"><i class="fa-solid fa-pen"></i></button>` : '<span></span>'}</div>`).join('') : '<div class="empty">ستظهر المهام بعد استلام الملف</div>'}
       <div class="pact">
-        ${p.handoffStatus === 'تم إرسال رابط البيانات' ? `<button class="btn primary sm" data-pact="accept|${esc(p._docId)}"><i class="fa-solid fa-hand"></i> استلام الملف</button><button class="btn danger sm" data-pact="return|${esc(p._docId)}"><i class="fa-solid fa-rotate-left"></i> إرجاع للمبيعات (بيانات ناقصة)</button>` : ''}
+        ${p.handoffStatus === 'تم إرسال رابط البيانات' ? `<button class="btn primary sm" data-pact="accept|${esc(p._docId)}"><i class="fa-solid fa-hand"></i> استلام الملف</button><button class="btn danger sm" data-pact="return|${esc(p._docId)}"><i class="fa-solid fa-rotate-left"></i> إعادة للمبيعات (بيانات ناقصة)</button>` : ''}
         ${p.handoffStatus === 'تم الاستلام' && mgr ? `<button class="btn line sm" data-pact="addtask|${esc(p._docId)}"><i class="fa-solid fa-plus"></i> مهمة</button>` : ''}
-        ${p.handoffStatus === 'تم الاستلام' && (mgr || normName(p.receivedBy) === normName(me)) ? `<button class="btn ok sm" data-pact="complete|${esc(p._docId)}"><i class="fa-solid fa-circle-check"></i> تم التسليم للعميل</button><button class="btn danger sm" data-pact="return|${esc(p._docId)}"><i class="fa-solid fa-rotate-left"></i> إرجاع للمبيعات</button>` : ''}
+        ${p.handoffStatus === 'تم الاستلام' && (mgr || normName(p.receivedBy) === normName(me)) ? `<button class="btn ok sm" data-pact="complete|${esc(p._docId)}"><i class="fa-solid fa-circle-check"></i> تم التسليم للعميل</button><button class="btn danger sm" data-pact="return|${esc(p._docId)}"><i class="fa-solid fa-rotate-left"></i> إعادة للمبيعات</button>` : ''}
         ${p.handoffStatus === 'تم الرفع بنجاح' && mgr ? `<button class="btn line sm" data-pact="reopen|${esc(p._docId)}"><i class="fa-solid fa-lock-open"></i> إعادة فتح</button>` : ''}
       </div></div>`;
   }
   return `<div class="proj"><div class="ph" data-ptoggle="${esc(p._docId)}"><div><h4>${esc(p.clientName || 'عميل')} <span class="hs ${cls}">${esc(p.handoffStatus || '—')}</span>${late ? ` <span class="hs ret">${late} متأخرة</span>` : ''}</h4>
-    <div class="small muted">${esc(p.phone || '')} · من: ${esc(p.sender || '—')}${p.sentAt ? ` · ${esc(String(p.sentAt).slice(0, 10))}` : ''}${p.receivedBy ? ` · استلمه: <b>${esc(p.receivedBy)}</b>` : ''}${p.completedAt ? ` · اتسلم للعميل ${esc(String(p.completedAt).slice(0, 10))}` : ''}</div>
-    ${ts.length ? `<div class="prog"><i style="width:${pct(done, ts.length)}%"></i></div><div class="small muted">${done} من ${ts.length} مهمة</div>` : ''}</div>
+    <div class="small muted">${esc(p.phone || '')} · المُرسِل: ${esc(p.sender || '—')}${p.sentAt ? ` · ${esc(String(p.sentAt).slice(0, 10))}` : ''}${p.receivedBy ? ` · المستلم: <b>${esc(p.receivedBy)}</b>` : ''}${p.completedAt ? ` · سُلّم للعميل في ${esc(String(p.completedAt).slice(0, 10))}` : ''}</div>
+    ${ts.length ? `<div class="prog"><i style="width:${pct(done, ts.length)}%"></i></div><div class="small muted">${done} من ${ts.length} مهام</div>` : ''}</div>
     <i class="fa-solid fa-chevron-${open ? 'up' : 'down'} grey"></i></div>${body}</div>`;
 }
 async function mutateProject(docId, fn) {
   const ref = doc(col('supportProjects'), docId);
-  const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء — جرّب تاني');
+  const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء، يرجى المحاولة مرة أخرى');
   const cur = snap.exists() ? snap.data() : S.projects.get(docId);
-  if (!cur) throw new Error('الملف مش موجود');
+  if (!cur) throw new Error('الملف غير موجود');
   const p = JSON.parse(JSON.stringify(cur)); p.tasks = Array.isArray(p.tasks) ? p.tasks : [];
   if (fn(p) === false) return;
   delete p._docId; delete p._syncAt;
-  await withTimeout(setDoc(ref, p), 12000, 'الحفظ اتأخر — جرّب تاني');
+  await withTimeout(setDoc(ref, p), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
   S.projects.set(docId, { ...p, _docId: docId });
   renderSupport();
 }
@@ -759,23 +758,23 @@ async function projAction(kind, id) {
   try {
     const now = new Date().toISOString(), me = actor();
     if (kind === 'accept') {
-      if (!isSupport(state.me) && accessOf(state.me) !== 'manager') throw new Error('الاستلام لموظفي الدعم الفني بس');
-      await mutateProject(id, p => { if (p.handoffStatus !== 'تم إرسال رابط البيانات') throw new Error('الملف اتستلم أو اتغيرت حالته — حدّث الصفحة'); p.handoffStatus = 'تم الاستلام'; p.receivedBy = me; p.receivedAt = now; if (!(p.tasks || []).filter(t => !t.deletedAt).length) p.tasks = SUP_STEPS.map((title, i) => ({ id: 'st_' + Date.now() + '_' + i, title, agent: me, due: '', status: 'جديدة', priority: 'عادية', notes: '', createdAt: now })); });
-      S.open.add(id); toast('✓ استلمت الملف واتفتحت مهامه', 'ok');
+      if (!isSupport(state.me) && accessOf(state.me) !== 'manager') throw new Error('الاستلام متاح لموظفي الدعم الفني فقط');
+      await mutateProject(id, p => { if (p.handoffStatus !== 'تم إرسال رابط البيانات') throw new Error('تم استلام الملف أو تغيرت حالته، يرجى تحديث الصفحة'); p.handoffStatus = 'تم الاستلام'; p.receivedBy = me; p.receivedAt = now; if (!(p.tasks || []).filter(t => !t.deletedAt).length) p.tasks = SUP_STEPS.map((title, i) => ({ id: 'st_' + Date.now() + '_' + i, title, agent: me, due: '', status: 'جديدة', priority: 'عادية', notes: '', createdAt: now })); });
+      S.open.add(id); toast('✓ تم استلام الملف وفتح مهامه', 'ok');
     } else if (kind === 'return') {
-      const reason = prompt('اكتب البيانات الناقصة اللي محتاجها من المبيعات:'); if (!reason || !reason.trim()) return;
+      const reason = prompt('يرجى كتابة البيانات الناقصة المطلوبة من فريق المبيعات:'); if (!reason || !reason.trim()) return;
       await mutateProject(id, p => { p.handoffStatus = 'مرتجع لخدمات العملاء'; p.returnedReason = reason.trim(); p.returnedBy = me; p.returnedAt = now; });
-      toast('✓ الملف رجع للمبيعات', 'ok');
+      toast('✓ تمت إعادة الملف إلى المبيعات', 'ok');
     } else if (kind === 'complete') {
-      if (!confirm('تأكيد إن كل بيانات العميل اترفعت واتسلمت؟')) return;
+      if (!confirm('هل تؤكد رفع جميع بيانات العميل وتسليمها؟')) return;
       await mutateProject(id, p => { p.handoffStatus = 'تم الرفع بنجاح'; p.completedBy = me; p.completedAt = now; (p.tasks || []).filter(t => !t.deletedAt).forEach(t => recordStatus(t, 'مكتملة')); });
-      toast('✓ الملف اتقفل واتنقل للمكتمل', 'ok');
+      toast('✓ تم إغلاق الملف ونقله إلى المكتملة', 'ok');
     } else if (kind === 'reopen') {
       await mutateProject(id, p => { p.handoffStatus = 'تم الاستلام'; p.completedAt = ''; p.completedBy = ''; });
     } else if (kind === 'addtask') openSupTask(id, '');
   } catch (e) { toast(e.message, 'err'); }
 }
-function supAgents() { return ['غير موزعة', ...state.employees.filter(isSupport).map(e => e.name)]; }
+function supAgents() { return ['غير مُسندة', ...state.employees.filter(isSupport).map(e => e.name)]; }
 function openSupTask(projectId, taskId) {
   const ps = liveProjects().filter(p => p.handoffStatus !== 'تم الرفع بنجاح').sort((a, b) => String(a.clientName).localeCompare(String(b.clientName), 'ar'));
   $('stProject').innerHTML = ps.map(p => `<option value="${esc(p._docId)}">${esc(p.clientName)}</option>`).join('');
@@ -784,15 +783,15 @@ function openSupTask(projectId, taskId) {
   if (projectId) $('stProject').innerHTML = `<option value="${esc(projectId)}">${esc(p?.clientName || '')}</option>`;
   fillSelect('stAgent', supAgents()); fillSelect('stStatus', ST_STATUSES); fillSelect('stPriority', ST_PRIORITY);
   $('stTitleH').textContent = t ? 'تعديل مهمة' : 'مهمة دعم جديدة';
-  $('stTitle').value = t?.title || ''; $('stAgent').value = t?.agent || 'غير موزعة'; $('stDue').value = t?.due || ''; $('stStatus').value = ST_STATUSES.includes(t?.status) ? t.status : 'جديدة'; $('stPriority').value = t?.priority || 'عادية'; $('stNotes').value = t?.notes || '';
+  $('stTitle').value = t?.title || ''; $('stAgent').value = t?.agent || 'غير مُسندة'; $('stDue').value = t?.due || ''; $('stStatus').value = ST_STATUSES.includes(t?.status) ? t.status : 'جديدة'; $('stPriority').value = t?.priority || 'عادية'; $('stNotes').value = t?.notes || '';
   $('stSave').dataset.task = taskId || ''; $('stMsg').textContent = '';
   $('supTaskModal').classList.remove('hidden');
 }
 async function saveSupTask() {
   const pid = $('stProject').value, tid = $('stSave').dataset.task, title = $('stTitle').value.trim();
   const msg = $('stMsg'); msg.className = 'msg err';
-  if (!pid) { msg.textContent = 'اختار العميل'; return; }
-  if (!title) { msg.textContent = 'اكتب عنوان المهمة'; return; }
+  if (!pid) { msg.textContent = 'يرجى اختيار العميل'; return; }
+  if (!title) { msg.textContent = 'يرجى كتابة عنوان المهمة'; return; }
   $('stSave').disabled = true;
   try {
     await mutateProject(pid, p => {
@@ -800,13 +799,13 @@ async function saveSupTask() {
       let t = tid && p.tasks.find(x => x.id === tid);
       if (!t) { t = { id: 'st_' + Date.now(), status: 'جديدة', createdAt: new Date().toISOString() }; p.tasks.push(t); }
       Object.assign(t, data); recordStatus(t, $('stStatus').value);
-      if (p.handoffStatus !== 'تم الاستلام') { p.handoffStatus = 'تم الاستلام'; p.receivedBy = p.receivedBy || (data.agent !== 'غير موزعة' ? data.agent : actor()); p.receivedAt = p.receivedAt || new Date().toISOString(); }
+      if (p.handoffStatus !== 'تم الاستلام') { p.handoffStatus = 'تم الاستلام'; p.receivedBy = p.receivedBy || (data.agent !== 'غير مُسندة' ? data.agent : actor()); p.receivedAt = p.receivedAt || new Date().toISOString(); }
     });
-    S.open.add(pid); $('supTaskModal').classList.add('hidden'); toast('✓ المهمة اتحفظت', 'ok');
+    S.open.add(pid); $('supTaskModal').classList.add('hidden'); toast('✓ تم حفظ المهمة', 'ok');
   } catch (e) { msg.textContent = e.message; } finally { $('stSave').disabled = false; }
 }
 async function setSupTaskStatus(pid, tid, status) {
-  try { await mutateProject(pid, p => { const t = p.tasks.find(x => x.id === tid); if (!t) return false; recordStatus(t, status); }); toast('✓ اتحدثت', 'ok'); }
+  try { await mutateProject(pid, p => { const t = p.tasks.find(x => x.id === tid); if (!t) return false; recordStatus(t, status); }); toast('✓ تم التحديث', 'ok'); }
   catch (e) { toast(e.message, 'err'); renderSupport(); }
 }
 // إرسال العميل للدعم من شاشة المبيعات
@@ -820,20 +819,20 @@ function openHandoff(c) {
 async function saveHandoff() {
   const c = hoClient, msg = $('hoMsg'); msg.className = 'msg err'; if (!c) return;
   const link = $('hoLink').value.trim();
-  try { const u = new URL(link); if (!['http:', 'https:'].includes(u.protocol)) throw 0; } catch (e) { msg.textContent = 'اكتب رابط صحيح بيبدأ بـ https://'; return; }
+  try { const u = new URL(link); if (!['http:', 'https:'].includes(u.protocol)) throw 0; } catch (e) { msg.textContent = 'يرجى إدخال رابط صحيح يبدأ بـ https://'; return; }
   const btn = $('hoSave'); btn.disabled = true;
   try {
     const now = new Date().toISOString(), me = actor();
     const pack = { driveLink: link, products: $('hoProducts').value.trim(), doctors: $('hoDoctors').value.trim(), schedules: $('hoSchedules').value.trim(), notes: $('hoNotes').value.trim(), sentBy: me, sentAt: now };
-    await withTimeout(setDoc(doc(col('clients'), c._docId || c.id), { supportPackage: pack, updatedAt: Date.now() }, { merge: true }), 12000, 'الحفظ اتأخر — جرّب تاني');
+    await withTimeout(setDoc(doc(col('clients'), c._docId || c.id), { supportPackage: pack, updatedAt: Date.now() }, { merge: true }), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
     let snap = null; try { snap = await getDocs(query(col('supportProjects'), where('clientId', '==', c.id))); } catch (e) {}
     let existing = null; snap?.forEach(d => { const x = d.data(); if (!x.deletedAt && !existing) existing = { ...x, _docId: d.id }; });
     const pid = existing?._docId || ('sp_' + Date.now());
     const base = existing ? (({ _docId, _syncAt, ...r }) => r)(existing) : { id: pid, clientId: c.id, clientName: c.name, phone: c.phone || '', createdAt: now, tasks: [] };
     Object.assign(base, { clientName: c.name, phone: c.phone || '', sender: me, sentAt: now, handoffStatus: 'تم إرسال رابط البيانات', receivedBy: '', receivedAt: '', returnedReason: '', supportPackage: pack, tasks: existing?.handoffStatus === 'تم الاستلام' ? base.tasks : [] });
-    await withTimeout(setDoc(doc(col('supportProjects'), pid), base), 12000, 'الحفظ اتأخر — جرّب تاني');
+    await withTimeout(setDoc(doc(col('supportProjects'), pid), base), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
     const local = state.clients.get(c._docId); if (local) local.supportPackage = pack;
-    $('handoffModal').classList.add('hidden'); toast('✓ الملف وصل لفريق الدعم الفني', 'ok');
+    $('handoffModal').classList.add('hidden'); toast('✓ تمت إحالة الملف إلى فريق الدعم الفني', 'ok');
   } catch (e) { msg.textContent = e.message; } finally { btn.disabled = false; }
 }
 
@@ -852,20 +851,20 @@ function renderAccounts() {
   const has = e => ACC.map.has(e.id);
   const missing = emps.filter(e => !has(e));
   $('accBadge').textContent = missing.length; $('accBadge').classList.toggle('hidden', !missing.length);
-  $('accKpis').innerHTML = `<div class="kpi" style="--c:#5A3B8B"><span>كل الموظفين</span><b>${emps.length}</b></div><div class="kpi" style="--c:#16a34a"><span>عندهم حساب</span><b>${emps.length - missing.length}</b></div><div class="kpi" style="--c:#dc2626"><span>لسه ما دخلوش</span><b>${missing.length}</b></div>`;
+  $('accKpis').innerHTML = `<div class="kpi" style="--c:#5A3B8B"><span>جميع الموظفين</span><b>${emps.length}</b></div><div class="kpi" style="--c:#16a34a"><span>لديهم حساب</span><b>${emps.length - missing.length}</b></div><div class="kpi" style="--c:#dc2626"><span>لم يسجلوا الدخول بعد</span><b>${missing.length}</b></div>`;
   const rows = [...emps].sort((a, b) => has(a) - has(b) || String(a.name).localeCompare(String(b.name), 'ar'));
   $('accTable').innerHTML = '<tr><th>الموظف</th><th>القسم</th><th>الحالة</th><th>آخر دخول</th><th></th></tr>' + rows.map(e => {
     const a = ACC.map.get(e.id);
-    return `<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.department || '')}</td><td>${a ? '<span class="st working">عنده حساب ✓</span>' : '<span class="st not_started">لسه ما دخلش</span>'}</td><td>${a?.lastLoginAt ? esc(new Date(a.lastLoginAt).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })) : '—'}</td><td>${a ? '' : `<button class="btn primary sm" data-mkacc="${esc(e.id)}"><i class="fa-solid fa-user-plus"></i> عمل حساب</button>`}</td></tr>`;
+    return `<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.department || '')}</td><td>${a ? '<span class="st working">لديه حساب ✓</span>' : '<span class="st not_started">لم يسجل الدخول بعد</span>'}</td><td>${a?.lastLoginAt ? esc(new Date(a.lastLoginAt).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })) : '—'}</td><td>${a ? '' : `<button class="btn primary sm" data-mkacc="${esc(e.id)}"><i class="fa-solid fa-user-plus"></i> إنشاء حساب</button>`}</td></tr>`;
   }).join('');
 }
 let adminAuth = null;
 async function makeAccount(empId) {
   const emp = state.employees.find(e => e.id === empId); if (!emp) return;
-  const pin = (prompt(`اكتب رمز دخول جديد لـ ${emp.name} (أرقام بس، من 4 لـ 8 أرقام):`) || '').trim();
+  const pin = (prompt(`أدخل رمز دخول جديدًا للموظف ${emp.name} (من 4 إلى 8 أرقام):`) || '').trim();
   if (!pin) return;
-  if (!/^\d{4,8}$/.test(pin)) { toast('الرمز لازم يكون من 4 لـ 8 أرقام', 'err'); return; }
-  const btn = document.querySelector(`[data-mkacc="${CSS.escape(empId)}"]`); if (btn) { btn.disabled = true; btn.textContent = 'جاري…'; }
+  if (!/^\d{4,8}$/.test(pin)) { toast('يجب أن يتكون الرمز من 4 إلى 8 أرقام', 'err'); return; }
+  const btn = document.querySelector(`[data-mkacc="${CSS.escape(empId)}"]`); if (btn) { btn.disabled = true; btn.textContent = 'جارٍ…'; }
   try {
     if (!adminAuth) adminAuth = getAuth(initializeApp(firebaseConfig, 'nabdi-admin'));
     const email = staffEmailFor(emp), password = `nb-${pin}`;
@@ -874,7 +873,7 @@ async function makeAccount(empId) {
     catch (e) {
       if (e?.code !== 'auth/email-already-in-use') throw e;
       try { uid = (await signInWithEmailAndPassword(adminAuth, email, password)).user.uid; }
-      catch (e2) { throw new Error('الموظف ده عنده حساب قديم برمز تاني — خليه يدخل برمزه القديم مرة واحدة على النسخة الجديدة'); }
+      catch (e2) { throw new Error('لدى هذا الموظف حساب سابق برمز مختلف، يرجى أن يسجّل الدخول برمزه القديم مرة واحدة على النظام الجديد'); }
     }
     try { await signOut(adminAuth); } catch (e) {}
     await setDoc(doc(col('employees'), emp._docId || emp.id), { pin, updatedAt: Date.now() }, { merge: true });
@@ -882,8 +881,177 @@ async function makeAccount(empId) {
     await setDoc(doc(col('authAccounts'), emp.id), { empId: emp.id, name: emp.name || '', uid, email, createdByManagerAt: Date.now() }, { merge: true });
     ACC.map.set(emp.id, { empId: emp.id, uid, email });
     renderAccounts();
-    toast(`✓ اتعمل حساب ${emp.name} — ابعتله الرمز الجديد: ${pin}`, 'ok');
-  } catch (e) { toast(e.message || 'تعذر عمل الحساب', 'err'); if (btn) { btn.disabled = false; btn.textContent = 'عمل حساب'; } }
+    toast(`✓ تم إنشاء حساب ${emp.name} — رمز الدخول الجديد: ${pin}`, 'ok');
+  } catch (e) { toast(e.message || 'تعذّر إنشاء الحساب', 'err'); if (btn) { btn.disabled = false; btn.textContent = 'إنشاء حساب'; } }
+}
+
+
+// ---------------- التقارير الاحترافية ----------------
+const REP_TYPES = [
+  { id: 'team', icon: 'fa-people-group', t: 'تقرير أداء الفريق', d: 'المؤشرات والمقارنة وأداء كل موظف' },
+  { id: 'emp', icon: 'fa-id-badge', t: 'تقرير موظف تفصيلي', d: 'أداء موظف واحد وحضوره وإجراءاته', needEmp: true },
+  { id: 'actions', icon: 'fa-list-ol', t: 'سجل الإجراءات التفصيلي', d: 'جميع الإجراءات مع إمكانية التصفية', cat: true },
+  { id: 'att', icon: 'fa-user-clock', t: 'تقرير الحضور والانصراف', d: 'أيام وساعات العمل لكل موظف' },
+  { id: 'clients', icon: 'fa-user-plus', t: 'تقرير العملاء الجدد', d: 'العملاء المسجلون خلال الفترة' },
+  { id: 'support', icon: 'fa-headset', t: 'تقرير الدعم الفني', d: 'الملفات المستلمة والمنجزة والمتأخرة' }
+];
+const RP = { type: 'team', range: 'month', last: null };
+function repPeriod() {
+  const saved = D.range; D.range = RP.range;
+  const fromEl = $('dashFrom'), toEl = $('dashTo'), sf = fromEl.value, st = toEl.value;
+  fromEl.value = $('repFrom').value; toEl.value = $('repTo').value;
+  const p = dashPeriod(); D.range = saved; fromEl.value = sf; toEl.value = st; return p;
+}
+const fmtDate = ds => { if (!ds) return '—'; const [y, m, d] = ds.split('-'); return `${d}/${m}/${y}`; };
+const fmtTime = ms => ms ? new Intl.DateTimeFormat('ar-EG', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(ms)) : '—';
+const dayName = ds => new Intl.DateTimeFormat('ar-EG', { weekday: 'long', timeZone: 'UTC' }).format(new Date(ds + 'T12:00:00Z'));
+function setupReports() {
+  $('repTypes').innerHTML = REP_TYPES.map(x => `<button class="rtype ${x.id === RP.type ? 'on' : ''}" data-rtype="${x.id}"><i class="fa-solid ${x.icon}"></i><b>${x.t}</b><span>${x.d}</span></button>`).join('');
+  const lvl = accessOf(state.me);
+  const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
+  $('repDept').innerHTML = lvl === 'manager' ? '<option value="">جميع الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(state.me.department || '')}</option>`;
+  const fillEmp = () => { $('repEmp').innerHTML = '<option value="">جميع الموظفين</option>' + dashEmployees($('repDept').value).map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join(''); };
+  fillEmp();
+  $('repCat').innerHTML = '<option value="">جميع الإجراءات</option>' + STAGES.map(s => `<option>${esc(s)}</option>`).join('');
+  $('repFrom').value = $('repTo').value = cairoDate();
+  $('repTypes').onclick = e => { const b = e.target.closest('[data-rtype]'); if (!b) return; RP.type = b.dataset.rtype; $('repTypes').querySelectorAll('.rtype').forEach(x => x.classList.toggle('on', x === b)); $('repCatWrap').classList.toggle('hidden', RP.type !== 'actions'); $('repMsg').textContent = ''; };
+  $('repRange').onclick = e => { const b = e.target.closest('button[data-r]'); if (!b) return; RP.range = b.dataset.r; $('repRange').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); $('repCustom').classList.toggle('hidden', RP.range !== 'custom'); };
+  $('repDept').onchange = fillEmp;
+  $('repRun').onclick = runReport;
+  $('repPrint').onclick = () => { document.body.classList.add('printrep'); setTimeout(() => { window.print(); }, 50); };
+  window.addEventListener('afterprint', () => document.body.classList.remove('printrep'));
+  $('repXls').onclick = repExcel;
+  $('repClose').onclick = () => { $('repOut').classList.add('hidden'); document.querySelector('.repbuilder').classList.remove('hidden'); };
+}
+async function runReport() {
+  const type = REP_TYPES.find(x => x.id === RP.type);
+  const empId = $('repEmp').value, dept = $('repDept').value;
+  if (type.needEmp && !empId) { $('repMsg').innerHTML = '<b class="red">يرجى اختيار الموظف لهذا التقرير</b>'; return; }
+  const [from, to] = repPeriod();
+  const btn = $('repRun'); btn.disabled = true; $('repMsg').textContent = 'جارٍ إعداد التقرير…';
+  try {
+    let html = '';
+    if (type.id === 'support') { startSupport(); await new Promise(r => setTimeout(r, S.projects.size ? 0 : 1500)); html = repSupport(from, to, empId); }
+    else {
+      const n = daysBetween(from, to).length;
+      const [pack, prev] = await Promise.all([loadPack(from, to), loadPack(addDays(from, -n), addDays(from, -1)).catch(() => null)]);
+      const r = computeDash({ from, to, ...pack }, dept, empId);
+      const pr = prev ? computeDash({ from: addDays(from, -n), to: addDays(from, -1), ...prev }, dept, empId) : null;
+      html = { team: repTeam, emp: repEmp, actions: repActions, att: repAtt, clients: repClients }[type.id](r, pr, empId);
+    }
+    const emp = state.employees.find(e => e.id === empId);
+    const scope = emp ? emp.name : (dept || 'جميع الأقسام');
+    RP.last = { type, from, to, scope };
+    $('repDoc').innerHTML = repWrap(type.t, from, to, scope, html);
+    document.querySelector('.repbuilder').classList.add('hidden');
+    $('repOut').classList.remove('hidden'); $('repMsg').textContent = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) { $('repMsg').innerHTML = `<b class="red">تعذّر إعداد التقرير: ${esc(e.message)}</b>`; }
+  finally { btn.disabled = false; }
+}
+function repWrap(title, from, to, scope, body) {
+  const now = new Intl.DateTimeFormat('ar-EG', { timeZone: TZ, dateStyle: 'long', timeStyle: 'short' }).format(new Date());
+  const no = 'RPT-' + cairoDate().replace(/-/g, '') + '-' + String(Date.now()).slice(-4);
+  return `<div class="rhead"><div class="org"><span class="logo"><i class="fa-solid fa-heart-pulse"></i></span><div><h2>${esc(title)}</h2><div class="sub">منصة نبضي — نظام إدارة علاقات العملاء</div></div></div>
+    <div class="rmeta">رقم التقرير: <b>${no}</b><br>تاريخ الإصدار: ${esc(now)}<br>أعدّه: ${esc(actor())}</div></div>
+    <div class="rinfo"><div>الفترة: <b>${from === to ? fmtDate(from) : `من ${fmtDate(from)} إلى ${fmtDate(to)}`}</b></div><div>عدد الأيام: <b>${daysBetween(from, to).length}</b></div><div>النطاق: <b>${esc(scope)}</b></div></div>
+    ${body}
+    <div class="rsign"><div>إعداد</div><div>مراجعة</div><div>اعتماد الإدارة</div></div>
+    <div class="rfoot"><span>منصة نبضي — تقرير سري للاستخدام الداخلي</span><span>${no}</span></div>`;
+}
+const rk = (l, v, d = '') => `<div class="rkpi"><span>${l}</span><b>${v}</b>${d}</div>`;
+function rdelta(a, b) { if (b == null) return ''; if (!b && !a) return '<em>—</em>'; if (!b) return '<em style="color:#16a34a">جديد</em>'; const d = Math.round((a - b) * 100 / b); return `<em style="color:${d >= 0 ? '#16a34a' : '#dc2626'}">${d > 0 ? '▲' : d < 0 ? '▼' : ''} ${Math.abs(d)}% عن الفترة السابقة</em>`; }
+function kpiBlock(r, pr) {
+  const k = r.k, p = pr?.k;
+  return `<div class="rsec"><h3>المؤشرات الرئيسية</h3><div class="rkpis">${rk('إجمالي الإجراءات', fmt(k.n), rdelta(k.n, p?.n))}${rk('مكالمات تم الرد عليها', fmt(k.calls), rdelta(k.calls, p?.calls))}${rk('مكالمات لم يُرد عليها', fmt(k.na), rdelta(k.na, p?.na))}${rk('نسبة الرد', k.rate + '%', rdelta(k.rate, p?.rate))}${rk('رسائل واتساب', fmt(k.wa), rdelta(k.wa, p?.wa))}${rk('الاجتماعات', fmt(k.meet), rdelta(k.meet, p?.meet))}${rk('عقود مُرسلة', fmt(k.sent), rdelta(k.sent, p?.sent))}${rk('عقود موقّعة', fmt(k.signed), rdelta(k.signed, p?.signed))}${rk('عملاء جدد', fmt(k.newC), rdelta(k.newC, p?.newC))}${rk('عملاء تم التواصل معهم', fmt(k.touched), rdelta(k.touched, p?.touched))}</div></div>`;
+}
+function summaryNote(r, pr) {
+  const k = r.k, best = r.rows.find(x => x.n), parts = [];
+  parts.push(`سُجِّل خلال الفترة <b>${fmt(k.n)}</b> إجراءً، بنسبة رد على المكالمات بلغت <b>${k.rate}%</b>`);
+  if (pr) { const d = pr.k.n ? Math.round((k.n - pr.k.n) * 100 / pr.k.n) : null; if (d != null) parts.push(`${d >= 0 ? 'بزيادة' : 'بانخفاض'} قدرها <b>${Math.abs(d)}%</b> مقارنة بالفترة السابقة`); }
+  if (best && r.rows.length > 1) parts.push(`وجاء <b>${esc(best.e.name)}</b> في المركز الأول بعدد <b>${fmt(best.n)}</b> إجراءً`);
+  if (k.signed) parts.push(`وتم توقيع <b>${k.signed}</b> عقدًا`);
+  return `<div class="rsec"><h3>الملخص التنفيذي</h3><div class="rnote">${parts.join('، ')}.</div></div>`;
+}
+function empTable(r) {
+  const tot = f => r.rows.reduce((s, x) => s + x[f], 0), tc = tot('calls'), tn = tot('na');
+  return `<div class="rsec"><h3>أداء الموظفين</h3><table class="rtbl"><thead><tr><th>#</th><th class="l">الموظف</th><th>القسم</th><th>أيام الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>تم الرد</th><th>لم يُرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود مُرسلة</th><th>عقود موقّعة</th><th>عملاء جدد</th></tr></thead><tbody>
+    ${r.rows.map((x, i) => `<tr><td>${i + 1}</td><td class="l"><b>${esc(x.e.name)}</b></td><td>${esc(x.e.department || '')}</td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td><b>${x.n}</b></td><td>${x.calls}</td><td>${x.na}</td><td>${x.calls + x.na ? x.rate + '%' : '—'}</td><td>${x.wa}</td><td>${x.meet}</td><td>${x.sent}</td><td>${x.signed}</td><td>${x.newC}</td></tr>`).join('')}
+    <tr class="tot"><td></td><td class="l">الإجمالي</td><td></td><td>${tot('daysP')}</td><td>${hrsTxt(tot('work'))}</td><td>${tot('n')}</td><td>${tc}</td><td>${tn}</td><td>${pct(tc, tc + tn)}%</td><td>${tot('wa')}</td><td>${tot('meet')}</td><td>${tot('sent')}</td><td>${tot('signed')}</td><td>${tot('newC')}</td></tr></tbody></table></div>`;
+}
+function dailyTable(r) {
+  const rows = r.byDay.filter(x => x.n || r.days.length <= 31);
+  const T = r.T, c = (d, cat) => T.filter(t => t.date === d && t.category === cat).length;
+  return `<div class="rsec"><h3>التوزيع اليومي</h3>${r.byDay.some(x => x.n) ? trendSvg(r.byDay) : ''}<table class="rtbl" style="margin-top:10px"><thead><tr><th class="l">اليوم</th><th>التاريخ</th><th>الإجراءات</th><th>تم الرد</th><th>لم يُرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود مُرسلة</th><th>عقود موقّعة</th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td class="l">${dayName(x.d)}</td><td>${fmtDate(x.d)}</td><td><b>${x.n}</b></td><td>${x.calls}</td><td>${x.na}</td><td>${x.wa}</td><td>${c(x.d, CAT.meet) + c(x.d, CAT.meetSet)}</td><td>${c(x.d, CAT.sent)}</td><td>${c(x.d, CAT.signed)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function funnelTable(r) {
+  const tot = r.funnel.reduce((s, x) => s + x.n, 0);
+  return `<div class="rsec"><h3>الإجراءات حسب مرحلة البيع</h3>${r.funnel.length ? `<table class="rtbl"><thead><tr><th class="l">المرحلة</th><th>العدد</th><th>النسبة</th></tr></thead><tbody>${r.funnel.map(x => `<tr><td class="l">${esc(x.s)}</td><td>${x.n}</td><td>${pct(x.n, tot)}%</td></tr>`).join('')}</tbody></table>` : '<div class="rempty">لا توجد بيانات</div>'}</div>`;
+}
+function cityTable(r) {
+  return `<div class="rsec"><h3>أكثر المدن نشاطًا</h3>${r.cities.length ? `<table class="rtbl"><thead><tr><th class="l">المدينة</th><th>عدد الإجراءات</th><th>النسبة</th></tr></thead><tbody>${r.cities.map(([l, v]) => `<tr><td class="l">${esc(l)}</td><td>${v}</td><td>${pct(v, r.k.n)}%</td></tr>`).join('')}</tbody></table>` : '<div class="rempty">لا توجد بيانات</div>'}</div>`;
+}
+function actionsTable(T, title = 'تفاصيل الإجراءات') {
+  const list = [...T].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  RP.rows = list;
+  return `<div class="rsec"><h3>${title} (${list.length})</h3>${list.length ? `<table class="rtbl"><thead><tr><th>#</th><th>التاريخ</th><th>الوقت</th><th class="l">الموظف</th><th class="l">العميل</th><th>الجوال</th><th>المدينة</th><th>الإجراء</th><th class="l">الملاحظات</th><th>المتابعة التالية</th></tr></thead><tbody>${list.map((t, i) => `<tr><td>${i + 1}</td><td>${fmtDate(t.date)}</td><td>${esc(t.time || '')}</td><td class="l">${esc(t.agent || '')}</td><td class="l">${esc(t.customer || '')}</td><td dir="ltr">${esc(t.phone || '')}</td><td>${esc(t.city || '')}</td><td>${esc(t.category || '')}</td><td class="note">${esc(t.notes || '')}</td><td>${t.nextFollowUpDate ? fmtDate(t.nextFollowUpDate) + ' ' + esc(t.nextFollowUpTime || '') : '—'}</td></tr>`).join('')}</tbody></table>` : '<div class="rempty">لا توجد إجراءات خلال الفترة</div>'}</div>`;
+}
+function repTeam(r, pr) { RP.rows = null; RP.sheet = r; return summaryNote(r, pr) + kpiBlock(r, pr) + empTable(r) + dailyTable(r) + funnelTable(r) + cityTable(r); }
+function repEmp(r, pr, empId) {
+  const x = r.rows[0]; RP.sheet = r;
+  const att = r.A.filter(a => r.match(a.employeeId, a.employeeName)?.id === empId).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const attHtml = `<div class="rsec"><h3>سجل الحضور</h3>${att.length ? `<table class="rtbl"><thead><tr><th class="l">اليوم</th><th>التاريخ</th><th>الحضور</th><th>الانصراف</th><th>الاستراحة</th><th>ساعات العمل</th></tr></thead><tbody>${att.map(a => { const m = attMetrics(a); return `<tr><td class="l">${dayName(a.date)}</td><td>${fmtDate(a.date)}</td><td>${fmtTime(a.checkInAt)}</td><td>${fmtTime(a.checkOutAt)}</td><td>${hrsTxt(m.brk)}</td><td><b>${hrsTxt(m.work)}</b></td></tr>`; }).join('')}<tr class="tot"><td class="l" colspan="5">الإجمالي (${att.length} يوم)</td><td>${hrsTxt(att.reduce((s, a) => s + attMetrics(a).work, 0))}</td></tr></tbody></table>` : '<div class="rempty">لا توجد سجلات حضور</div>'}</div>`;
+  return summaryNote(r, pr) + kpiBlock(r, pr) + (x ? `<div class="rinfo"><div>القسم: <b>${esc(x.e.department || '—')}</b></div><div>أيام الحضور: <b>${x.daysP}</b></div><div>إجمالي ساعات العمل: <b>${hrsTxt(x.work)}</b></div><div>متوسط الإجراءات يوميًا: <b>${Math.round(x.n / Math.max(1, x.daysP || r.days.length) * 10) / 10}</b></div></div>` : '') + dailyTable(r) + attHtml + funnelTable(r) + actionsTable(r.T);
+}
+function repActions(r) { RP.sheet = null; const cat = $('repCat').value; const T = cat ? r.T.filter(t => (LEGACY[t.category] || t.category) === cat) : r.T; return actionsTable(T, cat ? `إجراءات «${cat}»` : 'تفاصيل الإجراءات'); }
+function repAtt(r) {
+  RP.sheet = null; RP.rows = null;
+  const sum = `<div class="rsec"><h3>ملخص الحضور</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>القسم</th><th>أيام الحضور</th><th>إجمالي ساعات العمل</th><th>متوسط الساعات يوميًا</th></tr></thead><tbody>${r.rows.map(x => `<tr><td class="l"><b>${esc(x.e.name)}</b></td><td>${esc(x.e.department || '')}</td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td>${x.daysP ? hrsTxt(x.work / x.daysP) : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+  const recs = [...r.A].sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.employeeName).localeCompare(String(b.employeeName), 'ar'));
+  RP.att = recs;
+  const det = `<div class="rsec"><h3>السجل اليومي</h3>${recs.length ? `<table class="rtbl"><thead><tr><th>التاريخ</th><th class="l">الموظف</th><th>الحضور</th><th>الانصراف</th><th>الاستراحة</th><th>ساعات العمل</th></tr></thead><tbody>${recs.map(a => { const m = attMetrics(a); return `<tr><td>${fmtDate(a.date)}</td><td class="l">${esc(a.employeeName || '')}</td><td>${fmtTime(a.checkInAt)}</td><td>${fmtTime(a.checkOutAt)}</td><td>${hrsTxt(m.brk)}</td><td><b>${hrsTxt(m.work)}</b></td></tr>`; }).join('')}</tbody></table>` : '<div class="rempty">لا توجد سجلات</div>'}</div>`;
+  return sum + det;
+}
+function repClients(r) {
+  RP.sheet = null; RP.rows = null;
+  const list = [...r.C].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); RP.clients = list;
+  const by = new Map(); list.forEach(c => by.set(c.addedBy || '—', (by.get(c.addedBy || '—') || 0) + 1));
+  return `<div class="rsec"><h3>العملاء الجدد حسب الموظف</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>العدد</th></tr></thead><tbody>${[...by].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<tr><td class="l">${esc(n)}</td><td>${v}</td></tr>`).join('') || '<tr><td colspan="2">لا يوجد</td></tr>'}<tr class="tot"><td class="l">الإجمالي</td><td>${list.length}</td></tr></tbody></table></div>
+  <div class="rsec"><h3>قائمة العملاء (${list.length})</h3>${list.length ? `<table class="rtbl"><thead><tr><th>#</th><th>تاريخ التسجيل</th><th class="l">اسم الجهة</th><th>الجوال</th><th>المدينة</th><th>نوع الجهة</th><th>المرحلة الحالية</th><th class="l">سجّله</th></tr></thead><tbody>${list.map((c, i) => `<tr><td>${i + 1}</td><td>${fmtDate(cairoDate(new Date(c.createdAt)))}</td><td class="l">${esc(c.name)}</td><td dir="ltr">${esc(c.phone || '')}</td><td>${esc(c.city || '')}</td><td>${esc(c.entityType || '')}</td><td>${esc(normStage(c.stage))}</td><td class="l">${esc(c.addedBy || '')}</td></tr>`).join('')}</tbody></table>` : '<div class="rempty">لا يوجد عملاء جدد خلال الفترة</div>'}</div>`;
+}
+function repSupport(from, to, empId) {
+  RP.sheet = null; RP.rows = null;
+  const emp = state.employees.find(e => e.id === empId);
+  const inR = iso => { if (!iso) return false; const d = cairoDate(new Date(iso)); return d >= from && d <= to; };
+  const ps = liveProjects();
+  const recv = ps.filter(p => inR(p.receivedAt) && (!emp || normName(p.receivedBy) === normName(emp.name)));
+  const sent = ps.filter(p => inR(p.sentAt));
+  const done = ps.filter(p => inR(p.completedAt) && (!emp || normName(p.completedBy) === normName(emp.name) || normName(p.receivedBy) === normName(emp.name)));
+  const tasks = ps.flatMap(p => liveSTasks(p).map(t => ({ ...t, client: p.clientName })));
+  const tDone = tasks.filter(t => isDoneSt(t.status) && inR(t.completedAt) && (!emp || normName(t.agent) === normName(emp.name)));
+  const late = tasks.filter(t => taskLate(t) && (!emp || normName(t.agent) === normName(emp.name)));
+  const board = new Map(); tDone.forEach(t => board.set(t.agent || '—', (board.get(t.agent || '—') || 0) + 1));
+  RP.sup = { recv, done, late };
+  const pRows = list => list.map((p, i) => `<tr><td>${i + 1}</td><td class="l">${esc(p.clientName || '')}</td><td>${esc(p.sender || '')}</td><td>${p.sentAt ? fmtDate(cairoDate(new Date(p.sentAt))) : '—'}</td><td>${esc(p.receivedBy || '—')}</td><td>${p.completedAt ? fmtDate(cairoDate(new Date(p.completedAt))) : '—'}</td><td>${esc(p.handoffStatus || '')}</td></tr>`).join('');
+  const head = '<thead><tr><th>#</th><th class="l">العميل</th><th>أرسله</th><th>تاريخ الإرسال</th><th>المستلم</th><th>تاريخ التسليم</th><th>الحالة</th></tr></thead>';
+  return `<div class="rsec"><h3>المؤشرات الرئيسية</h3><div class="rkpis">${rk('ملفات وردت للدعم', sent.length)}${rk('ملفات تم استلامها', recv.length)}${rk('ملفات تم تسليمها', done.length)}${rk('مهام منجزة', tDone.length)}${rk('مهام متأخرة حاليًا', late.length)}</div></div>
+    <div class="rsec"><h3>إنجاز فريق الدعم (المهام المنجزة)</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>المهام المنجزة</th></tr></thead><tbody>${[...board].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<tr><td class="l">${esc(n)}</td><td>${v}</td></tr>`).join('') || '<tr><td colspan="2">لا يوجد</td></tr>'}</tbody></table></div>
+    <div class="rsec"><h3>الملفات المسلّمة للعملاء (${done.length})</h3>${done.length ? `<table class="rtbl">${head}<tbody>${pRows(done)}</tbody></table>` : '<div class="rempty">لا يوجد</div>'}</div>
+    <div class="rsec"><h3>الملفات المستلمة (${recv.length})</h3>${recv.length ? `<table class="rtbl">${head}<tbody>${pRows(recv)}</tbody></table>` : '<div class="rempty">لا يوجد</div>'}</div>
+    <div class="rsec"><h3>المهام المتأخرة (${late.length})</h3>${late.length ? `<table class="rtbl"><thead><tr><th>#</th><th class="l">العميل</th><th class="l">المهمة</th><th>المسؤول</th><th>تاريخ التسليم</th><th>الحالة</th></tr></thead><tbody>${late.map((t, i) => `<tr><td>${i + 1}</td><td class="l">${esc(t.client)}</td><td class="l">${esc(t.title)}</td><td>${esc(t.agent || '')}</td><td>${fmtDate(t.due)}</td><td>${esc(t.status || '')}</td></tr>`).join('')}</tbody></table>` : '<div class="rempty">لا توجد مهام متأخرة</div>'}</div>`;
+}
+function repExcel() {
+  const L = RP.last; if (!L) return;
+  // Excel = نفس جداول التقرير المعروض
+  const doc = $('repDoc').cloneNode(true);
+  doc.querySelectorAll('svg,.legend,.rsign').forEach(x => x.remove());
+  doc.querySelectorAll('.rkpis').forEach(box => { const t = document.createElement('table'); t.className = 'rtbl'; t.innerHTML = '<tr>' + [...box.children].map(k => `<th>${k.querySelector('span')?.textContent || ''}</th>`).join('') + '</tr><tr>' + [...box.children].map(k => `<td>${k.querySelector('b')?.textContent || ''}</td>`).join('') + '</tr>'; box.replaceWith(t); });
+  let out = `<table><tr><td colspan="8" style="font-size:18px;font-weight:bold;color:#5A3B8B">${esc(L.type.t)}</td></tr><tr><td colspan="8">الفترة: ${fmtDate(L.from)} - ${fmtDate(L.to)} · النطاق: ${esc(L.scope)}</td></tr></table>`;
+  doc.querySelectorAll('.rsec').forEach(sec => { const h = sec.querySelector('h3')?.textContent || ''; out += `<br><table><tr><td colspan="8" style="font-size:14px;font-weight:bold;color:#5A3B8B">${esc(h)}</td></tr></table>`; const n = sec.querySelector('.rnote'); if (n) out += `<table><tr><td colspan="10">${esc(n.textContent)}</td></tr></table>`; sec.querySelectorAll('table.rtbl').forEach(t => { t.setAttribute('border', '1'); t.querySelectorAll('th').forEach(th => th.setAttribute('style', 'background:#5A3B8B;color:#fff')); t.querySelectorAll('td').forEach(td => td.setAttribute('style', "mso-number-format:'\\@'")); out += t.outerHTML; }); });
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>التقرير</x:Name><x:WorksheetOptions><x:DisplayRightToLeft/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body dir="rtl" style="font-family:Arial">${out}</body></html>`;
+  const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${L.type.t}-${L.from}_${L.to}.xls`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
 // ---------------- التشغيل ----------------
@@ -899,15 +1067,16 @@ function startApp(emp) {
     document.querySelector('.agentrep').classList.add('hidden');
     if (lvl === 'manager' || isSupport(emp)) { document.querySelector('.supnav').classList.remove('hidden'); startSupport(); }
     setupDash();
+    setupReports();
     const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
-    $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
+    $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">جميع الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
     $('teamDate').value = cairoDate();
     $('allLogDate').value = cairoDate();
-    $('allLogEmp').innerHTML = '<option value="">كل الموظفين</option>' + state.employees.filter(e => lvl === 'manager' || e.department === emp.department).map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
+    $('allLogEmp').innerHTML = '<option value="">جميع الموظفين</option>' + state.employees.filter(e => lvl === 'manager' || e.department === emp.department).map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
     if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
+    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'reports', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
     document.querySelector('.agentsec').classList.add('hidden');
     $('attBtn').classList.add('hidden'); $('syncBar').textContent = '';
     setTab('dash');
@@ -925,7 +1094,7 @@ function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   document.body.classList.remove('menu');
-  ['dash', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['dash', 'reports', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
@@ -949,7 +1118,7 @@ $('attBtn').onclick = () => { $('attMsg').textContent = ''; renderAttendance(); 
 $('attIn').onclick = () => attAction('in');
 $('attBreak').onclick = () => attAction('break');
 $('attBack').onclick = () => attAction('back');
-$('attOut').onclick = () => { if (confirm('تأكيد تسجيل الانصراف وإنهاء الدوام؟')) attAction('out'); };
+$('attOut').onclick = () => { if (confirm('هل تريد تأكيد تسجيل الانصراف وإنهاء الدوام؟')) attAction('out'); };
 $('aSearch').addEventListener('input', searchMatches);
 $('aSave').onclick = saveAction;
 $('clientSearch').addEventListener('input', render);

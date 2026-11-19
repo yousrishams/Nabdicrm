@@ -132,8 +132,40 @@ h3 i{color:var(--p2)}
 .btn.danger{background:#fff;color:var(--red);border:1px solid #fecaca}
 .btn.ok{background:var(--grn);color:#fff}
 
+/* التقارير */
+.steplbl{font-weight:800;margin:14px 0 8px;display:flex;align-items:center;gap:8px}.steplbl:first-child{margin-top:0}
+.steplbl b{width:24px;height:24px;border-radius:50%;background:var(--p);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.reptypes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.rtype{border:2px solid var(--b);border-radius:14px;padding:12px;cursor:pointer;background:#fff;text-align:right;font-family:inherit}
+.rtype:hover{border-color:#cbbdf0}.rtype.on{border-color:var(--p);background:#faf7ff}
+.rtype i{font-size:20px;color:var(--p2);margin-bottom:6px;display:block}.rtype b{display:block;font-size:14px;color:var(--t)}.rtype span{font-size:12px;color:var(--m)}
+.reptools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;position:sticky;top:66px;z-index:4}
+.repdoc{background:#fff;max-width:1000px;margin:0 auto;padding:34px 38px;box-shadow:0 4px 24px rgba(40,20,80,.12);border-radius:6px;color:#222;font-size:13px}
+.rhead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--p);padding-bottom:14px;margin-bottom:18px}
+.rhead .org{display:flex;gap:10px;align-items:center}.rhead .org .logo{width:46px;height:46px;font-size:22px;border-radius:12px}
+.rhead h2{margin:0;font-size:21px;color:var(--p)}.rhead .sub{color:#666;font-size:12px}
+.rmeta{text-align:left;font-size:12px;color:#555;line-height:1.8}
+.rinfo{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 16px;background:#f8f6fc;border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:12px}
+.rinfo b{color:var(--p)}
+.rsec{margin-bottom:22px;break-inside:auto}
+.rsec h3{font-size:15px;color:var(--p);border-right:4px solid var(--p);padding-right:8px;margin:0 0 10px}
+.rkpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.rkpi{border:1px solid #e5e0ef;border-radius:10px;padding:8px 10px;text-align:center}
+.rkpi b{display:block;font-size:20px;color:#222}.rkpi span{font-size:11px;color:#666;font-weight:700}.rkpi em{font-style:normal;font-size:10px;display:block}
+.rtbl{width:100%;border-collapse:collapse;font-size:12px}
+.rtbl th{background:var(--p);color:#fff;padding:7px 6px;font-weight:700;border:1px solid var(--p)}
+.rtbl td{border:1px solid #e2dcec;padding:6px;text-align:center;vertical-align:top}
+.rtbl td.l,.rtbl th.l{text-align:right}.rtbl td.note{text-align:right;max-width:260px;white-space:normal;color:#444}
+.rtbl tr:nth-child(even) td{background:#faf8fd}
+.rtbl tr.tot td{background:#efe9fb!important;font-weight:800;color:var(--p)}
+.rnote{font-size:12px;color:#444;background:#fffbea;border:1px solid #f5e3a3;border-radius:8px;padding:8px 12px}
+.rsign{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:40px;font-size:12px;text-align:center}
+.rsign div{border-top:1px solid #999;padding-top:6px;color:#555}
+.rfoot{margin-top:24px;border-top:1px solid #ddd;padding-top:8px;font-size:10px;color:#888;display:flex;justify-content:space-between}
+.rempty{color:#888;text-align:center;padding:14px;border:1px dashed #ddd;border-radius:8px}
+
 /* موبايل */
-@media (max-width:900px){
+@media screen and (max-width:900px){
   #menuBtn{display:inline-block}
   .whoname{display:none}
   .side{transform:translateX(100%);transition:.2s;width:260px;box-shadow:-10px 0 30px rgba(20,10,40,.15)}
@@ -144,12 +176,19 @@ h3 i{color:var(--p2)}
   .grid2c{grid-template-columns:1fr}
   .bar{grid-template-columns:90px 1fr 44px}
   .suplayout{grid-template-columns:1fr}
+  .repdoc{padding:16px 12px}.rkpis{grid-template-columns:repeat(2,1fr)}.rhead{flex-direction:column;gap:8px}.rmeta{text-align:right}
   .stask{grid-template-columns:1fr 110px}
   .frow input,.frow select{min-width:0;flex:1}
 }
 
 /* طباعة */
+@page{size:A4;margin:12mm}
 @media print{
+  body.printrep #appView>*:not(main),body.printrep main>section:not(#tab-reports),body.printrep .repbuilder,body.printrep .reptools,body.printrep .pagehead,body.printrep .modal{display:none!important}
+  body.printrep .repdoc{box-shadow:none;padding:0;max-width:none;border-radius:0}
+  .rtbl thead{display:table-header-group}.rtbl tr{break-inside:avoid}
+  .rsec h3{break-after:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .top,.side,.sync,.tools,.filters .seg,.backdrop,#toast{display:none!important}
   main{margin:0;padding:0;max-width:none}
   body{background:#fff}

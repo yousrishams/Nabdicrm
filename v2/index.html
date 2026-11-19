@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="nabdi-app-version" content="2.2.0">
+<meta name="nabdi-app-version" content="2.3.0">
 <meta name="theme-color" content="#5A3B8B">
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=208">
+<link rel="stylesheet" href="./app.css?v=209">
 </head>
 <body>
 
@@ -17,13 +17,13 @@
 <section id="loginView" class="center">
   <div class="card login">
     <div class="brand big"><span class="logo"><i class="fa-solid fa-heart-pulse"></i></span> نبضي CRM</div>
-    <p class="muted">أهلاً بيك — اختار اسمك واكتب رمزك</p>
+    <p class="muted">مرحبًا بك — اختر اسمك وأدخل رمز الدخول</p>
     <label>الموظف</label>
     <select id="loginEmp"><option value="">جاري التحميل…</option></select>
-    <label>الرمز</label>
+    <label>رمز الدخول</label>
     <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password">
     <button id="loginBtn" class="btn primary block">دخول</button>
-    <button id="googleBtn" class="btn line block"><i class="fa-brands fa-google"></i> دخول المدير بحساب جوجل</button>
+    <button id="googleBtn" class="btn line block"><i class="fa-brands fa-google"></i> دخول الإدارة بحساب Google</button>
     <div id="loginMsg" class="msg"></div>
   </div>
 </section>
@@ -39,16 +39,17 @@
     <nav>
       <div class="navlbl mgrsec hidden">الإدارة</div>
       <button data-tab="dash" class="tab hidden mgrsup"><i class="fa-solid fa-chart-pie"></i><span>لوحة التحكم</span></button>
+      <button data-tab="reports" class="tab hidden mgrsup"><i class="fa-solid fa-file-lines"></i><span>التقارير</span></button>
       <button data-tab="support" class="tab hidden supnav"><i class="fa-solid fa-headset"></i><span>الدعم الفني</span><b class="nbadge hidden" id="supBadge"></b></button>
-      <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>الفريق النهارده</span></button>
-      <button data-tab="allclients" class="tab hidden mgr"><i class="fa-solid fa-address-book"></i><span>كل العملاء</span></button>
+      <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>أداء الفريق اليوم</span></button>
+      <button data-tab="allclients" class="tab hidden mgr"><i class="fa-solid fa-address-book"></i><span>جميع العملاء</span></button>
       <button data-tab="alllog" class="tab hidden mgr"><i class="fa-solid fa-list-check"></i><span>سجل الإجراءات</span></button>
       <button data-tab="accounts" class="tab hidden mgr"><i class="fa-solid fa-user-shield"></i><span>حسابات الموظفين</span><b class="nbadge hidden" id="accBadge"></b></button>
-      <div class="navlbl agentsec">شغلي</div>
-      <button data-tab="today" class="tab on"><i class="fa-solid fa-house"></i><span>شغلي النهارده</span></button>
+      <div class="navlbl agentsec">مساحة العمل</div>
+      <button data-tab="today" class="tab on"><i class="fa-solid fa-house"></i><span>مهام اليوم</span></button>
       <button data-tab="clients" class="tab"><i class="fa-solid fa-user-group"></i><span>عملائي</span></button>
       <button data-tab="log" class="tab"><i class="fa-solid fa-clock-rotate-left"></i><span>سجل اليوم</span></button>
-      <button data-tab="dash" class="tab agentrep"><i class="fa-solid fa-chart-line"></i><span>تقريري</span></button>
+      <button data-tab="dash" class="tab agentrep"><i class="fa-solid fa-chart-line"></i><span>تقرير أدائي</span></button>
     </nav>
     <div class="sidefoot muted small">نبضي CRM · النسخة 2</div>
   </aside>
@@ -58,10 +59,10 @@
     <!-- لوحة التحكم -->
     <section id="tab-dash" class="hidden">
       <div class="pagehead"><h1>لوحة التحكم</h1>
-        <div class="tools"><button class="btn line sm" id="dashXls"><i class="fa-solid fa-file-excel"></i> تنزيل Excel</button><button class="btn line sm" id="dashPrint"><i class="fa-solid fa-print"></i> طباعة</button></div></div>
+        <div class="tools"><button class="btn line sm" id="dashXls"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button><button class="btn line sm" id="dashPrint"><i class="fa-solid fa-print"></i> طباعة</button></div></div>
       <div class="card filters">
         <div class="seg" id="dashRange">
-          <button data-r="today" class="on">النهارده</button><button data-r="yest">امبارح</button><button data-r="7">آخر 7 أيام</button><button data-r="month">الشهر ده</button><button data-r="last">الشهر اللي فات</button><button data-r="custom">فترة محددة</button>
+          <button data-r="today" class="on">اليوم</button><button data-r="yest">أمس</button><button data-r="7">آخر 7 أيام</button><button data-r="month">الشهر الحالي</button><button data-r="last">الشهر السابق</button><button data-r="custom">فترة محددة</button>
         </div>
         <div class="frow"><div id="dashCustom" class="frow hidden"><label>من</label><input type="date" id="dashFrom"><label>إلى</label><input type="date" id="dashTo"></div>
         <label>القسم</label><select id="dashDept"></select><label>الموظف</label><select id="dashEmp"></select></div>
@@ -78,14 +79,33 @@
         <div class="card"><h3><i class="fa-solid fa-location-dot"></i> أكتر المدن</h3><div id="dashCities"></div></div>
       </div>
     </section>
+    <!-- التقارير -->
+    <section id="tab-reports" class="hidden">
+      <div class="pagehead"><h1>التقارير</h1></div>
+      <div class="card repbuilder">
+        <div class="steplbl"><b>1</b> اختر نوع التقرير</div>
+        <div class="reptypes" id="repTypes"></div>
+        <div class="steplbl"><b>2</b> حدد الفترة والموظفين</div>
+        <div class="seg" id="repRange"><button data-r="today">اليوم</button><button data-r="yest">أمس</button><button data-r="7">آخر 7 أيام</button><button data-r="month" class="on">الشهر الحالي</button><button data-r="last">الشهر السابق</button><button data-r="custom">فترة محددة</button></div>
+        <div class="frow" style="margin-top:10px"><span id="repCustom" class="frow hidden"><label>من</label><input type="date" id="repFrom"><label>إلى</label><input type="date" id="repTo"></span>
+          <label>القسم</label><select id="repDept"></select><label>الموظف</label><select id="repEmp"></select>
+          <span id="repCatWrap" class="frow hidden"><label>نوع الإجراء</label><select id="repCat"></select></span></div>
+        <div class="steplbl"><b>3</b> عرض التقرير</div>
+        <div class="frow"><button class="btn primary" id="repRun"><i class="fa-solid fa-file-circle-check"></i> عرض التقرير</button><span class="muted small" id="repMsg"></span></div>
+      </div>
+      <div id="repOut" class="hidden">
+        <div class="reptools"><button class="btn primary" id="repPrint"><i class="fa-solid fa-print"></i> طباعة / حفظ PDF</button><button class="btn line" id="repXls"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button><button class="btn line" id="repClose"><i class="fa-solid fa-xmark"></i> إغلاق التقرير</button></div>
+        <div id="repDoc" class="repdoc"></div>
+      </div>
+    </section>
     <!-- الدعم الفني -->
     <section id="tab-support" class="hidden">
       <div class="pagehead"><h1>الدعم الفني وتنفيذ العملاء</h1>
         <div class="tools"><button class="btn primary sm hidden" id="supAddTask"><i class="fa-solid fa-plus"></i> مهمة جديدة</button></div></div>
       <div class="kpis" id="supKpis"></div>
       <div class="card filters">
-        <div class="seg" id="supScope"><button data-s="active" class="on">الشغل النشط</button><button data-s="waiting">بانتظار الاستلام</button><button data-s="mine">ملفاتي ومهامي</button><button data-s="late">متأخرة</button><button data-s="done">المكتمل</button><button data-s="returned">مرتجع للمبيعات</button></div>
-        <input id="supSearch" placeholder="ابحث باسم العميل أو رقمه أو المهمة…">
+        <div class="seg" id="supScope"><button data-s="active" class="on">الملفات النشطة</button><button data-s="waiting">بانتظار الاستلام</button><button data-s="mine">ملفاتي ومهامي</button><button data-s="late">متأخرة</button><button data-s="done">المكتملة</button><button data-s="returned">المُعادة للمبيعات</button></div>
+        <input id="supSearch" placeholder="ابحث باسم العميل أو رقم الجوال أو المهمة…">
       </div>
       <div class="suplayout">
         <div id="supList" class="suplist"></div>
@@ -96,7 +116,7 @@
     <section id="tab-accounts" class="hidden">
       <div class="pagehead"><h1>حسابات الموظفين</h1></div>
       <div class="card">
-        <p class="muted small" style="margin-top:0">كل موظف بيدخل مرة واحدة على النسخة الجديدة بيتعمله حساب محمي لوحده. اللي لسه ما دخلش تقدر تعمله الحساب من هنا برمز جديد وتبعتهوله.</p>
+        <p class="muted small" style="margin-top:0">يُنشأ لكل موظف حساب آمن خاص به عند أول دخول للنظام. ويمكنك من هنا إنشاء حساب للموظفين الذين لم يسجلوا الدخول بعد، برمز دخول جديد يُرسل إليهم.</p>
         <div class="kpis" id="accKpis"></div>
         <div style="overflow:auto"><table class="tbl" id="accTable"></table></div>
       </div>
@@ -109,7 +129,7 @@
       </div>
       <div class="grid3">
         <div class="card"><h3><i class="fa-solid fa-triangle-exclamation red"></i> متأخر <span id="cLate" class="pill"></span></h3><div id="listLate" class="list"></div></div>
-        <div class="card"><h3><i class="fa-solid fa-calendar-day amber"></i> متابعات النهارده <span id="cToday" class="pill"></span></h3><div id="listToday" class="list"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-calendar-day amber"></i> متابعات اليوم <span id="cToday" class="pill"></span></h3><div id="listToday" class="list"></div></div>
         <div class="card"><h3><i class="fa-solid fa-phone-slash grey"></i> لم يرد <span id="cNoAnswer" class="pill"></span></h3><div id="listNoAnswer" class="list"></div></div>
       </div>
       <div class="card"><h3><i class="fa-solid fa-calendar-week"></i> قادم <span id="cNext" class="pill"></span></h3><div id="listNext" class="list"></div></div>
@@ -127,23 +147,23 @@
     <!-- سجل اليوم -->
     <section id="tab-log" class="hidden">
       <div class="card">
-        <label>اليوم</label><input id="logDate" type="date">
+        <label>التاريخ</label><input id="logDate" type="date">
         <div id="logList" class="list"></div>
       </div>
     </section>
     <!-- الفريق (مدير / مشرف) -->
     <section id="tab-team" class="hidden">
-      <div class="pagehead"><h1>الفريق النهارده</h1></div>
+      <div class="pagehead"><h1>أداء الفريق اليوم</h1></div>
       <div class="card">
-        <div class="grid2"><div><label>اليوم</label><input id="teamDate" type="date"></div><div><label>القسم</label><select id="teamDept"></select></div></div>
+        <div class="grid2"><div><label>التاريخ</label><input id="teamDate" type="date"></div><div><label>القسم</label><select id="teamDept"></select></div></div>
         <div class="muted small" id="teamNote"></div>
         <div style="overflow:auto"><table class="tbl" id="teamTable"></table></div>
       </div>
     </section>
     <section id="tab-allclients" class="hidden">
-      <div class="pagehead"><h1>كل العملاء</h1></div>
+      <div class="pagehead"><h1>جميع العملاء</h1></div>
       <div class="card">
-        <input id="allSearch" placeholder="ابحث بالاسم أو رقم الجوال في كل العملاء…">
+        <input id="allSearch" placeholder="ابحث بالاسم أو رقم الجوال في جميع العملاء…">
         <div class="muted small" id="allCount"></div>
         <div id="allList" class="list"></div>
       </div>
@@ -151,7 +171,7 @@
     <section id="tab-alllog" class="hidden">
       <div class="pagehead"><h1>سجل الإجراءات</h1></div>
       <div class="card">
-        <div class="grid2"><div><label>اليوم</label><input id="allLogDate" type="date"></div><div><label>الموظف</label><select id="allLogEmp"></select></div></div>
+        <div class="grid2"><div><label>التاريخ</label><input id="allLogDate" type="date"></div><div><label>الموظف</label><select id="allLogEmp"></select></div></div>
         <div class="muted small" id="allLogNote"></div>
         <div id="allLogList" class="list"></div>
       </div>
@@ -174,7 +194,7 @@
     <h2 id="actionTitle">تسجيل إجراء</h2>
     <div id="clientPick">
       <label>العميل</label>
-      <input id="aSearch" placeholder="اكتب اسم العميل أو رقمه، أو سيبها فاضية لعميل جديد">
+      <input id="aSearch" placeholder="اكتب اسم العميل أو رقم جواله، أو اتركه فارغًا لإضافة عميل جديد">
       <div id="aMatches" class="list small"></div>
     </div>
     <div id="chosenClient" class="chosen hidden"></div>
@@ -192,12 +212,12 @@
       <div><label>الأولوية</label><select id="aPriority"></select></div>
     </div>
     <label>ملاحظات الإجراء</label><textarea id="aNotes" rows="2"></textarea>
-    <label>حالة العميل (اختياري)</label><input id="aStatusNote">
+    <label>ملاحظة حالة العميل (اختياري)</label><input id="aStatusNote">
     <div class="grid2">
-      <div><label>المتابعة الجاية</label><input id="aNextDate" type="date"></div>
-      <div><label>الساعة</label><input id="aNextTime" type="time"></div>
+      <div><label>موعد المتابعة التالية</label><input id="aNextDate" type="date"></div>
+      <div><label>الوقت</label><input id="aNextTime" type="time"></div>
     </div>
-    <label class="check"><input type="checkbox" id="aAlsoWa"> سجّل كمان «إرسال واتساب» بعد المكالمة</label>
+    <label class="check"><input type="checkbox" id="aAlsoWa"> تسجيل «إرسال واتساب» إضافي بعد المكالمة</label>
     <button id="aSave" class="btn primary block">حفظ الإجراء</button>
     <div id="aMsg" class="msg"></div>
   </div>
@@ -211,7 +231,7 @@
     <div id="attInfo" class="muted"></div>
     <div class="grid2" style="margin-top:12px">
       <button class="btn primary" id="attIn">تسجيل حضور</button>
-      <button class="btn line" id="attBreak">بداية استراحة</button>
+      <button class="btn line" id="attBreak">بدء الاستراحة</button>
       <button class="btn line" id="attBack">إنهاء الاستراحة</button>
       <button class="btn line" id="attOut">تسجيل انصراف</button>
     </div>
@@ -224,14 +244,14 @@
 <div id="handoffModal" class="modal hidden">
   <div class="sheet">
     <button class="x" data-close="handoffModal">×</button>
-    <h2>إرسال العميل للدعم الفني</h2>
+    <h2>إحالة العميل إلى الدعم الفني</h2>
     <div class="muted" id="hoClient"></div>
     <label>رابط ملفات العميل (Google Drive) *</label><input id="hoLink" dir="ltr" placeholder="https://drive.google.com/…">
     <label>المنتجات والخدمات</label><textarea id="hoProducts" rows="2"></textarea>
     <label>الدكاترة والصور</label><textarea id="hoDoctors" rows="2"></textarea>
     <label>المواعيد</label><textarea id="hoSchedules" rows="2"></textarea>
     <label>ملاحظات التسليم</label><textarea id="hoNotes" rows="2"></textarea>
-    <button id="hoSave" class="btn primary block"><i class="fa-solid fa-paper-plane"></i> إرسال للدعم الفني</button>
+    <button id="hoSave" class="btn primary block"><i class="fa-solid fa-paper-plane"></i> إرسال إلى الدعم الفني</button>
     <div id="hoMsg" class="msg"></div>
   </div>
 </div>
@@ -256,6 +276,6 @@
 </div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=208"></script>
+<script type="module" src="./app.js?v=209"></script>
 </body>
 </html>
