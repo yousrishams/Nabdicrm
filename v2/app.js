@@ -524,6 +524,7 @@ function dashPeriod() {
     default: return [t, t];
   }
 }
+const ccat = t => LEGACY[t.category] || t.category;
 const CAT = { call: 'مكالمة هاتفية', na: 'مكالمة لم يتم الرد عليها', wa: 'إرسال واتساب', meet: 'عقد اجتماع', meetSet: 'الاتفاق على الاجتماع', sent: 'إرسال العقد', signed: 'توقيع العقد', interested: 'عميل مهتم' };
 function dashEmployees(dept = $('dashDept').value) {
   const lvl = accessOf(state.me);
@@ -580,14 +581,15 @@ function computeDash(data = D.data, dept = $('dashDept').value, empSel = $('dash
   const T = tasks.filter(t => keep(match(t.agentId, t.agent)));
   const A = att.filter(r => keep(match(r.employeeId, r.employeeName)));
   const C = clients.filter(c => keep(match(c.addedById, c.addedBy)));
-  const count = (arr, cat) => arr.filter(t => t.category === cat).length;
+  const count = (arr, cat) => arr.filter(t => ccat(t) === cat).length;
+  const uniq = (arr, cat) => new Set(arr.filter(t => ccat(t) === cat).map(t => (t.clientId || plain(t.customer)) + '|' + t.date)).size;
   const days = daysBetween(from, to);
   const rows = emps.filter(e => !empSel || e.id === empSel).map(e => {
     const ts = T.filter(t => match(t.agentId, t.agent)?.id === e.id);
     const as = A.filter(r => match(r.employeeId, r.employeeName)?.id === e.id);
     const work = as.reduce((s, r) => s + attMetrics(r).work, 0);
     const calls = count(ts, CAT.call), na = count(ts, CAT.na);
-    return { e, n: ts.length, calls, na, rate: pct(calls, calls + na), wa: count(ts, CAT.wa), meet: count(ts, CAT.meet) + count(ts, CAT.meetSet), sent: count(ts, CAT.sent), signed: count(ts, CAT.signed), newC: C.filter(c => match(c.addedById, c.addedBy)?.id === e.id).length, daysP: as.filter(r => r.checkInAt).length, work, clientsTouched: new Set(ts.map(t => t.clientId || plain(t.customer))).size };
+    return { e, n: ts.length, calls, na, rate: pct(calls, calls + na), wa: count(ts, CAT.wa), meet: uniq(ts, CAT.meet), meetSet: uniq(ts, CAT.meetSet), sent: uniq(ts, CAT.sent), signed: uniq(ts, CAT.signed), newC: C.filter(c => match(c.addedById, c.addedBy)?.id === e.id).length, daysP: as.filter(r => r.checkInAt).length, work, clientsTouched: new Set(ts.map(t => t.clientId || plain(t.customer))).size };
   }).sort((x, y) => y.n - x.n || y.signed - x.signed);
   const byDay = days.map(d => { const ts = T.filter(t => t.date === d); return { d, n: ts.length, calls: count(ts, CAT.call), na: count(ts, CAT.na), wa: count(ts, CAT.wa) }; });
   const funnel = STAGES.map(s => ({ s, n: T.filter(t => normStage(t.category) === s && (LEGACY[t.category] || t.category) === s).length })).filter(x => x.n);
@@ -595,7 +597,7 @@ function computeDash(data = D.data, dept = $('dashDept').value, empSel = $('dash
   const cities = [...cityMap].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const calls = count(T, CAT.call), na = count(T, CAT.na);
   const activeEmps = rows.filter(r => r.n).length;
-  return { from, to, days, T, A, C, match, rows, byDay, funnel, cities, k: { n: T.length, calls, na, rate: pct(calls, calls + na), wa: count(T, CAT.wa), meet: count(T, CAT.meet) + count(T, CAT.meetSet), sent: count(T, CAT.sent), signed: count(T, CAT.signed), newC: C.length, touched: new Set(T.map(t => t.clientId || plain(t.customer))).size, avg: activeEmps ? Math.round(T.length / activeEmps / Math.max(1, days.length) * 10) / 10 : 0, activeEmps } };
+  return { from, to, days, T, A, C, match, rows, byDay, funnel, cities, k: { n: T.length, calls, na, rate: pct(calls, calls + na), wa: count(T, CAT.wa), meet: uniq(T, CAT.meet), meetSet: uniq(T, CAT.meetSet), sent: uniq(T, CAT.sent), signed: uniq(T, CAT.signed), newC: C.length, touched: new Set(T.map(t => t.clientId || plain(t.customer))).size, avg: activeEmps ? Math.round(T.length / activeEmps / Math.max(1, days.length) * 10) / 10 : 0, activeEmps } };
 }
 function trendSvg(byDay) {
   const W = 640, H = 220, pl = 34, pb = 26, pt = 10, n = byDay.length;
@@ -625,14 +627,14 @@ function renderDash() {
   const kp = (label, v, c, sub = '', f = '') => `<div class="kpi" style="--c:${c}"><span>${label}</span><b>${v}${f ? dl(f) : ''}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
   $('dashNote').textContent = r.from === r.to ? `تاريخ ${r.from}` : `من ${r.from} إلى ${r.to} (${r.days.length} يوم)`;
   if (pk) $('dashNote').textContent += ` · المقارنة بالفترة السابقة (${D.prev.from === D.prev.to ? D.prev.from : D.prev.from + ' إلى ' + D.prev.to})`;
-  $('dashKpis').innerHTML = kp('إجمالي الإجراءات', fmt(k.n), '#5A3B8B', accessOf(state.me) === 'employee' ? `بمتوسط ${Math.round(k.n / Math.max(1, r.days.length) * 10) / 10} يوميًا` : `${k.activeEmps} موظف نشط · بمتوسط ${k.avg} لكل موظف يوميًا`, 'n') + kp('مكالمات تم الرد عليها', fmt(k.calls), '#16a34a', '', 'calls') + kp('لم يتم الرد', fmt(k.na), '#f59e0b') + kp('نسبة الرد', k.rate + '%', '#0d9488', '', 'rate') + kp('واتساب', fmt(k.wa), '#2563eb', '', 'wa') + kp('اجتماعات', fmt(k.meet), '#9333ea', '', 'meet') + kp('عقود مُرسلة', fmt(k.sent), '#ea580c', '', 'sent') + kp('عقود موقّعة', fmt(k.signed), '#dc2626', '', 'signed') + kp('عملاء جدد', fmt(k.newC), '#0891b2', '', 'newC') + kp('عملاء تم التواصل معهم', fmt(k.touched), '#64748b', '', 'touched');
+  $('dashKpis').innerHTML = KPI_LIST.map(x => kp(x.l, x.k === 'rate' ? k.rate + '%' : fmt(k[x.k]), x.c, x.k === 'n' ? (accessOf(state.me) === 'employee' ? `بمتوسط ${Math.round(k.n / Math.max(1, r.days.length) * 10) / 10} يوميًا` : `${k.activeEmps} موظف نشط · بمتوسط ${k.avg} لكل موظف يوميًا`) : '', x.k).replace('<div class="kpi"', `<div class="kpi click" data-kpi="${x.k}" data-src="dash" title="اضغط لعرض التفاصيل"`)).join('');
   $('dashTrend').innerHTML = r.byDay.some(x => x.n) ? trendSvg(r.byDay) : '<div class="empty">لا توجد إجراءات في الفترة دي</div>';
   $('dashFunnel').innerHTML = barsHtml(r.funnel.map((x, i) => ({ l: x.s, v: x.n, c: `hsl(${265 - i * 14} 55% ${48 + i * 2}%)` })));
   $('dashEmpBars').innerHTML = barsHtml(r.rows.filter(x => x.n).map(x => ({ l: x.e.name, v: x.n })));
   $('dashCities').innerHTML = barsHtml(r.cities.map(([l, v]) => ({ l, v })), '#0d9488');
   const tot = f => r.rows.reduce((s, x) => s + x[f], 0);
   const tCalls = tot('calls'), tNa = tot('na');
-  $('dashTable').innerHTML = '<tr><th>الموظف</th><th>أيام الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>عملاء تم التواصل معهم</th><th>تم الرد</th><th>لم يتم الرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود مُرسلة</th><th>عقود موقّعة</th><th>عملاء جدد</th></tr>' +
+  $('dashTable').innerHTML = '<tr><th>الموظف</th><th>أيام الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>عملاء تم التواصل معهم</th><th>تم الرد</th><th>لم يتم الرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات تمت</th><th>عقود مُرسلة</th><th>عقود موقّعة</th><th>عملاء جدد</th></tr>' +
     r.rows.map((x, i) => `<tr data-emp="${esc(x.e.id)}" style="cursor:pointer"><td><span class="medal ${x.n && i < 3 ? 'm' + (i + 1) : ''}">${i + 1}</span><b>${esc(x.e.name)}</b><div class="small muted">${esc(x.e.department || '')}</div></td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td><b>${fmt(x.n)}</b></td><td>${x.clientsTouched}</td><td>${x.calls}</td><td>${x.na}</td><td><span class="rate ${rateCls(x.rate)}">${x.calls + x.na ? x.rate + '%' : '—'}</span></td><td>${x.wa}</td><td>${x.meet}</td><td>${x.sent}</td><td><b>${x.signed}</b></td><td>${x.newC}</td></tr>`).join('') +
     `<tr class="tot"><th>الإجمالي</th><th>${tot('daysP')}</th><th>${hrsTxt(tot('work'))}</th><th>${fmt(tot('n'))}</th><th>${k.touched}</th><th>${tCalls}</th><th>${tNa}</th><th>${pct(tCalls, tCalls + tNa)}%</th><th>${tot('wa')}</th><th>${tot('meet')}</th><th>${tot('sent')}</th><th>${tot('signed')}</th><th>${tot('newC')}</th></tr>`;
 }
@@ -946,8 +948,9 @@ async function runReport() {
     else {
       const n = daysBetween(from, to).length;
       const [pack, prev] = await Promise.all([loadPack(from, to), loadPack(addDays(from, -n), addDays(from, -1)).catch(() => null)]);
-      const r = computeDash({ from, to, ...pack }, dept, empId);
+      const r = computeDash({ from, to, ...pack }, dept, empId); RP.cur = r;
       const pr = prev ? computeDash({ from: addDays(from, -n), to: addDays(from, -1), ...prev }, dept, empId) : null;
+      RP.prev = pr;
       html = { team: repTeam, emp: repEmp, actions: repActions, att: repAtt, clients: repClients }[type.id](r, pr, empId);
     }
     const emp = state.employees.find(e => e.id === empId);
@@ -974,7 +977,7 @@ const rk = (l, v, d = '') => `<div class="rkpi"><span>${l}</span><b>${v}</b>${d}
 function rdelta(a, b) { if (b == null) return ''; if (!b && !a) return '<em>—</em>'; if (!b) return '<em style="color:#16a34a">جديد</em>'; const d = Math.round((a - b) * 100 / b); return `<em style="color:${d >= 0 ? '#16a34a' : '#dc2626'}">${d > 0 ? '▲' : d < 0 ? '▼' : ''} ${Math.abs(d)}% عن الفترة السابقة</em>`; }
 function kpiBlock(r, pr) {
   const k = r.k, p = pr?.k;
-  return `<div class="rsec"><h3>المؤشرات الرئيسية</h3><div class="rkpis">${rk('إجمالي الإجراءات', fmt(k.n), rdelta(k.n, p?.n))}${rk('مكالمات تم الرد عليها', fmt(k.calls), rdelta(k.calls, p?.calls))}${rk('مكالمات لم يُرد عليها', fmt(k.na), rdelta(k.na, p?.na))}${rk('نسبة الرد', k.rate + '%', rdelta(k.rate, p?.rate))}${rk('رسائل واتساب', fmt(k.wa), rdelta(k.wa, p?.wa))}${rk('الاجتماعات', fmt(k.meet), rdelta(k.meet, p?.meet))}${rk('عقود مُرسلة', fmt(k.sent), rdelta(k.sent, p?.sent))}${rk('عقود موقّعة', fmt(k.signed), rdelta(k.signed, p?.signed))}${rk('عملاء جدد', fmt(k.newC), rdelta(k.newC, p?.newC))}${rk('عملاء تم التواصل معهم', fmt(k.touched), rdelta(k.touched, p?.touched))}</div></div>`;
+  return `<div class="rsec"><h3>المؤشرات الرئيسية <span class="muted small noprint" style="font-weight:600">(اضغط على أي مؤشر لعرض تقريره التفصيلي)</span></h3><div class="rkpis">${KPI_LIST.map(x => `<div class="rkpi click" data-kpi="${x.k}" data-src="rep"><span>${x.l}</span><b>${x.k === 'rate' ? k.rate + '%' : fmt(k[x.k])}</b>${rdelta(k[x.k], p?.[x.k])}</div>`).join('')}</div></div>`;
 }
 function summaryNote(r, pr) {
   const k = r.k, best = r.rows.find(x => x.n), parts = [];
@@ -986,15 +989,15 @@ function summaryNote(r, pr) {
 }
 function empTable(r) {
   const tot = f => r.rows.reduce((s, x) => s + x[f], 0), tc = tot('calls'), tn = tot('na');
-  return `<div class="rsec"><h3>أداء الموظفين</h3><table class="rtbl"><thead><tr><th>#</th><th class="l">الموظف</th><th>القسم</th><th>أيام الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>تم الرد</th><th>لم يُرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود مُرسلة</th><th>عقود موقّعة</th><th>عملاء جدد</th></tr></thead><tbody>
+  return `<div class="rsec"><h3>أداء الموظفين</h3><table class="rtbl"><thead><tr><th>#</th><th class="l">الموظف</th><th>القسم</th><th>أيام الحضور</th><th>ساعات العمل</th><th>الإجراءات</th><th>تم الرد</th><th>لم يُرد</th><th>نسبة الرد</th><th>واتساب</th><th>اجتماعات تمت</th><th>عقود مُرسلة</th><th>عقود موقّعة</th><th>عملاء جدد</th></tr></thead><tbody>
     ${r.rows.map((x, i) => `<tr><td>${i + 1}</td><td class="l"><b>${esc(x.e.name)}</b></td><td>${esc(x.e.department || '')}</td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td><b>${x.n}</b></td><td>${x.calls}</td><td>${x.na}</td><td>${x.calls + x.na ? x.rate + '%' : '—'}</td><td>${x.wa}</td><td>${x.meet}</td><td>${x.sent}</td><td>${x.signed}</td><td>${x.newC}</td></tr>`).join('')}
     <tr class="tot"><td></td><td class="l">الإجمالي</td><td></td><td>${tot('daysP')}</td><td>${hrsTxt(tot('work'))}</td><td>${tot('n')}</td><td>${tc}</td><td>${tn}</td><td>${pct(tc, tc + tn)}%</td><td>${tot('wa')}</td><td>${tot('meet')}</td><td>${tot('sent')}</td><td>${tot('signed')}</td><td>${tot('newC')}</td></tr></tbody></table></div>`;
 }
 function dailyTable(r) {
   const rows = r.byDay.filter(x => x.n || r.days.length <= 31);
-  const T = r.T, c = (d, cat) => T.filter(t => t.date === d && t.category === cat).length;
-  return `<div class="rsec"><h3>التوزيع اليومي</h3>${r.byDay.some(x => x.n) ? trendSvg(r.byDay) : ''}<table class="rtbl" style="margin-top:10px"><thead><tr><th class="l">اليوم</th><th>التاريخ</th><th>الإجراءات</th><th>تم الرد</th><th>لم يُرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود مُرسلة</th><th>عقود موقّعة</th></tr></thead><tbody>
-    ${rows.map(x => `<tr><td class="l">${dayName(x.d)}</td><td>${fmtDate(x.d)}</td><td><b>${x.n}</b></td><td>${x.calls}</td><td>${x.na}</td><td>${x.wa}</td><td>${c(x.d, CAT.meet) + c(x.d, CAT.meetSet)}</td><td>${c(x.d, CAT.sent)}</td><td>${c(x.d, CAT.signed)}</td></tr>`).join('')}</tbody></table></div>`;
+  const T = r.T, c = (d, cat) => new Set(T.filter(t => t.date === d && ccat(t) === cat).map(t => t.clientId || plain(t.customer))).size;
+  return `<div class="rsec"><h3>التوزيع اليومي</h3>${r.byDay.some(x => x.n) ? trendSvg(r.byDay) : ''}<table class="rtbl" style="margin-top:10px"><thead><tr><th class="l">اليوم</th><th>التاريخ</th><th>الإجراءات</th><th>تم الرد</th><th>لم يُرد</th><th>واتساب</th><th>اجتماعات تمت</th><th>عقود مُرسلة</th><th>عقود موقّعة</th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td class="l">${dayName(x.d)}</td><td>${fmtDate(x.d)}</td><td><b>${x.n}</b></td><td>${x.calls}</td><td>${x.na}</td><td>${x.wa}</td><td>${c(x.d, CAT.meet)}</td><td>${c(x.d, CAT.sent)}</td><td>${c(x.d, CAT.signed)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function funnelTable(r) {
   const tot = r.funnel.reduce((s, x) => s + x.n, 0);
@@ -1437,6 +1440,61 @@ function updateBell() {
 }
 let BELL_ITEMS = [];
 
+
+const KPI_LIST = [
+  { k: 'n', l: 'إجمالي الإجراءات', c: '#5A3B8B', f: () => true },
+  { k: 'calls', l: 'مكالمات تم الرد عليها', c: '#16a34a', f: t => ccat(t) === CAT.call },
+  { k: 'na', l: 'مكالمات لم يُرد عليها', c: '#f59e0b', f: t => ccat(t) === CAT.na },
+  { k: 'rate', l: 'نسبة الرد', c: '#0d9488', f: t => ccat(t) === CAT.call || ccat(t) === CAT.na },
+  { k: 'wa', l: 'رسائل واتساب', c: '#2563eb', f: t => ccat(t) === CAT.wa },
+  { k: 'meetSet', l: 'اجتماعات تم الاتفاق عليها', c: '#a855f7', f: t => ccat(t) === CAT.meetSet, uniq: true },
+  { k: 'meet', l: 'اجتماعات تمت', c: '#7c3aed', f: t => ccat(t) === CAT.meet, uniq: true },
+  { k: 'sent', l: 'عقود مُرسلة', c: '#ea580c', f: t => ccat(t) === CAT.sent, uniq: true },
+  { k: 'signed', l: 'عقود موقّعة', c: '#dc2626', f: t => ccat(t) === CAT.signed, uniq: true },
+  { k: 'newC', l: 'عملاء جدد', c: '#0891b2', clients: true },
+  { k: 'touched', l: 'عملاء تم التواصل معهم', c: '#64748b', touched: true }
+];
+function dedupe(list) { const seen = new Set(); return list.filter(t => { const key = (t.clientId || plain(t.customer)) + '|' + t.date; if (seen.has(key)) return false; seen.add(key); return true; }); }
+function kpiReportHtml(def, r, pr) {
+  const k = r.k, p = pr?.k;
+  const head = `<div class="rsec"><h3>الملخص</h3><div class="rkpis">${rk(def.l, def.k === 'rate' ? k.rate + '%' : fmt(k[def.k]), rdelta(k[def.k], p?.[def.k]))}${p ? rk('الفترة السابقة', def.k === 'rate' ? p.rate + '%' : fmt(p[def.k])) : ''}${def.uniq ? rk('ملاحظة', '<span style="font-size:12px">يُحتسب العميل مرة واحدة في اليوم</span>') : ''}</div></div>`;
+  if (def.clients) return head + repClients(r);
+  const byEmp = new Map();
+  let list;
+  if (def.touched) {
+    const m = new Map(); [...r.T].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach(t => m.set(t.clientId || plain(t.customer), t));
+    list = [...m.values()];
+    list.forEach(t => byEmp.set(t.agent || '—', (byEmp.get(t.agent || '—') || 0) + 1));
+    const empT = `<div class="rsec"><h3>حسب الموظف</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>عدد العملاء</th><th>النسبة</th></tr></thead><tbody>${[...byEmp].sort((a, b) => b[1] - a[1]).map(([n, v]) => `<tr><td class="l">${esc(n)}</td><td>${v}</td><td>${pct(v, list.length)}%</td></tr>`).join('')}</tbody></table></div>`;
+    RP.rows = list;
+    return head + empT + `<div class="rsec"><h3>قائمة العملاء (${list.length}) — آخر إجراء خلال الفترة</h3><table class="rtbl"><thead><tr><th>#</th><th class="l">العميل</th><th>الجوال</th><th>المدينة</th><th class="l">الموظف</th><th>آخر إجراء</th><th>التاريخ</th></tr></thead><tbody>${list.map((t, i) => `<tr><td>${i + 1}</td><td class="l">${esc(t.customer || '')}</td><td dir="ltr">${esc(t.phone || '')}</td><td>${esc(t.city || '')}</td><td class="l">${esc(t.agent || '')}</td><td>${esc(t.category || '')}</td><td>${fmtDate(t.date)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  list = r.T.filter(def.f); if (def.uniq) list = dedupe(list);
+  list.forEach(t => byEmp.set(t.agent || '—', (byEmp.get(t.agent || '—') || 0) + 1));
+  const empRows = [...byEmp].sort((a, b) => b[1] - a[1]);
+  let empT;
+  if (def.k === 'rate') {
+    const per = new Map(); list.forEach(t => { const x = per.get(t.agent || '—') || { c: 0, n: 0 }; ccat(t) === CAT.call ? x.c++ : x.n++; per.set(t.agent || '—', x); });
+    empT = `<div class="rsec"><h3>نسبة الرد حسب الموظف</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>تم الرد</th><th>لم يُرد</th><th>إجمالي المكالمات</th><th>نسبة الرد</th></tr></thead><tbody>${[...per].sort((a, b) => pct(b[1].c, b[1].c + b[1].n) - pct(a[1].c, a[1].c + a[1].n)).map(([n, x]) => `<tr><td class="l">${esc(n)}</td><td>${x.c}</td><td>${x.n}</td><td>${x.c + x.n}</td><td><b>${pct(x.c, x.c + x.n)}%</b></td></tr>`).join('')}</tbody></table></div>`;
+  } else empT = `<div class="rsec"><h3>حسب الموظف</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>العدد</th><th>النسبة من الإجمالي</th></tr></thead><tbody>${empRows.map(([n, v]) => `<tr><td class="l">${esc(n)}</td><td>${v}</td><td>${pct(v, list.length)}%</td></tr>`).join('') || '<tr><td colspan="3">لا يوجد</td></tr>'}<tr class="tot"><td class="l">الإجمالي</td><td>${list.length}</td><td>100%</td></tr></tbody></table></div>`;
+  let dayT = '';
+  if (r.days.length > 1) { const dm = new Map(); list.forEach(t => dm.set(t.date, (dm.get(t.date) || 0) + 1)); dayT = `<div class="rsec"><h3>حسب اليوم</h3><table class="rtbl"><thead><tr><th class="l">اليوم</th><th>التاريخ</th><th>العدد</th></tr></thead><tbody>${r.days.filter(d => dm.get(d)).map(d => `<tr><td class="l">${dayName(d)}</td><td>${fmtDate(d)}</td><td>${dm.get(d)}</td></tr>`).join('') || '<tr><td colspan="3">لا يوجد</td></tr>'}</tbody></table></div>`; }
+  return head + empT + dayT + actionsTable(list, `تفاصيل ${def.l}`);
+}
+function openKpiReport(key, src) {
+  const def = KPI_LIST.find(x => x.k === key); if (!def) return;
+  const r = src === 'dash' ? D.last : RP.cur, pr = src === 'dash' ? (D.prev ? computeDash(D.prev) : null) : RP.prev;
+  if (!r) return;
+  const scope = src === 'dash' ? (state.employees.find(e => e.id === $('dashEmp').value)?.name || $('dashDept').value || (accessOf(state.me) === 'employee' ? state.me.name : 'جميع الأقسام')) : (RP.last?.scope || '');
+  const title = `تقرير ${def.l}`;
+  RP.last = { type: { t: title }, from: r.from, to: r.to, scope };
+  $('repDoc').innerHTML = repWrap(title, r.from, r.to, scope, kpiReportHtml(def, r, pr));
+  if (state.tab !== 'reports') setTab('reports');
+  document.querySelector('.repbuilder').classList.add('hidden');
+  $('repOut').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
@@ -1550,6 +1608,7 @@ document.addEventListener('click', e => {
   const nt = e.target.closest('[data-note]'); if (nt) { const [k, id] = nt.dataset.note.split('|'); noteAction(k, id); return; }
   const ee = e.target.closest('[data-emedit]'); if (ee) { openEmp(state.employees.find(x => x.id === ee.dataset.emedit)); return; }
   const ed = e.target.closest('[data-emdel]'); if (ed) { deleteEmp(state.employees.find(x => x.id === ed.dataset.emdel)); return; }
+  const kc = e.target.closest('[data-kpi]'); if (kc) { openKpiReport(kc.dataset.kpi, kc.dataset.src); return; }
   const mk = e.target.closest('[data-mkacc]'); if (mk) { makeAccount(mk.dataset.mkacc); return; }
   const pt = e.target.closest('[data-ptoggle]'); if (pt) { const id = pt.dataset.ptoggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderSupport(); return; }
   const pa = e.target.closest('[data-pact]'); if (pa) { const [k, id] = pa.dataset.pact.split('|'); projAction(k, id); return; }

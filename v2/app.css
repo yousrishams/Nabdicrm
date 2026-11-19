@@ -185,6 +185,10 @@ h3 i{color:var(--p2)}
 .note span{flex:1;font-weight:700;font-size:13px}
 .tl-act{display:flex;gap:4px;margin-top:4px}
 
+.kpi.click,.rkpi.click{cursor:pointer;transition:.15s}.kpi.click:hover,.rkpi.click:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(90,59,139,.18);border-color:#cbbdf0}
+.rkpis{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+@media print{.noprint{display:none}}
+
 /* موبايل */
 @media screen and (max-width:900px){
   #menuBtn{display:inline-block}
