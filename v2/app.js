@@ -4,7 +4,7 @@
 import {
   initializeApp, getAuth, signInAnonymously, onAuthStateChanged,
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  doc, collection, setDoc as rawSetDoc, getDocs, onSnapshot,
+  doc, collection, setDoc as rawSetDoc, getDoc, getDocs, onSnapshot,
   query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED
 } from '../firebase-11.6.1-b2.bundle.js';
 
@@ -315,19 +315,124 @@ async function saveAction() {
   } finally { btn.disabled = false; btn.textContent = 'حفظ الإجراء'; }
 }
 
+
+// ---------------- الحضور والانصراف (نفس شكل سجلات النسخة الحالية) ----------------
+const ATT_LABEL = { working: 'على رأس العمل', break: 'في استراحة', checked_out: 'تم الانصراف', not_started: 'لم يبدأ الدوام' };
+let attRecord = null;
+const attId = date => `attendance_${String(state.me.id || '').replace(/[^a-zA-Z0-9_-]/g, '_')}_${date}`;
+async function loadAttendance() {
+  try { const snap = await getDoc(doc(col('attendance'), attId(cairoDate()))); attRecord = snap.exists() ? snap.data() : null; } catch (e) { attRecord = attRecord || null; }
+  renderAttendance();
+}
+function attMetrics(r, now = Date.now()) {
+  if (!r) return { work: 0, brk: 0 };
+  let sessions = Array.isArray(r.sessions) ? r.sessions : []; if (!sessions.length && r.checkInAt) sessions = [{ checkInAt: r.checkInAt, checkOutAt: r.checkOutAt || null }];
+  const limit = 6 * 3600 * 1000;
+  const s = sessions.reduce((t, x) => { const st = Number(x?.checkInAt || 0); const le = Number(x?.checkOutAt || (r.status === 'checked_out' ? r.checkOutAt : now)); const en = x?.checkOutAt ? le : Math.min(le, st + limit); return t + (st && en >= st ? en - st : 0); }, 0);
+  const b = (r.breaks || []).reduce((t, x) => { const st = Number(x?.startAt || 0); const en = Number(x?.endAt || (r.status === 'break' ? now : st)); return t + (st && en >= st ? en - st : 0); }, 0);
+  return { work: Math.min(limit, Math.max(0, s - b)), brk: Math.min(limit, b) };
+}
+const dur = ms => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? `${h} س ${m % 60} د` : `${m % 60} د`; };
+function renderAttendance() {
+  const st = attRecord?.status || 'not_started';
+  const btn = $('attBtn'); btn.className = 'btn att sm ' + st; btn.textContent = st === 'not_started' ? 'تسجيل الحضور' : ATT_LABEL[st];
+  const m = attMetrics(attRecord);
+  $('attInfo').innerHTML = `الحالة: <b>${ATT_LABEL[st]}</b> · ساعات الشغل: <b>${dur(m.work)}</b> · الاستراحة: <b>${dur(m.brk)}</b>${attRecord?.checkInAt ? ` · الحضور: ${esc(cairoTime(new Date(attRecord.checkInAt)))}` : ''}`;
+  $('attIn').disabled = st === 'working' || st === 'break';
+  $('attBreak').disabled = st !== 'working';
+  $('attBack').disabled = st !== 'break';
+  $('attOut').disabled = !(st === 'working' || st === 'break');
+}
+async function attAction(kind) {
+  const msg = $('attMsg'); msg.className = 'msg err'; msg.textContent = '';
+  const buttons = ['attIn', 'attBreak', 'attBack', 'attOut'].map($); buttons.forEach(b => { b.disabled = true; });
+  try {
+    const today = cairoDate(), now = Date.now(), me = state.me;
+    const ref = doc(col('attendance'), attId(today));
+    const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء — جرّب تاني');
+    let r = snap.exists() ? snap.data() : null;
+    if (kind === 'in') {
+      if (r && (r.status === 'working' || r.status === 'break')) throw new Error('الحضور متسجل بالفعل');
+      r = r || { id: attId(today), employeeId: me.id, employeeName: me.name, department: me.department || '', shift: me.shift || 'غير محدد', date: today, sessions: [], breaks: [], createdAt: now };
+      r.sessions = Array.isArray(r.sessions) ? r.sessions : []; r.breaks = Array.isArray(r.breaks) ? r.breaks : [];
+      r.sessions.push({ checkInAt: now, checkOutAt: null }); r.checkInAt = r.checkInAt || now; r.checkOutAt = null; r.status = 'working';
+    } else if (kind === 'break') {
+      if (!r || r.status !== 'working') throw new Error('سجّل الحضور الأول');
+      r.breaks = Array.isArray(r.breaks) ? r.breaks : []; r.breaks.push({ startAt: now, endAt: null }); r.status = 'break';
+    } else if (kind === 'back') {
+      if (!r || r.status !== 'break') throw new Error('مفيش استراحة مفتوحة');
+      const ob = [...(r.breaks || [])].reverse().find(x => x && !x.endAt); if (ob) ob.endAt = now; r.status = 'working';
+    } else if (kind === 'out') {
+      if (!r || !['working', 'break'].includes(r.status)) throw new Error('مفيش دوام مفتوح');
+      const ob = [...(r.breaks || [])].reverse().find(x => x && !x.endAt); if (ob) ob.endAt = now;
+      const os = [...(r.sessions || [])].reverse().find(x => x && !x.checkOutAt); if (os) os.checkOutAt = now;
+      r.checkOutAt = now; r.status = 'checked_out';
+    }
+    r.lastActivityAt = now; r.updatedAt = now; r.employeeName = me.name; r.shift = me.shift || r.shift || 'غير محدد';
+    await withTimeout(setDoc(ref, JSON.parse(JSON.stringify(r)), { merge: true }), 12000, 'الحفظ اتأخر — ما اتسجلش، جرّب تاني');
+    attRecord = r; msg.className = 'msg ok'; msg.textContent = '✓ اتسجل';
+    toast({ in: '✓ اتسجل الحضور', break: '✓ بداية الاستراحة', back: '✓ رجعت من الاستراحة', out: '✓ اتسجل الانصراف' }[kind], 'ok');
+  } catch (e) { msg.textContent = e.message; }
+  finally { renderAttendance(); }
+}
+setInterval(() => { if (state.me && attRecord) renderAttendance(); }, 60000);
+
+
+// ---------------- لوحة الفريق (مدير / مشرف) ----------------
+const accessOf = e => e?.accessLevel === 'manager' ? 'manager' : ((e?.accessLevel === 'supervisor' || e?.isSupervisor === true) ? 'supervisor' : 'employee');
+let teamUnsubs = [];
+function teamEmployees() {
+  const me = state.me, lvl = accessOf(me);
+  const dept = $('teamDept').value;
+  return state.employees.filter(e => accessOf(e) !== 'manager' && (lvl === 'manager' ? (!dept || e.department === dept) : e.department === me.department));
+}
+function startTeam() {
+  teamUnsubs.forEach(u => u()); teamUnsubs = [];
+  const d = $('teamDate').value || cairoDate();
+  const data = { tasks: new Map(), att: new Map() };
+  const draw = () => renderTeam(data, d);
+  teamUnsubs.push(onSnapshot(query(col('tasks'), where('date', '==', d)), snap => { data.tasks.clear(); snap.forEach(x => { const t = x.data(); if (!t.deletedAt) data.tasks.set(x.id, t); }); draw(); }, err => { $('teamNote').textContent = 'تعذر التحميل: ' + err.message; }));
+  teamUnsubs.push(onSnapshot(query(col('attendance'), where('date', '==', d)), snap => { data.att.clear(); snap.forEach(x => data.att.set(x.id, x.data())); draw(); }, () => {}));
+}
+function renderTeam(data, d) {
+  const emps = teamEmployees();
+  const tasks = [...data.tasks.values()].filter(t => t.taskType !== 'internal' && t.category !== 'مهمة داخلية');
+  const mine = e => tasks.filter(t => (t.agentId && t.agentId === e.id) || normName(t.agent) === normName(e.name));
+  const attOf = e => [...data.att.values()].find(r => r.employeeId === e.id || normName(r.employeeName) === normName(e.name));
+  const rows = emps.map(e => {
+    const ts = mine(e), a = attOf(e), st = a?.status || 'not_started', m = attMetrics(a);
+    const c = cat => ts.filter(t => t.category === cat).length;
+    return { e, ts, st, m, calls: c('مكالمة هاتفية'), na: c('مكالمة لم يتم الرد عليها'), wa: c('إرسال واتساب'), meet: c('عقد اجتماع'), contract: c('إرسال العقد') + c('توقيع العقد') };
+  }).sort((x, y) => y.ts.length - x.ts.length);
+  const tot = k => rows.reduce((s, r) => s + (typeof r[k] === 'number' ? r[k] : r[k].length), 0);
+  $('teamNote').textContent = `يوم ${d} — ${rows.length} موظف — ${tot('ts')} إجراء`;
+  $('teamTable').innerHTML = '<tr><th>الموظف</th><th>الحضور</th><th>ساعات</th><th>إجراءات</th><th>مكالمات رد</th><th>لم يرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود</th></tr>' +
+    rows.map(r => `<tr><td><b>${esc(r.e.name)}</b><div class="small muted">${esc(r.e.department || '')} · ${esc(r.e.shift || '')}</div></td><td><span class="st ${r.st}">${ATT_LABEL[r.st]}</span></td><td>${dur(r.m.work)}</td><td><b>${r.ts.length}</b></td><td>${r.calls}</td><td>${r.na}</td><td>${r.wa}</td><td>${r.meet}</td><td>${r.contract}</td></tr>`).join('') +
+    `<tr><th>الإجمالي</th><th></th><th></th><th>${tot('ts')}</th><th>${tot('calls')}</th><th>${tot('na')}</th><th>${tot('wa')}</th><th>${tot('meet')}</th><th>${tot('contract')}</th></tr>`;
+}
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
   $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden');
   $('whoName').textContent = emp.name;
+  const lvl = accessOf(emp);
+  if (lvl !== 'employee') {
+    $('teamTabBtn').classList.remove('hidden');
+    const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
+    $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
+    $('teamDate').value = cairoDate();
+  }
   syncMsg();
+  loadAttendance();
   syncCollection('clients').catch(e => { $('syncBar').textContent = 'تعذر تحميل العملاء: ' + e.message; $('syncBar').classList.add('err'); });
   syncCollection('tasks').catch(e => { $('syncBar').textContent = 'تعذر تحميل الإجراءات: ' + e.message; $('syncBar').classList.add('err'); });
 }
 function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ['today', 'clients', 'log'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['today', 'clients', 'log', 'team'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   render();
 }
 
@@ -338,10 +443,17 @@ $('logoutBtn').onclick = logout;
 document.querySelectorAll('.tab').forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
 document.querySelectorAll('[data-close]').forEach(b => { b.onclick = () => $(b.dataset.close).classList.add('hidden'); });
 $('newActionBtn').onclick = () => openAction(null);
+$('attBtn').onclick = () => { $('attMsg').textContent = ''; renderAttendance(); $('attModal').classList.remove('hidden'); loadAttendance(); };
+$('attIn').onclick = () => attAction('in');
+$('attBreak').onclick = () => attAction('break');
+$('attBack').onclick = () => attAction('back');
+$('attOut').onclick = () => { if (confirm('تأكيد تسجيل الانصراف وإنهاء الدوام؟')) attAction('out'); };
 $('aSearch').addEventListener('input', searchMatches);
 $('aSave').onclick = saveAction;
 $('clientSearch').addEventListener('input', render);
 $('logDate').addEventListener('change', render);
+$('teamDate').addEventListener('change', startTeam);
+$('teamDept').addEventListener('change', startTeam);
 document.addEventListener('click', e => {
   const pick = e.target.closest('[data-pick]'); if (pick) { setChosen(state.clients.get(pick.dataset.pick)); return; }
   const ci = e.target.closest('[data-client]'); if (ci) { openClient(state.clients.get(ci.dataset.client)); return; }

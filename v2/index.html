@@ -34,8 +34,9 @@
       <button data-tab="today" class="tab on">شغلي النهارده</button>
       <button data-tab="clients" class="tab">عملائي</button>
       <button data-tab="log" class="tab">سجل اليوم</button>
+      <button data-tab="team" class="tab hidden" id="teamTabBtn">الفريق</button>
     </nav>
-    <div class="who"><span id="whoName"></span> <button id="logoutBtn" class="btn ghost sm">خروج</button></div>
+    <div class="who"><button id="attBtn" class="btn att sm">الحضور</button> <span id="whoName"></span> <button id="logoutBtn" class="btn ghost sm">خروج</button></div>
   </header>
   <div id="syncBar" class="sync"></div>
 
@@ -68,6 +69,14 @@
       <div class="card">
         <label>اليوم</label><input id="logDate" type="date">
         <div id="logList" class="list"></div>
+      </div>
+    </section>
+    <!-- الفريق (مدير / مشرف) -->
+    <section id="tab-team" class="hidden">
+      <div class="card">
+        <div class="grid2"><div><label>اليوم</label><input id="teamDate" type="date"></div><div><label>القسم</label><select id="teamDept"></select></div></div>
+        <div class="muted small" id="teamNote"></div>
+        <div style="overflow:auto"><table class="tbl" id="teamTable"></table></div>
       </div>
     </section>
   </main>
@@ -114,6 +123,22 @@
     <label class="check"><input type="checkbox" id="aAlsoWa"> سجّل كمان «إرسال واتساب» بعد المكالمة</label>
     <button id="aSave" class="btn primary block">حفظ الإجراء</button>
     <div id="aMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- الحضور -->
+<div id="attModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="attModal">×</button>
+    <h2>الحضور والانصراف</h2>
+    <div id="attInfo" class="muted"></div>
+    <div class="grid2" style="margin-top:12px">
+      <button class="btn primary" id="attIn">تسجيل حضور</button>
+      <button class="btn line" id="attBreak">بداية استراحة</button>
+      <button class="btn line" id="attBack">إنهاء الاستراحة</button>
+      <button class="btn line" id="attOut">تسجيل انصراف</button>
+    </div>
+    <div id="attMsg" class="msg"></div>
   </div>
 </div>
 
