@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="./vendor/cairo/cairo.css" rel="stylesheet">
-    <meta name="nabdi-app-version" content="5.8.3">
-    <script>window.NABDI_APP_VERSION = '5.8.3';</script>
+    <meta name="nabdi-app-version" content="5.9.0">
+    <script>window.NABDI_APP_VERSION = '5.9.0';</script>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
@@ -496,7 +496,7 @@
                     <span id="loginSubmitText">تسجيل الدخول والدخول للواجهة</span>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.8.3</p>
+                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.9.0</p>
             </form>
         </div>
     </div>
@@ -2285,9 +2285,19 @@
         import {
             initializeApp,
             getAuth, GoogleAuthProvider, signInAnonymously, signInWithCustomToken, signInWithPopup, signOut, onAuthStateChanged,
-            getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc, getDoc, getDocs, onSnapshot, runTransaction,
+            getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc as rawSetDoc, getDoc, getDocs, onSnapshot, runTransaction,
+            query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED,
             getStorage, storageRef, uploadBytesResumable, getDownloadURL
-        } from "./firebase-11.6.1.bundle.js";
+        } from "./firebase-11.6.1-b2.bundle.js";
+
+        // 5.9.0: كل كتابة بتاخد ختم وقت من السيرفر (_syncAt) علشان كل جهاز
+        // يسحب التغييرات الجديدة بس بدل ما يقرا القاعدة كلها مع كل فتح.
+        function stampSync(data) {
+            return (data && typeof data === 'object' && !Array.isArray(data)) ? { ...data, _syncAt: serverTimestamp() } : data;
+        }
+        const setDoc = (reference, data, options) => options === undefined
+            ? rawSetDoc(reference, stampSync(data))
+            : rawSetDoc(reference, stampSync(data), options);
 
         // الاسترداد الآمن: كل الكتابات الجديدة تظل في المسار الأصلي الذي استخدمه
         // النظام منذ البداية، مع قراءة نسخة المسار الجديد ودمجها للعرض فقط.
@@ -2319,7 +2329,7 @@
             db = initializeFirestore(app, {
                 localCache: persistentLocalCache({
                     tabManager: persistentMultipleTabManager(),
-                    cacheSizeBytes: 30 * 1024 * 1024
+                    cacheSizeBytes: CACHE_SIZE_UNLIMITED
                 })
             });
             window.NABDI_PERSISTENT_CACHE_ENABLED = true;
@@ -2339,7 +2349,7 @@
         const archivedCloudData = { employees: [], tasks: [], clients: [], supportProjects: [] };
         const archiveSnapshotRefreshers = new Map();
         const archiveCacheKey = 'nabdi_archive_snapshot_v1';
-        const archiveCacheTtlMs = 24 * 60 * 60 * 1000;
+        const archiveCacheTtlMs = 30 * 24 * 60 * 60 * 1000;
 
         function recordTimestamp(record) {
             const value = record?.updatedAt || record?.deletedAt || record?.createdAt || record?.sentAt || 0;
@@ -3238,10 +3248,20 @@
                 archiveSnapshotRefreshers.set(name, () => {
                     if (latestSnapshot) callback(latestSnapshot);
                 });
-                const unsubscribe = onSnapshot(reference, snapshot => {
-                    latestSnapshot = snapshot;
-                    callback(snapshot);
-                }, error => {
+                // مزامنة التغييرات بس: نعرض نسخة الجهاز (ببلاش)، وبعدها نسمع
+                // للمستندات اللي اتغيرت من آخر مزامنة. تحميل كامل مرة في الأسبوع
+                // أو لو نسخة الجهاز ناقصة/اتمسحت.
+                const metaKey = 'nabdi_sync_meta_v1_' + name;
+                const docsMap = new Map();
+                let syncMeta = null;
+                try { syncMeta = JSON.parse(window.nabdiStorage.getItem(metaKey) || 'null'); } catch (e) { syncMeta = null; }
+                const makeSnapshot = (fromCache) => {
+                    const docs = Array.from(docsMap.values());
+                    return { docs, size: docs.length, empty: docs.length === 0, metadata: { fromCache, hasPendingWrites: false }, forEach: fn => docs.forEach(fn) };
+                };
+                let unsubscribe = () => {};
+                let stopped = false;
+                const handleError = error => {
                     console.error(`Failed to load ${name}:`, error);
                     const errorText = String(error?.code || '') + ' ' + String(error?.message || '');
                     if (/resource-exhausted|quota/i.test(errorText)) {
@@ -3253,9 +3273,53 @@
                         window.employeeDirectoryState = (window.employees || []).length ? 'cached' : 'error';
                         renderEmployeeSelects();
                     }
-                });
-                window.nabdiRealtimeUnsubscribers[name] = unsubscribe;
-                return unsubscribe;
+                };
+                (async () => {
+                    let cachedSnap = null;
+                    try { await window.nabdiStorageReady; } catch (e) {}
+                    try { syncMeta = JSON.parse(window.nabdiStorage.getItem(metaKey) || 'null'); } catch (e) { syncMeta = null; }
+                    try { cachedSnap = await getDocsFromCache(reference); } catch (e) { cachedSnap = null; }
+                    const cachedCount = cachedSnap ? cachedSnap.size : 0;
+                    const weekMs = 7 * 24 * 60 * 60 * 1000;
+                    const needFull = !syncMeta || !syncMeta.marker || !cachedCount
+                        || cachedCount < Math.floor((syncMeta.count || 0) * 0.9)
+                        || (Date.now() - (syncMeta.fullAt || 0)) > weekMs;
+                    if (cachedSnap && cachedCount) {
+                        cachedSnap.forEach(d => docsMap.set(d.id, d));
+                        latestSnapshot = makeSnapshot(true);
+                        callback(latestSnapshot);
+                    }
+                    if (stopped) return;
+                    const target = needFull ? reference
+                        : query(reference, where('_syncAt', '>', Timestamp.fromMillis(Math.max(0, syncMeta.marker - 15 * 60 * 1000))));
+                    window.NABDI_SYNC_MODE = window.NABDI_SYNC_MODE || {};
+                    window.NABDI_SYNC_MODE[name] = needFull ? 'full' : 'delta';
+                    unsubscribe = onSnapshot(target, snapshot => {
+                        if (needFull) {
+                            docsMap.clear();
+                            snapshot.forEach(d => docsMap.set(d.id, d));
+                        } else {
+                            snapshot.docChanges().forEach(change => {
+                                if (change.type !== 'removed') docsMap.set(change.doc.id, change.doc);
+                            });
+                        }
+                        latestSnapshot = makeSnapshot(needFull ? snapshot.metadata.fromCache : false);
+                        callback(latestSnapshot);
+                        if (!snapshot.metadata.fromCache) {
+                            let marker = syncMeta?.marker || 0;
+                            snapshot.docs.forEach(d => {
+                                const t = d.get('_syncAt');
+                                if (t && typeof t.toMillis === 'function') marker = Math.max(marker, t.toMillis());
+                            });
+                            if (!marker) marker = Date.now() - 60 * 60 * 1000;
+                            syncMeta = { marker, count: docsMap.size, fullAt: needFull ? Date.now() : (syncMeta?.fullAt || 0) };
+                            try { window.nabdiStorage.setItem(metaKey, JSON.stringify(syncMeta)); } catch (e) {}
+                        }
+                    }, handleError);
+                })();
+                const stop = () => { stopped = true; unsubscribe(); };
+                window.nabdiRealtimeUnsubscribers[name] = stop;
+                return stop;
             }
 
             listen('employees', employeesColRef, (snapshot) => {
