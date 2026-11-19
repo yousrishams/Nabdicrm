@@ -250,11 +250,12 @@ function openClient(c) {
     <div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')}</div>
     <p><span class="tag">${esc(normStage(c.stage))}</span> ${c.statusNote ? esc(c.statusNote) : ''}</p>
     <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm"><i class="fa-solid fa-phone"></i> ${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm"><i class="fa-brands fa-whatsapp"></i> واتساب</a>` : ''}
-    <button class="btn primary sm" id="clientAction">تسجيل إجراء</button></p>
+    <button class="btn primary sm" id="clientAction">تسجيل إجراء</button> <button class="btn line sm" id="clientHandoff"><i class="fa-solid fa-headset"></i> ${c.supportPackage ? 'تحديث بيانات الدعم' : 'إرسال للدعم الفني'}</button></p>
     <h3>سجل الإجراءات (${ts.length})</h3>
     <div class="list timeline">${ts.length ? ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة الجاية: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') : '<div class="empty">مفيش إجراءات لسه</div>'}</div>`;
   $('clientModal').classList.remove('hidden');
   $('clientAction').onclick = () => { $('clientModal').classList.add('hidden'); openAction(c); };
+  $('clientHandoff').onclick = () => openHandoff(c);
 }
 
 // ---------------- تسجيل إجراء ----------------
@@ -487,6 +488,7 @@ function renderAllLog() {
   $('allLogList').innerHTML = list.map(t => `<div class="item" data-logtask="${esc(t._docId)}"><div class="t">${esc(t.customer || '')} <span class="tag">${esc(t.category || '')}</span></div><div class="s">${esc(t.agent || '')} · ${esc(t.time || '')} · ${esc(t.phone || '')}</div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}</div>`).join('') || '<div class="empty">مفيش إجراءات</div>';
 }
 function showEmployeeDay(empId) {
+  if (accessOf(state.me) === 'employee') { $('logDate').value = D.last?.to || cairoDate(); setTab('log'); return; }
   $('allLogDate').value = (state.tab === 'dash' && D.last ? D.last.to : $('teamDate').value) || cairoDate();
   $('allLogEmp').value = empId;
   setTab('alllog');
@@ -514,30 +516,43 @@ function dashPeriod() {
 const CAT = { call: 'مكالمة هاتفية', na: 'مكالمة لم يتم الرد عليها', wa: 'إرسال واتساب', meet: 'عقد اجتماع', meetSet: 'الاتفاق على الاجتماع', sent: 'إرسال العقد', signed: 'توقيع العقد', interested: 'عميل مهتم' };
 function dashEmployees() {
   const lvl = accessOf(state.me), dept = $('dashDept').value;
+  if (lvl === 'employee') return [state.me];
   return state.employees.filter(e => accessOf(e) !== 'manager' && (lvl === 'manager' ? (!dept || e.department === dept) : e.department === state.me.department));
+}
+async function loadPack(from, to) {
+  const key = from + '_' + to;
+  let pack = D.cache.get(key);
+  const live = to >= cairoDate();
+  if (pack && accessOf(state.me) !== 'employee' && !(live && Date.now() - pack.at > 120000)) return pack;
+  pack = { at: Date.now(), tasks: [], att: [], clients: [] };
+  if (accessOf(state.me) === 'employee') {
+    pack.tasks = liveTasks().filter(t => t.date >= from && t.date <= to);
+    pack.clients = liveClients().filter(c => c.createdAt && cairoDate(new Date(c.createdAt)) >= from && cairoDate(new Date(c.createdAt)) <= to);
+    const at = await getDocs(query(col('attendance'), where('employeeId', '==', state.me.id))).catch(() => null);
+    at?.forEach(d => { const r = d.data(); if (r.date >= from && r.date <= to) pack.att.push(r); });
+  } else {
+    const [ts, at, cs] = await Promise.all([
+      getDocs(query(col('tasks'), where('date', '>=', from), where('date', '<=', to))),
+      getDocs(query(col('attendance'), where('date', '>=', from), where('date', '<=', to))).catch(() => null),
+      getDocs(query(col('clients'), where('createdAt', '>=', new Date(from + 'T00:00:00+02:00').getTime()), where('createdAt', '<=', new Date(to + 'T23:59:59+02:00').getTime()))).catch(() => null)
+    ]);
+    ts.forEach(d => { const t = d.data(); if (!t.deletedAt && t.taskType !== 'internal' && t.category !== 'مهمة داخلية') pack.tasks.push(t); });
+    at?.forEach(d => pack.att.push(d.data()));
+    cs?.forEach(d => { const c = d.data(); if (!c.deletedAt) pack.clients.push(c); });
+  }
+  D.cache.set(key, pack);
+  return pack;
 }
 async function loadDash() {
   const [from, to] = dashPeriod();
-  const key = from + '_' + to;
+  const n = daysBetween(from, to).length, pTo = addDays(from, -1), pFrom = addDays(from, -n);
   const myRun = ++D.busy;
   $('dashNote').textContent = 'جاري تحميل الأرقام…';
   try {
-    let pack = D.cache.get(key);
-    const live = to >= cairoDate();
-    if (!pack || live && Date.now() - pack.at > 120000) {
-      const [ts, at, cs] = await Promise.all([
-        getDocs(query(col('tasks'), where('date', '>=', from), where('date', '<=', to))),
-        getDocs(query(col('attendance'), where('date', '>=', from), where('date', '<=', to))).catch(() => null),
-        getDocs(query(col('clients'), where('createdAt', '>=', new Date(from + 'T00:00:00+02:00').getTime()), where('createdAt', '<=', new Date(to + 'T23:59:59+02:00').getTime()))).catch(() => null)
-      ]);
-      pack = { at: Date.now(), tasks: [], att: [], clients: [] };
-      ts.forEach(d => { const t = d.data(); if (!t.deletedAt && t.taskType !== 'internal' && t.category !== 'مهمة داخلية') pack.tasks.push(t); });
-      at?.forEach(d => pack.att.push(d.data()));
-      cs?.forEach(d => { const c = d.data(); if (!c.deletedAt) pack.clients.push(c); });
-      D.cache.set(key, pack);
-    }
+    const [pack, prev] = await Promise.all([loadPack(from, to), loadPack(pFrom, pTo).catch(() => null)]);
     if (myRun !== D.busy) return;
     D.data = { from, to, ...pack };
+    D.prev = prev ? { from: pFrom, to: pTo, ...prev } : null;
     renderDash();
   } catch (e) { $('dashNote').textContent = 'تعذر تحميل الأرقام: ' + e.message; }
 }
@@ -546,8 +561,8 @@ function empMatcher() {
   for (const e of state.employees) { byId.set(e.id, e); byName.set(normName(e.name), e); }
   return (id, name) => (id && byId.get(id)) || byName.get(normName(name)) || null;
 }
-function computeDash() {
-  const { from, to, tasks, att, clients } = D.data;
+function computeDash(data = D.data) {
+  const { from, to, tasks, att, clients } = data;
   const emps = dashEmployees(), allowed = new Set(emps.map(e => e.id));
   const empSel = $('dashEmp').value;
   const match = empMatcher();
@@ -595,10 +610,12 @@ const rateCls = r => r >= 60 ? 'good' : r >= 40 ? 'mid' : 'low';
 function renderDash() {
   if (!D.data) return;
   const r = computeDash(); D.last = r;
-  const k = r.k;
-  const kp = (label, v, c, sub = '') => `<div class="kpi" style="--c:${c}"><span>${label}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  const k = r.k, pk = D.prev ? computeDash(D.prev).k : null;
+  const dl = f => { if (!pk) return ''; const a = k[f], b = pk[f]; if (!b && !a) return ''; if (!b) return '<span class="delta up">جديد</span>'; const d = Math.round((a - b) * 100 / b); return d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)}%</span>` : '<span class="delta">=</span>'; };
+  const kp = (label, v, c, sub = '', f = '') => `<div class="kpi" style="--c:${c}"><span>${label}</span><b>${v}${f ? dl(f) : ''}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
   $('dashNote').textContent = r.from === r.to ? `يوم ${r.from}` : `من ${r.from} إلى ${r.to} (${r.days.length} يوم)`;
-  $('dashKpis').innerHTML = kp('إجمالي الإجراءات', fmt(k.n), '#5A3B8B', `${k.activeEmps} موظف شغال · متوسط ${k.avg} للموظف في اليوم`) + kp('مكالمات تم الرد', fmt(k.calls), '#16a34a') + kp('لم يرد', fmt(k.na), '#f59e0b') + kp('نسبة الرد', k.rate + '%', '#0d9488') + kp('واتساب', fmt(k.wa), '#2563eb') + kp('اجتماعات', fmt(k.meet), '#9333ea') + kp('عقود اتبعتت', fmt(k.sent), '#ea580c') + kp('عقود اتوقعت', fmt(k.signed), '#dc2626') + kp('عملاء جدد', fmt(k.newC), '#0891b2') + kp('عملاء اتكلموا', fmt(k.touched), '#64748b');
+  if (pk) $('dashNote').textContent += ` · الأسهم مقارنة بالفترة اللي قبلها (${D.prev.from === D.prev.to ? D.prev.from : D.prev.from + ' إلى ' + D.prev.to})`;
+  $('dashKpis').innerHTML = kp('إجمالي الإجراءات', fmt(k.n), '#5A3B8B', accessOf(state.me) === 'employee' ? `متوسط ${Math.round(k.n / Math.max(1, r.days.length) * 10) / 10} في اليوم` : `${k.activeEmps} موظف شغال · متوسط ${k.avg} للموظف في اليوم`, 'n') + kp('مكالمات تم الرد', fmt(k.calls), '#16a34a', '', 'calls') + kp('لم يرد', fmt(k.na), '#f59e0b') + kp('نسبة الرد', k.rate + '%', '#0d9488', '', 'rate') + kp('واتساب', fmt(k.wa), '#2563eb', '', 'wa') + kp('اجتماعات', fmt(k.meet), '#9333ea', '', 'meet') + kp('عقود اتبعتت', fmt(k.sent), '#ea580c', '', 'sent') + kp('عقود اتوقعت', fmt(k.signed), '#dc2626', '', 'signed') + kp('عملاء جدد', fmt(k.newC), '#0891b2', '', 'newC') + kp('عملاء اتكلموا', fmt(k.touched), '#64748b', '', 'touched');
   $('dashTrend').innerHTML = r.byDay.some(x => x.n) ? trendSvg(r.byDay) : '<div class="empty">مفيش إجراءات في الفترة دي</div>';
   $('dashFunnel').innerHTML = barsHtml(r.funnel.map((x, i) => ({ l: x.s, v: x.n, c: `hsl(${265 - i * 14} 55% ${48 + i * 2}%)` })));
   $('dashEmpBars').innerHTML = barsHtml(r.rows.filter(x => x.n).map(x => ({ l: x.e.name, v: x.n })));
@@ -623,6 +640,7 @@ function dashExcel() {
 }
 function setupDash() {
   const lvl = accessOf(state.me);
+  if (lvl === 'employee') { $('dashDept').closest('.frow').querySelectorAll('#dashDept,#dashEmp').forEach(x => x.classList.add('hidden')); $('dashDept').previousElementSibling.classList.add('hidden'); $('dashEmp').previousElementSibling.classList.add('hidden'); document.querySelector('#tab-dash h1').textContent = 'تقريري'; $('dashEmpBars').closest('.card').classList.add('hidden'); $('dashTable').closest('.card').querySelector('h3').lastChild.textContent = ' أدائي بالتفصيل'; }
   const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
   $('dashDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(state.me.department || '')}</option>`;
   const fillEmp = () => { $('dashEmp').innerHTML = '<option value="">كل الموظفين</option>' + dashEmployees().map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join(''); };
@@ -636,6 +654,189 @@ function setupDash() {
   $('dashPrint').onclick = () => window.print();
 }
 
+
+// ---------------- الدعم الفني (نفس بيانات supportProjects بتاعة النسخة الحالية) ----------------
+const deptOf = e => { const s = String(e?.department || e?.roleDepartment || ''); if (s.includes('الدعم') || String(e?.name || '').includes('دعم فني')) return 'الدعم الفني'; return s; };
+const isSupport = e => deptOf(e) === 'الدعم الفني';
+const SUP_STEPS = ['مراجعة البيانات', 'طلب واستكمال البيانات الناقصة', 'تجهيز ورفع المنتجات والخدمات', 'رفع بيانات الدكاترة والصور', 'إدخال مواعيد الدكاترة', 'مراجعة الجودة', 'إرسال النسخة للعميل للمراجعة', 'تنفيذ تعديلات العميل', 'النشر والتسليم النهائي'];
+const ST_STATUSES = ['جديدة', 'جاري التنفيذ', 'انتظار العميل', 'مكتملة'];
+const ST_PRIORITY = ['عادية', 'عالية', 'عاجلة'];
+const HS = { 'بانتظار رابط البيانات': 'wait', 'بانتظار الاستلام': 'wait', 'تم إرسال رابط البيانات': 'sent', 'تم الاستلام': 'recv', 'تم الرفع بنجاح': 'done', 'مرتجع لخدمات العملاء': 'ret' };
+const isDoneSt = s => ['مكتمل', 'مكتملة', 'مكتمله', 'تم', 'تم الانجاز', 'تم الرفع بنجاح', 'منتهي'].includes(String(s || '').trim());
+const S = { projects: new Map(), unsub: null, scope: 'active', open: new Set() };
+const canManageSupport = () => { const lvl = accessOf(state.me); return lvl === 'manager' || (lvl === 'supervisor' && isSupport(state.me)); };
+const actor = () => state.me?.id === 'manager' ? 'المدير العام' : state.me?.name || '';
+function startSupport() {
+  if (S.unsub) return;
+  S.unsub = onSnapshot(col('supportProjects'), snap => {
+    snap.docChanges().forEach(ch => { if (ch.type === 'removed') S.projects.delete(ch.doc.id); else { const d = ch.doc.data(); S.projects.set(ch.doc.id, { ...d, id: d.id || ch.doc.id, _docId: ch.doc.id }); } });
+    supBadge();
+    if (state.tab === 'support') renderSupport();
+  }, e => { $('supList').innerHTML = `<div class="card empty">تعذر تحميل ملفات الدعم: ${esc(e.message)}</div>`; });
+}
+const liveProjects = () => [...S.projects.values()].filter(p => !p.deletedAt);
+const liveSTasks = p => (p.tasks || []).filter(t => !t.deletedAt);
+const taskLate = t => t.due && !isDoneSt(t.status) && t.due < cairoDate();
+function supBadge() {
+  const n = liveProjects().filter(p => p.handoffStatus === 'تم إرسال رابط البيانات').length;
+  $('supBadge').textContent = n; $('supBadge').classList.toggle('hidden', !n);
+}
+function renderSupport() {
+  const all = liveProjects(), me = actor(), today = cairoDate();
+  const mineP = p => normName(p.receivedBy) === normName(me) || liveSTasks(p).some(t => normName(t.agent) === normName(me) && !isDoneSt(t.status));
+  const k = { wait: all.filter(p => p.handoffStatus === 'تم إرسال رابط البيانات').length, recv: all.filter(p => p.handoffStatus === 'تم الاستلام').length, done: all.filter(p => p.handoffStatus === 'تم الرفع بنجاح').length, ret: all.filter(p => p.handoffStatus === 'مرتجع لخدمات العملاء').length, late: all.reduce((s, p) => s + (p.handoffStatus === 'تم الاستلام' ? liveSTasks(p).filter(taskLate).length : 0), 0) };
+  const kp = (l, v, c) => `<div class="kpi" style="--c:${c}"><span>${l}</span><b>${v}</b></div>`;
+  $('supKpis').innerHTML = kp('بانتظار الاستلام', k.wait, '#2563eb') + kp('تحت التنفيذ', k.recv, '#7c3aed') + kp('مهام متأخرة', k.late, '#dc2626') + kp('مرتجع للمبيعات', k.ret, '#f59e0b') + kp('تم التسليم', k.done, '#16a34a');
+  const q = plain($('supSearch').value), qd = digits($('supSearch').value);
+  let list = all.filter(p => {
+    switch (S.scope) {
+      case 'waiting': return ['تم إرسال رابط البيانات', 'بانتظار رابط البيانات', 'بانتظار الاستلام'].includes(p.handoffStatus);
+      case 'mine': return mineP(p) && p.handoffStatus !== 'تم الرفع بنجاح';
+      case 'late': return p.handoffStatus === 'تم الاستلام' && liveSTasks(p).some(taskLate);
+      case 'done': return p.handoffStatus === 'تم الرفع بنجاح';
+      case 'returned': return p.handoffStatus === 'مرتجع لخدمات العملاء';
+      default: return !['تم الرفع بنجاح', 'مرتجع لخدمات العملاء'].includes(p.handoffStatus);
+    }
+  });
+  if (q) list = list.filter(p => plain(p.clientName).includes(q) || (qd.length >= 3 && digits(p.phone).includes(qd)) || liveSTasks(p).some(t => plain(t.title).includes(q)));
+  const order = { 'تم إرسال رابط البيانات': 0, 'تم الاستلام': 1, 'بانتظار رابط البيانات': 2, 'مرتجع لخدمات العملاء': 3, 'تم الرفع بنجاح': 4 };
+  list.sort((x, y) => (order[x.handoffStatus] ?? 5) - (order[y.handoffStatus] ?? 5) || String(y.sentAt || '').localeCompare(String(x.sentAt || '')));
+  $('supAddTask').classList.toggle('hidden', !canManageSupport());
+  $('supList').innerHTML = list.length ? list.slice(0, 150).map(projHtml).join('') : '<div class="card empty">مفيش ملفات هنا</div>';
+  // لوحة الإنجاز
+  const board = new Map();
+  for (const p of all) for (const t of liveSTasks(p)) {
+    const n = t.agent || 'غير موزعة'; const r = board.get(n) || { n, done: 0, open: 0, late: 0 };
+    if (isDoneSt(t.status)) r.done++; else { r.open++; if (taskLate(t)) r.late++; } board.set(n, r);
+  }
+  const rows = [...board.values()].sort((a, b) => b.done - a.done);
+  $('supBoard').innerHTML = rows.length ? rows.map(r => `<div class="item" style="cursor:default"><div class="t">${esc(r.n)}</div><div class="s">مكتملة <b class="rate good">${r.done}</b> · مفتوحة <b>${r.open}</b> · متأخرة <b class="rate low">${r.late}</b> · الإنجاز <b>${pct(r.done, r.done + r.open)}%</b></div></div>`).join('') : '<div class="empty">لسه مفيش مهام</div>';
+}
+function projHtml(p) {
+  const ts = liveSTasks(p), done = ts.filter(t => isDoneSt(t.status)).length, cls = HS[p.handoffStatus] || 'wait';
+  const open = S.open.has(p._docId), me = actor(), mgr = canManageSupport();
+  const pk = p.supportPackage || {};
+  const canEditTask = t => mgr || normName(t.agent) === normName(me);
+  const late = ts.filter(taskLate).length;
+  let body = '';
+  if (open) {
+    body = `<div class="pb">
+      <div class="pkg">${pk.driveLink ? `<div><b>ملفات العميل</b><a href="${esc(pk.driveLink)}" target="_blank" rel="noopener" class="btn line sm"><i class="fa-brands fa-google-drive"></i> فتح الملفات</a></div>` : ''}${pk.products ? `<div><b>المنتجات والخدمات</b>${esc(pk.products)}</div>` : ''}${pk.doctors ? `<div><b>الدكاترة والصور</b>${esc(pk.doctors)}</div>` : ''}${pk.schedules ? `<div><b>المواعيد</b>${esc(pk.schedules)}</div>` : ''}${pk.notes ? `<div><b>ملاحظات التسليم</b>${esc(pk.notes)}</div>` : ''}${p.returnedReason ? `<div><b>سبب الإرجاع</b>${esc(p.returnedReason)}</div>` : ''}</div>
+      ${ts.length ? ts.map(t => `<div class="stask"><div><div class="tt ${isDoneSt(t.status) ? 'done' : ''}">${esc(t.title)}</div><div class="small muted">${esc(t.agent || 'غير موزعة')}${t.due ? ` · التسليم ${esc(t.due)}` : ''}${taskLate(t) ? ' · <b class="red">متأخرة</b>' : ''}${t.priority && t.priority !== 'عادية' ? ` · <b class="amber">${esc(t.priority)}</b>` : ''}${t.notes ? ` · ${esc(t.notes)}` : ''}</div></div>
+        <select data-stst="${esc(p._docId)}|${esc(t.id)}" ${canEditTask(t) && p.handoffStatus === 'تم الاستلام' ? '' : 'disabled'}>${[...new Set([...ST_STATUSES, t.status || 'جديدة'])].map(s => `<option ${s === (t.status || 'جديدة') ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+        ${mgr ? `<button class="iconbtn" data-stedit="${esc(p._docId)}|${esc(t.id)}" title="تعديل"><i class="fa-solid fa-pen"></i></button>` : '<span></span>'}</div>`).join('') : '<div class="empty">المهام هتتفتح أول ما الملف يتستلم</div>'}
+      <div class="pact">
+        ${p.handoffStatus === 'تم إرسال رابط البيانات' ? `<button class="btn primary sm" data-pact="accept|${esc(p._docId)}"><i class="fa-solid fa-hand"></i> استلام الملف</button><button class="btn danger sm" data-pact="return|${esc(p._docId)}"><i class="fa-solid fa-rotate-left"></i> إرجاع للمبيعات (بيانات ناقصة)</button>` : ''}
+        ${p.handoffStatus === 'تم الاستلام' && mgr ? `<button class="btn line sm" data-pact="addtask|${esc(p._docId)}"><i class="fa-solid fa-plus"></i> مهمة</button>` : ''}
+        ${p.handoffStatus === 'تم الاستلام' && (mgr || normName(p.receivedBy) === normName(me)) ? `<button class="btn ok sm" data-pact="complete|${esc(p._docId)}"><i class="fa-solid fa-circle-check"></i> تم التسليم للعميل</button><button class="btn danger sm" data-pact="return|${esc(p._docId)}"><i class="fa-solid fa-rotate-left"></i> إرجاع للمبيعات</button>` : ''}
+        ${p.handoffStatus === 'تم الرفع بنجاح' && mgr ? `<button class="btn line sm" data-pact="reopen|${esc(p._docId)}"><i class="fa-solid fa-lock-open"></i> إعادة فتح</button>` : ''}
+      </div></div>`;
+  }
+  return `<div class="proj"><div class="ph" data-ptoggle="${esc(p._docId)}"><div><h4>${esc(p.clientName || 'عميل')} <span class="hs ${cls}">${esc(p.handoffStatus || '—')}</span>${late ? ` <span class="hs ret">${late} متأخرة</span>` : ''}</h4>
+    <div class="small muted">${esc(p.phone || '')} · من: ${esc(p.sender || '—')}${p.sentAt ? ` · ${esc(String(p.sentAt).slice(0, 10))}` : ''}${p.receivedBy ? ` · استلمه: <b>${esc(p.receivedBy)}</b>` : ''}${p.completedAt ? ` · اتسلم للعميل ${esc(String(p.completedAt).slice(0, 10))}` : ''}</div>
+    ${ts.length ? `<div class="prog"><i style="width:${pct(done, ts.length)}%"></i></div><div class="small muted">${done} من ${ts.length} مهمة</div>` : ''}</div>
+    <i class="fa-solid fa-chevron-${open ? 'up' : 'down'} grey"></i></div>${body}</div>`;
+}
+async function mutateProject(docId, fn) {
+  const ref = doc(col('supportProjects'), docId);
+  const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء — جرّب تاني');
+  const cur = snap.exists() ? snap.data() : S.projects.get(docId);
+  if (!cur) throw new Error('الملف مش موجود');
+  const p = JSON.parse(JSON.stringify(cur)); p.tasks = Array.isArray(p.tasks) ? p.tasks : [];
+  if (fn(p) === false) return;
+  delete p._docId; delete p._syncAt;
+  await withTimeout(setDoc(ref, p), 12000, 'الحفظ اتأخر — جرّب تاني');
+  S.projects.set(docId, { ...p, _docId: docId });
+  renderSupport();
+}
+function recordStatus(t, status) {
+  const now = new Date().toISOString(), prev = t.status;
+  t.createdAt = t.createdAt || now; t.updatedAt = now; t.status = status;
+  if (isDoneSt(status)) { t.completedAt = t.completedAt || now; t.completedBy = t.completedBy || actor(); } else { t.completedAt = ''; t.completedBy = ''; }
+  if (prev !== status) t.activityLog = [...(t.activityLog || []), { at: now, by: actor(), type: 'تغيير الحالة', comment: (prev || 'جديدة') + ' ← ' + status }];
+}
+async function projAction(kind, id) {
+  try {
+    const now = new Date().toISOString(), me = actor();
+    if (kind === 'accept') {
+      if (!isSupport(state.me) && accessOf(state.me) !== 'manager') throw new Error('الاستلام لموظفي الدعم الفني بس');
+      await mutateProject(id, p => { if (p.handoffStatus !== 'تم إرسال رابط البيانات') throw new Error('الملف اتستلم أو اتغيرت حالته — حدّث الصفحة'); p.handoffStatus = 'تم الاستلام'; p.receivedBy = me; p.receivedAt = now; if (!(p.tasks || []).filter(t => !t.deletedAt).length) p.tasks = SUP_STEPS.map((title, i) => ({ id: 'st_' + Date.now() + '_' + i, title, agent: me, due: '', status: 'جديدة', priority: 'عادية', notes: '', createdAt: now })); });
+      S.open.add(id); toast('✓ استلمت الملف واتفتحت مهامه', 'ok');
+    } else if (kind === 'return') {
+      const reason = prompt('اكتب البيانات الناقصة اللي محتاجها من المبيعات:'); if (!reason || !reason.trim()) return;
+      await mutateProject(id, p => { p.handoffStatus = 'مرتجع لخدمات العملاء'; p.returnedReason = reason.trim(); p.returnedBy = me; p.returnedAt = now; });
+      toast('✓ الملف رجع للمبيعات', 'ok');
+    } else if (kind === 'complete') {
+      if (!confirm('تأكيد إن كل بيانات العميل اترفعت واتسلمت؟')) return;
+      await mutateProject(id, p => { p.handoffStatus = 'تم الرفع بنجاح'; p.completedBy = me; p.completedAt = now; (p.tasks || []).filter(t => !t.deletedAt).forEach(t => recordStatus(t, 'مكتملة')); });
+      toast('✓ الملف اتقفل واتنقل للمكتمل', 'ok');
+    } else if (kind === 'reopen') {
+      await mutateProject(id, p => { p.handoffStatus = 'تم الاستلام'; p.completedAt = ''; p.completedBy = ''; });
+    } else if (kind === 'addtask') openSupTask(id, '');
+  } catch (e) { toast(e.message, 'err'); }
+}
+function supAgents() { return ['غير موزعة', ...state.employees.filter(isSupport).map(e => e.name)]; }
+function openSupTask(projectId, taskId) {
+  const ps = liveProjects().filter(p => p.handoffStatus !== 'تم الرفع بنجاح').sort((a, b) => String(a.clientName).localeCompare(String(b.clientName), 'ar'));
+  $('stProject').innerHTML = ps.map(p => `<option value="${esc(p._docId)}">${esc(p.clientName)}</option>`).join('');
+  $('stClientWrap').classList.toggle('hidden', !!projectId);
+  const p = projectId && S.projects.get(projectId), t = p && liveSTasks(p).find(x => x.id === taskId);
+  if (projectId) $('stProject').innerHTML = `<option value="${esc(projectId)}">${esc(p?.clientName || '')}</option>`;
+  fillSelect('stAgent', supAgents()); fillSelect('stStatus', ST_STATUSES); fillSelect('stPriority', ST_PRIORITY);
+  $('stTitleH').textContent = t ? 'تعديل مهمة' : 'مهمة دعم جديدة';
+  $('stTitle').value = t?.title || ''; $('stAgent').value = t?.agent || 'غير موزعة'; $('stDue').value = t?.due || ''; $('stStatus').value = ST_STATUSES.includes(t?.status) ? t.status : 'جديدة'; $('stPriority').value = t?.priority || 'عادية'; $('stNotes').value = t?.notes || '';
+  $('stSave').dataset.task = taskId || ''; $('stMsg').textContent = '';
+  $('supTaskModal').classList.remove('hidden');
+}
+async function saveSupTask() {
+  const pid = $('stProject').value, tid = $('stSave').dataset.task, title = $('stTitle').value.trim();
+  const msg = $('stMsg'); msg.className = 'msg err';
+  if (!pid) { msg.textContent = 'اختار العميل'; return; }
+  if (!title) { msg.textContent = 'اكتب عنوان المهمة'; return; }
+  $('stSave').disabled = true;
+  try {
+    await mutateProject(pid, p => {
+      const data = { title, agent: $('stAgent').value, due: $('stDue').value, priority: $('stPriority').value, notes: $('stNotes').value.trim() };
+      let t = tid && p.tasks.find(x => x.id === tid);
+      if (!t) { t = { id: 'st_' + Date.now(), status: 'جديدة', createdAt: new Date().toISOString() }; p.tasks.push(t); }
+      Object.assign(t, data); recordStatus(t, $('stStatus').value);
+      if (p.handoffStatus !== 'تم الاستلام') { p.handoffStatus = 'تم الاستلام'; p.receivedBy = p.receivedBy || (data.agent !== 'غير موزعة' ? data.agent : actor()); p.receivedAt = p.receivedAt || new Date().toISOString(); }
+    });
+    S.open.add(pid); $('supTaskModal').classList.add('hidden'); toast('✓ المهمة اتحفظت', 'ok');
+  } catch (e) { msg.textContent = e.message; } finally { $('stSave').disabled = false; }
+}
+async function setSupTaskStatus(pid, tid, status) {
+  try { await mutateProject(pid, p => { const t = p.tasks.find(x => x.id === tid); if (!t) return false; recordStatus(t, status); }); toast('✓ اتحدثت', 'ok'); }
+  catch (e) { toast(e.message, 'err'); renderSupport(); }
+}
+// إرسال العميل للدعم من شاشة المبيعات
+let hoClient = null;
+function openHandoff(c) {
+  hoClient = c; const pk = c.supportPackage || {};
+  $('hoClient').textContent = `${c.name} — ${c.phone || ''}`;
+  $('hoLink').value = pk.driveLink || ''; $('hoProducts').value = pk.products || ''; $('hoDoctors').value = pk.doctors || ''; $('hoSchedules').value = pk.schedules || ''; $('hoNotes').value = pk.notes || ''; $('hoMsg').textContent = '';
+  $('clientModal').classList.add('hidden'); $('handoffModal').classList.remove('hidden');
+}
+async function saveHandoff() {
+  const c = hoClient, msg = $('hoMsg'); msg.className = 'msg err'; if (!c) return;
+  const link = $('hoLink').value.trim();
+  try { const u = new URL(link); if (!['http:', 'https:'].includes(u.protocol)) throw 0; } catch (e) { msg.textContent = 'اكتب رابط صحيح بيبدأ بـ https://'; return; }
+  const btn = $('hoSave'); btn.disabled = true;
+  try {
+    const now = new Date().toISOString(), me = actor();
+    const pack = { driveLink: link, products: $('hoProducts').value.trim(), doctors: $('hoDoctors').value.trim(), schedules: $('hoSchedules').value.trim(), notes: $('hoNotes').value.trim(), sentBy: me, sentAt: now };
+    await withTimeout(setDoc(doc(col('clients'), c._docId || c.id), { supportPackage: pack, updatedAt: Date.now() }, { merge: true }), 12000, 'الحفظ اتأخر — جرّب تاني');
+    let snap = null; try { snap = await getDocs(query(col('supportProjects'), where('clientId', '==', c.id))); } catch (e) {}
+    let existing = null; snap?.forEach(d => { const x = d.data(); if (!x.deletedAt && !existing) existing = { ...x, _docId: d.id }; });
+    const pid = existing?._docId || ('sp_' + Date.now());
+    const base = existing ? (({ _docId, _syncAt, ...r }) => r)(existing) : { id: pid, clientId: c.id, clientName: c.name, phone: c.phone || '', createdAt: now, tasks: [] };
+    Object.assign(base, { clientName: c.name, phone: c.phone || '', sender: me, sentAt: now, handoffStatus: 'تم إرسال رابط البيانات', receivedBy: '', receivedAt: '', returnedReason: '', supportPackage: pack, tasks: existing?.handoffStatus === 'تم الاستلام' ? base.tasks : [] });
+    await withTimeout(setDoc(doc(col('supportProjects'), pid), base), 12000, 'الحفظ اتأخر — جرّب تاني');
+    const local = state.clients.get(c._docId); if (local) local.supportPackage = pack;
+    $('handoffModal').classList.add('hidden'); toast('✓ الملف وصل لفريق الدعم الفني', 'ok');
+  } catch (e) { msg.textContent = e.message; } finally { btn.disabled = false; }
+}
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
@@ -646,6 +847,8 @@ function startApp(emp) {
   if (lvl !== 'employee') {
     $('teamTabBtn').classList.remove('hidden');
     document.querySelectorAll('.mgrsup,.mgrsec').forEach(b => b.classList.remove('hidden'));
+    document.querySelector('.agentrep').classList.add('hidden');
+    if (lvl === 'manager' || isSupport(emp)) { document.querySelector('.supnav').classList.remove('hidden'); startSupport(); }
     setupDash();
     const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
     $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
@@ -655,13 +858,14 @@ function startApp(emp) {
     if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'team', 'allclients', 'alllog'].includes(b.dataset.tab)) b.classList.add('hidden'); });
+    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'support', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
     document.querySelector('.agentsec').classList.add('hidden');
     $('attBtn').classList.add('hidden'); $('syncBar').textContent = '';
     setTab('dash');
     return;
   }
-  setTab('today');
+  if (lvl === 'employee') setupDash();
+  if (isSupport(emp)) { document.querySelector('.supnav').classList.remove('hidden'); startSupport(); setTab('support'); } else setTab('today');
   syncMsg();
   loadAttendance();
   syncCollection('clients').catch(e => { $('syncBar').textContent = 'تعذر تحميل العملاء: ' + e.message; $('syncBar').classList.add('err'); });
@@ -671,10 +875,11 @@ function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   document.body.classList.remove('menu');
-  ['dash', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['dash', 'support', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
+  if (tab === 'support') { startSupport(); renderSupport(); }
   if (tab === 'alllog') startAllLog(); else if (all.dayUnsub) { all.dayUnsub(); all.dayUnsub = null; }
   render();
 }
@@ -703,7 +908,16 @@ $('teamDept').addEventListener('change', startTeam);
 $('allSearch').addEventListener('input', renderAllClients);
 $('allLogDate').addEventListener('change', startAllLog);
 $('allLogEmp').addEventListener('change', renderAllLog);
+$('supSearch').addEventListener('input', renderSupport);
+$('supScope').onclick = e => { const b = e.target.closest('button[data-s]'); if (!b) return; S.scope = b.dataset.s; $('supScope').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderSupport(); };
+$('supAddTask').onclick = () => openSupTask('', '');
+$('stSave').onclick = saveSupTask;
+$('hoSave').onclick = saveHandoff;
+document.addEventListener('change', e => { const s = e.target.closest('[data-stst]'); if (s) { const [pid, tid] = s.dataset.stst.split('|'); setSupTaskStatus(pid, tid, s.value); } });
 document.addEventListener('click', e => {
+  const pt = e.target.closest('[data-ptoggle]'); if (pt) { const id = pt.dataset.ptoggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderSupport(); return; }
+  const pa = e.target.closest('[data-pact]'); if (pa) { const [k, id] = pa.dataset.pact.split('|'); projAction(k, id); return; }
+  const se = e.target.closest('[data-stedit]'); if (se) { const [pid, tid] = se.dataset.stedit.split('|'); openSupTask(pid, tid); return; }
   const er = e.target.closest('[data-emp]'); if (er) { showEmployeeDay(er.dataset.emp); return; }
   const ac = e.target.closest('[data-allclient]'); if (ac) { openAnyClient(all.clients.get(ac.dataset.allclient)); return; }
   const lt = e.target.closest('[data-logtask]'); if (lt) { const t = all.dayTasks.get(lt.dataset.logtask); if (t) { const c = [...all.clients.values()].find(c => c.id === t.clientId || c._docId === t.clientId); if (c) openAnyClient(c); else if (t.clientId) getDocs(query(col('clients'), where('id', '==', t.clientId))).then(s => { s.forEach(d => putDoc(all.clients, d)); openAnyClient([...all.clients.values()].find(c => c.id === t.clientId)); }).catch(() => {}); } return; }

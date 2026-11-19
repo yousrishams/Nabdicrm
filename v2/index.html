@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="nabdi-app-version" content="2.1.0">
+<meta name="nabdi-app-version" content="2.2.0">
 <meta name="theme-color" content="#5A3B8B">
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=206">
+<link rel="stylesheet" href="./app.css?v=207">
 </head>
 <body>
 
@@ -39,6 +39,7 @@
     <nav>
       <div class="navlbl mgrsec hidden">الإدارة</div>
       <button data-tab="dash" class="tab hidden mgrsup"><i class="fa-solid fa-chart-pie"></i><span>لوحة التحكم</span></button>
+      <button data-tab="support" class="tab hidden supnav"><i class="fa-solid fa-headset"></i><span>الدعم الفني</span><b class="nbadge hidden" id="supBadge"></b></button>
       <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>الفريق النهارده</span></button>
       <button data-tab="allclients" class="tab hidden mgr"><i class="fa-solid fa-address-book"></i><span>كل العملاء</span></button>
       <button data-tab="alllog" class="tab hidden mgr"><i class="fa-solid fa-list-check"></i><span>سجل الإجراءات</span></button>
@@ -46,6 +47,7 @@
       <button data-tab="today" class="tab on"><i class="fa-solid fa-house"></i><span>شغلي النهارده</span></button>
       <button data-tab="clients" class="tab"><i class="fa-solid fa-user-group"></i><span>عملائي</span></button>
       <button data-tab="log" class="tab"><i class="fa-solid fa-clock-rotate-left"></i><span>سجل اليوم</span></button>
+      <button data-tab="dash" class="tab agentrep"><i class="fa-solid fa-chart-line"></i><span>تقريري</span></button>
     </nav>
     <div class="sidefoot muted small">نبضي CRM · النسخة 2</div>
   </aside>
@@ -73,6 +75,20 @@
       <div class="grid2c">
         <div class="card"><h3><i class="fa-solid fa-chart-bar"></i> إجراءات كل موظف</h3><div id="dashEmpBars"></div></div>
         <div class="card"><h3><i class="fa-solid fa-location-dot"></i> أكتر المدن</h3><div id="dashCities"></div></div>
+      </div>
+    </section>
+    <!-- الدعم الفني -->
+    <section id="tab-support" class="hidden">
+      <div class="pagehead"><h1>الدعم الفني وتنفيذ العملاء</h1>
+        <div class="tools"><button class="btn primary sm hidden" id="supAddTask"><i class="fa-solid fa-plus"></i> مهمة جديدة</button></div></div>
+      <div class="kpis" id="supKpis"></div>
+      <div class="card filters">
+        <div class="seg" id="supScope"><button data-s="active" class="on">الشغل النشط</button><button data-s="waiting">بانتظار الاستلام</button><button data-s="mine">ملفاتي ومهامي</button><button data-s="late">متأخرة</button><button data-s="done">المكتمل</button><button data-s="returned">مرتجع للمبيعات</button></div>
+        <input id="supSearch" placeholder="ابحث باسم العميل أو رقمه أو المهمة…">
+      </div>
+      <div class="suplayout">
+        <div id="supList" class="suplist"></div>
+        <div class="card supside"><h3><i class="fa-solid fa-ranking-star"></i> إنجاز فريق الدعم</h3><div id="supBoard"></div></div>
       </div>
     </section>
     <!-- شغلي النهارده -->
@@ -193,8 +209,43 @@
   </div>
 </div>
 
+
+<!-- إرسال للدعم الفني -->
+<div id="handoffModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="handoffModal">×</button>
+    <h2>إرسال العميل للدعم الفني</h2>
+    <div class="muted" id="hoClient"></div>
+    <label>رابط ملفات العميل (Google Drive) *</label><input id="hoLink" dir="ltr" placeholder="https://drive.google.com/…">
+    <label>المنتجات والخدمات</label><textarea id="hoProducts" rows="2"></textarea>
+    <label>الدكاترة والصور</label><textarea id="hoDoctors" rows="2"></textarea>
+    <label>المواعيد</label><textarea id="hoSchedules" rows="2"></textarea>
+    <label>ملاحظات التسليم</label><textarea id="hoNotes" rows="2"></textarea>
+    <button id="hoSave" class="btn primary block"><i class="fa-solid fa-paper-plane"></i> إرسال للدعم الفني</button>
+    <div id="hoMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- مهمة دعم -->
+<div id="supTaskModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="supTaskModal">×</button>
+    <h2 id="stTitleH">مهمة دعم فني</h2>
+    <div id="stClientWrap"><label>العميل *</label><select id="stProject"></select></div>
+    <label>عنوان المهمة *</label><input id="stTitle" placeholder="مثال: رفع بيانات الدكاترة والصور">
+    <div class="grid2">
+      <div><label>المسؤول</label><select id="stAgent"></select></div>
+      <div><label>تاريخ التسليم</label><input id="stDue" type="date"></div>
+      <div><label>الحالة</label><select id="stStatus"></select></div>
+      <div><label>الأولوية</label><select id="stPriority"></select></div>
+    </div>
+    <label>ملاحظات</label><textarea id="stNotes" rows="2"></textarea>
+    <button id="stSave" class="btn primary block">حفظ المهمة</button>
+    <div id="stMsg" class="msg"></div>
+  </div>
+</div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=206"></script>
+<script type="module" src="./app.js?v=207"></script>
 </body>
 </html>
