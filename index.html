@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="./vendor/fontawesome/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="./vendor/cairo/cairo.css" rel="stylesheet">
-    <meta name="nabdi-app-version" content="5.9.0">
-    <script>window.NABDI_APP_VERSION = '5.9.0';</script>
+    <meta name="nabdi-app-version" content="5.9.1">
+    <script>window.NABDI_APP_VERSION = '5.9.1';</script>
     <style>
         body {
             font-family: 'Cairo', sans-serif;
@@ -496,7 +496,7 @@
                     <span id="loginSubmitText">تسجيل الدخول والدخول للواجهة</span>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
-                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.9.0</p>
+                <p class="text-center text-[9px] font-bold text-slate-400">إصدار الأداء 5.9.1</p>
             </form>
         </div>
     </div>
@@ -2285,10 +2285,11 @@
         import {
             initializeApp,
             getAuth, GoogleAuthProvider, signInAnonymously, signInWithCustomToken, signInWithPopup, signOut, onAuthStateChanged,
+            signInWithEmailAndPassword, createUserWithEmailAndPassword, updatePassword,
             getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, collection, setDoc as rawSetDoc, getDoc, getDocs, onSnapshot, runTransaction,
             query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED,
             getStorage, storageRef, uploadBytesResumable, getDownloadURL
-        } from "./firebase-11.6.1-b2.bundle.js";
+        } from "./firebase-11.6.1-b3.bundle.js";
 
         // 5.9.0: كل كتابة بتاخد ختم وقت من السيرفر (_syncAt) علشان كل جهاز
         // يسحب التغييرات الجديدة بس بدل ما يقرا القاعدة كلها مع كل فتح.
@@ -2320,6 +2321,32 @@
         const auth = getAuth(app);
         const managerGoogleProvider = new GoogleAuthProvider();
         const managerEmail = 'yousri.shams@gmail.com';
+        // 5.9.1: كل موظف ليه حساب دخول حقيقي في Firebase (بيتعمل لوحده أول مرة يدخل برمزه).
+        const STAFF_EMAIL_DOMAIN = 'staff.nabdicrm.app';
+        const staffEmailFor = emp => `${String(emp?.id || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '_')}@${STAFF_EMAIL_DOMAIN}`;
+        const staffPasswordFor = pin => `nb-${String(pin || '').trim()}`;
+        const isStaffUser = user => Boolean(user && !user.isAnonymous && String(user.email || '').endsWith('@' + STAFF_EMAIL_DOMAIN));
+        window.nabdiStaffSignIn = async function(emp, pin) {
+            if (!emp?.id || !String(pin || '').trim()) return null;
+            const email = staffEmailFor(emp), password = staffPasswordFor(pin);
+            if (auth.currentUser && String(auth.currentUser.email || '') === email) return auth.currentUser;
+            let credential;
+            try {
+                credential = await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(error?.code)) throw error;
+                credential = await createUserWithEmailAndPassword(auth, email, password);
+            }
+            window.dbUser = credential.user;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'authAccounts', emp.id), { empId: emp.id, name: emp.name || '', uid: credential.user.uid, email, lastLoginAt: Date.now() }, { merge: true });
+            } catch (e) {}
+            return credential.user;
+        };
+        window.nabdiStaffUpdatePassword = async function(emp, newPin) {
+            const user = auth.currentUser;
+            if (user && String(user.email || '') === staffEmailFor(emp)) await updatePassword(user, staffPasswordFor(newPin));
+        };
         window.NABDI_MANAGER_EMAIL = managerEmail;
         window.NABDI_MANAGER_AUTHENTICATED = false;
         let db;
@@ -3206,6 +3233,9 @@
                     if (isApprovedManagerUser(existingUser)) {
                         window.dbUser = existingUser;
                         window.NABDI_MANAGER_AUTHENTICATED = true;
+                    } else if (isStaffUser(existingUser)) {
+                        window.dbUser = existingUser;
+                        window.NABDI_MANAGER_AUTHENTICATED = false;
                     } else {
                         if (existingUser && !existingUser.isAnonymous) await signOut(auth);
                         const userCredential = existingUser?.isAnonymous
@@ -6238,6 +6268,7 @@
                     return;
                 }
                 const employeeAccess = window.getEmployeeAccessLevel(empObj);
+                try { await window.nabdiStaffSignIn(empObj, password); } catch (authError) { console.warn('Staff account sign-in skipped:', authError?.code || authError); }
                 applyLoginSession(employeeAccess === 'manager' ? 'manager' : 'agent', agentName);
             }
 
@@ -6655,6 +6686,7 @@
 
             emp.pin = newPin;
             window.saveEmployeeToCloud(emp);
+            if (window.nabdiStaffUpdatePassword) window.nabdiStaffUpdatePassword(emp, newPin).catch(error => console.warn('Staff password update failed:', error?.code || error));
             showToast("تم تحديث كلمة المرور الشخصية بنجاح!");
             closeSelfChangePasswordModal();
         }

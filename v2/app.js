@@ -2,11 +2,11 @@
 // بتشتغل على نفس قاعدة البيانات ونفس شكل البيانات بتاع النسخة الحالية،
 // بس كل موظف بيسحب عملاءه وإجراءاته هو بس، وبعدها التغييرات الجديدة بس.
 import {
-  initializeApp, getAuth, signInAnonymously, onAuthStateChanged,
+  initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, setDoc as rawSetDoc, getDoc, getDocs, onSnapshot,
   query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED
-} from '../firebase-11.6.1-b2.bundle.js';
+} from '../firebase-11.6.1-b3.bundle.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDI1SJ696IKaAk8567rXWeyDRz6Yjv94Nc',
@@ -63,9 +63,24 @@ const withTimeout = (p, ms, msg) => Promise.race([p, new Promise((_, rej) => set
 const state = { employees: [], me: null, tasks: new Map(), clients: new Map(), tab: 'today', actionClient: null, synced: { tasks: false, clients: false } };
 
 // ---------------- الدخول ----------------
+const STAFF_EMAIL_DOMAIN = 'staff.nabdicrm.app';
+const staffEmailFor = emp => `${String(emp?.id || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '_')}@${STAFF_EMAIL_DOMAIN}`;
+async function staffSignIn(emp, pin) {
+  const email = staffEmailFor(emp), password = `nb-${String(pin).trim()}`;
+  if (auth.currentUser && auth.currentUser.email === email) return;
+  let cred;
+  try { cred = await signInWithEmailAndPassword(auth, email, password); }
+  catch (e) {
+    if (!['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-login-credentials'].includes(e?.code)) throw e;
+    cred = await createUserWithEmailAndPassword(auth, email, password);
+  }
+  try { await setDoc(doc(col('authAccounts'), emp.id), { empId: emp.id, name: emp.name || '', uid: cred.user.uid, email, lastLoginAt: Date.now() }, { merge: true }); } catch (e) {}
+}
 function authReady() {
   return new Promise(resolve => {
-    const stop = onAuthStateChanged(auth, user => { if (user) { stop(); resolve(user); } });
+    let done = false;
+    const stop = onAuthStateChanged(auth, user => { if (user && !done) { done = true; stop(); resolve(user); } else if (!user) signInAnonymously(auth).catch(() => {}); });
+    if (auth.currentUser) return;
     signInAnonymously(auth).catch(err => { $('loginMsg').textContent = 'تعذر الاتصال: ' + err.message; $('loginMsg').className = 'msg err'; });
   });
 }
@@ -80,19 +95,22 @@ async function loadEmployees() {
   $('loginEmp').innerHTML = '<option value="">— اختار اسمك —</option>' + list.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
 }
 
-function login() {
+async function login() {
   const emp = state.employees.find(e => e.id === $('loginEmp').value);
   const pin = $('loginPin').value.trim();
   const msg = $('loginMsg');
   if (!emp) { msg.textContent = 'اختار اسمك الأول'; msg.className = 'msg err'; return; }
   if (!String(emp.pin || '').trim()) { msg.textContent = 'مفيش رمز متسجل لحسابك — كلّم المدير'; msg.className = 'msg err'; return; }
   if (pin !== String(emp.pin).trim()) { msg.textContent = 'الرمز غلط'; msg.className = 'msg err'; return; }
+  $('loginBtn').disabled = true;
+  try { await staffSignIn(emp, pin); } catch (e) { console.warn('staff auth skipped', e?.code || e); }
+  $('loginBtn').disabled = false;
   $('loginPin').value = '';
   sessionStorage.setItem('v2_emp', emp.id);
   startApp(emp);
 }
 
-function logout() { sessionStorage.removeItem('v2_emp'); location.reload(); }
+async function logout() { sessionStorage.removeItem('v2_emp'); try { await signOut(auth); } catch (e) {} location.reload(); }
 
 // ---------------- المزامنة ----------------
 const WEEK = 7 * 24 * 3600 * 1000;
