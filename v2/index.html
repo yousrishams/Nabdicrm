@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="nabdi-app-version" content="2.0.0-beta">
+<title>نبضي CRM — النسخة 2 (تجريبية)</title>
+<link href="../vendor/cairo/cairo.css" rel="stylesheet">
+<link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<div id="beta" class="beta">نسخة تجريبية 2.0 — الشغل بيتحفظ في نفس قاعدة البيانات الحقيقية</div>
+
+<!-- الدخول -->
+<section id="loginView" class="center">
+  <div class="card login">
+    <div class="brand"><i class="fa-solid fa-heart-pulse"></i> نبضي CRM</div>
+    <p class="muted">اختار اسمك واكتب رمزك</p>
+    <label>الموظف</label>
+    <select id="loginEmp"><option value="">جاري التحميل…</option></select>
+    <label>الرمز</label>
+    <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password">
+    <button id="loginBtn" class="btn primary block">دخول</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+</section>
+
+<!-- التطبيق -->
+<section id="appView" class="hidden">
+  <header class="top">
+    <div class="brand"><i class="fa-solid fa-heart-pulse"></i> نبضي</div>
+    <nav>
+      <button data-tab="today" class="tab on">شغلي النهارده</button>
+      <button data-tab="clients" class="tab">عملائي</button>
+      <button data-tab="log" class="tab">سجل اليوم</button>
+    </nav>
+    <div class="who"><span id="whoName"></span> <button id="logoutBtn" class="btn ghost sm">خروج</button></div>
+  </header>
+  <div id="syncBar" class="sync"></div>
+
+  <main>
+    <!-- شغلي النهارده -->
+    <section id="tab-today">
+      <div class="kpis" id="kpis"></div>
+      <div class="actions-row">
+        <button class="btn primary" id="newActionBtn"><i class="fa-solid fa-plus"></i> تسجيل إجراء / عميل جديد</button>
+      </div>
+      <div class="grid3">
+        <div class="card"><h3><i class="fa-solid fa-triangle-exclamation red"></i> متأخر <span id="cLate" class="pill"></span></h3><div id="listLate" class="list"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-calendar-day amber"></i> متابعات النهارده <span id="cToday" class="pill"></span></h3><div id="listToday" class="list"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-phone-slash grey"></i> لم يرد <span id="cNoAnswer" class="pill"></span></h3><div id="listNoAnswer" class="list"></div></div>
+      </div>
+      <div class="card"><h3><i class="fa-solid fa-calendar-week"></i> قادم <span id="cNext" class="pill"></span></h3><div id="listNext" class="list"></div></div>
+    </section>
+
+    <!-- عملائي -->
+    <section id="tab-clients" class="hidden">
+      <div class="card">
+        <input id="clientSearch" placeholder="ابحث بالاسم أو رقم الجوال…">
+        <div class="muted small" id="clientCount"></div>
+        <div id="clientList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- سجل اليوم -->
+    <section id="tab-log" class="hidden">
+      <div class="card">
+        <label>اليوم</label><input id="logDate" type="date">
+        <div id="logList" class="list"></div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<!-- ملف العميل -->
+<div id="clientModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="clientModal">×</button>
+    <div id="clientBody"></div>
+  </div>
+</div>
+
+<!-- تسجيل إجراء -->
+<div id="actionModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="actionModal">×</button>
+    <h2 id="actionTitle">تسجيل إجراء</h2>
+    <div id="clientPick">
+      <label>العميل</label>
+      <input id="aSearch" placeholder="اكتب اسم العميل أو رقمه، أو سيبها فاضية لعميل جديد">
+      <div id="aMatches" class="list small"></div>
+    </div>
+    <div id="chosenClient" class="chosen hidden"></div>
+    <div id="newClientFields" class="grid2">
+      <div><label>اسم الجهة *</label><input id="aName"></div>
+      <div><label>رقم الجوال *</label><input id="aPhone" inputmode="tel" dir="ltr"></div>
+      <div><label>المدينة</label><select id="aCity"></select></div>
+      <div><label>نوع الجهة</label><select id="aEntity"></select></div>
+      <div><label>التخصص</label><input id="aSpecialty"></div>
+    </div>
+    <div class="grid2">
+      <div><label>الإجراء *</label><select id="aCategory"></select></div>
+      <div><label>القناة</label><select id="aChannel"></select></div>
+      <div><label>الحالة</label><select id="aStatus"></select></div>
+      <div><label>الأولوية</label><select id="aPriority"></select></div>
+    </div>
+    <label>ملاحظات الإجراء</label><textarea id="aNotes" rows="2"></textarea>
+    <label>حالة العميل (اختياري)</label><input id="aStatusNote">
+    <div class="grid2">
+      <div><label>المتابعة الجاية</label><input id="aNextDate" type="date"></div>
+      <div><label>الساعة</label><input id="aNextTime" type="time"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="aAlsoWa"> سجّل كمان «إرسال واتساب» بعد المكالمة</label>
+    <button id="aSave" class="btn primary block">حفظ الإجراء</button>
+    <div id="aMsg" class="msg"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
