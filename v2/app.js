@@ -436,8 +436,60 @@ function renderTeam(data, d) {
   const tot = k => rows.reduce((s, r) => s + (typeof r[k] === 'number' ? r[k] : r[k].length), 0);
   $('teamNote').textContent = `يوم ${d} — ${rows.length} موظف — ${tot('ts')} إجراء`;
   $('teamTable').innerHTML = '<tr><th>الموظف</th><th>الحضور</th><th>ساعات</th><th>إجراءات</th><th>مكالمات رد</th><th>لم يرد</th><th>واتساب</th><th>اجتماعات</th><th>عقود</th></tr>' +
-    rows.map(r => `<tr><td><b>${esc(r.e.name)}</b><div class="small muted">${esc(r.e.department || '')} · ${esc(r.e.shift || '')}</div></td><td><span class="st ${r.st}">${ATT_LABEL[r.st]}</span></td><td>${dur(r.m.work)}</td><td><b>${r.ts.length}</b></td><td>${r.calls}</td><td>${r.na}</td><td>${r.wa}</td><td>${r.meet}</td><td>${r.contract}</td></tr>`).join('') +
+    rows.map(r => `<tr data-emp="${esc(r.e.id)}" style="cursor:pointer"><td><b>${esc(r.e.name)}</b><div class="small muted">${esc(r.e.department || '')} · ${esc(r.e.shift || '')}</div></td><td><span class="st ${r.st}">${ATT_LABEL[r.st]}</span></td><td>${dur(r.m.work)}</td><td><b>${r.ts.length}</b></td><td>${r.calls}</td><td>${r.na}</td><td>${r.wa}</td><td>${r.meet}</td><td>${r.contract}</td></tr>`).join('') +
     `<tr><th>الإجمالي</th><th></th><th></th><th>${tot('ts')}</th><th>${tot('calls')}</th><th>${tot('na')}</th><th>${tot('wa')}</th><th>${tot('meet')}</th><th>${tot('contract')}</th></tr>`;
+}
+
+
+// ---------------- شاشات المدير: كل العملاء وسجل الإجراءات ----------------
+const all = { clients: new Map(), loaded: false, dayTasks: new Map(), dayUnsub: null };
+async function loadAllClients() {
+  if (all.loaded) return renderAllClients();
+  $('allCount').textContent = 'جاري التحميل…';
+  try { (await getDocsFromCache(col('clients'))).forEach(d => putDoc(all.clients, d)); } catch (e) {}
+  renderAllClients();
+  try { (await getDocs(col('clients'))).forEach(d => putDoc(all.clients, d)); all.loaded = true; } catch (e) { $('allCount').textContent = 'تعذر التحميل: ' + e.message; }
+  renderAllClients();
+}
+function renderAllClients() {
+  const q = plain($('allSearch').value), qd = digits($('allSearch').value);
+  let list = [...all.clients.values()].filter(c => !c.deletedAt);
+  if (q) list = list.filter(c => plain(c.name).includes(q) || (qd.length >= 3 && digits(c.phone).includes(qd)));
+  list.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+  $('allCount').textContent = `${list.length} عميل`;
+  $('allList').innerHTML = list.slice(0, 200).map(c => `<div class="item" data-allclient="${esc(c._docId)}"><div class="t">${esc(c.name)} <span class="tag">${esc(normStage(c.stage))}</span></div><div class="s">${esc(c.phone || '')} · ${esc(c.city || '')} · تبع: <b>${esc(c.addedBy || '—')}</b></div>${c.statusNote ? `<div class="s">${esc(c.statusNote)}</div>` : ''}</div>`).join('') || '<div class="empty">مفيش نتايج</div>';
+}
+async function openAnyClient(c) {
+  if (!c) return;
+  const ids = [...new Set([c.id, c._docId].filter(Boolean))];
+  const found = new Map();
+  for (const id of ids) { try { (await getDocs(query(col('tasks'), where('clientId', '==', id)))).forEach(d => putDoc(found, d)); } catch (e) {} }
+  const ts = [...found.values()].filter(t => !t.deletedAt).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const ph = digits(c.phone); const wa = ph ? `https://wa.me/${ph.startsWith('0') ? '966' + ph.slice(1) : ph}` : '';
+  $('clientBody').innerHTML = `<h2>${esc(c.name)}</h2><div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')} · تبع: <b>${esc(c.addedBy || '—')}</b></div>
+    <p><span class="tag">${esc(normStage(c.stage))}</span> ${c.statusNote ? esc(c.statusNote) : ''}</p>
+    <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm">${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm">واتساب</a>` : ''}</p>
+    <h3>سجل الإجراءات (${ts.length})</h3><div class="list timeline">${ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') || '<div class="empty">مفيش إجراءات</div>'}</div>`;
+  $('clientModal').classList.remove('hidden');
+}
+function startAllLog() {
+  if (all.dayUnsub) all.dayUnsub();
+  const d = $('allLogDate').value || cairoDate();
+  $('allLogNote').textContent = 'جاري التحميل…';
+  all.dayUnsub = onSnapshot(query(col('tasks'), where('date', '==', d)), snap => { all.dayTasks.clear(); snap.forEach(x => putDoc(all.dayTasks, x)); renderAllLog(); }, e => { $('allLogNote').textContent = 'تعذر التحميل: ' + e.message; });
+}
+function renderAllLog() {
+  const empId = $('allLogEmp').value; const e = state.employees.find(x => x.id === empId);
+  let list = [...all.dayTasks.values()].filter(t => !t.deletedAt && t.taskType !== 'internal' && t.category !== 'مهمة داخلية');
+  if (e) list = list.filter(t => (t.agentId && t.agentId === e.id) || normName(t.agent) === normName(e.name));
+  list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  $('allLogNote').textContent = `${list.length} إجراء`;
+  $('allLogList').innerHTML = list.map(t => `<div class="item" data-logtask="${esc(t._docId)}"><div class="t">${esc(t.customer || '')} <span class="tag">${esc(t.category || '')}</span></div><div class="s">${esc(t.agent || '')} · ${esc(t.time || '')} · ${esc(t.phone || '')}</div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}</div>`).join('') || '<div class="empty">مفيش إجراءات</div>';
+}
+function showEmployeeDay(empId) {
+  $('allLogDate').value = $('teamDate').value || cairoDate();
+  $('allLogEmp').value = empId;
+  setTab('alllog');
 }
 
 // ---------------- التشغيل ----------------
@@ -451,9 +503,12 @@ function startApp(emp) {
     const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
     $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
     $('teamDate').value = cairoDate();
+    $('allLogDate').value = cairoDate();
+    $('allLogEmp').innerHTML = '<option value="">كل الموظفين</option>' + state.employees.filter(e => lvl === 'manager' || e.department === emp.department).map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
+    if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (b.dataset.tab !== 'team') b.classList.add('hidden'); });
+    document.querySelectorAll('.tab').forEach(b => { if (!['team', 'allclients', 'alllog'].includes(b.dataset.tab)) b.classList.add('hidden'); });
     $('attBtn').classList.add('hidden'); $('syncBar').textContent = 'دخول المدير';
     setTab('team');
     return;
@@ -466,8 +521,10 @@ function startApp(emp) {
 function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ['today', 'clients', 'log', 'team'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
+  if (tab === 'allclients') loadAllClients();
+  if (tab === 'alllog') startAllLog(); else if (all.dayUnsub) { all.dayUnsub(); all.dayUnsub = null; }
   render();
 }
 
@@ -490,7 +547,13 @@ $('clientSearch').addEventListener('input', render);
 $('logDate').addEventListener('change', render);
 $('teamDate').addEventListener('change', startTeam);
 $('teamDept').addEventListener('change', startTeam);
+$('allSearch').addEventListener('input', renderAllClients);
+$('allLogDate').addEventListener('change', startAllLog);
+$('allLogEmp').addEventListener('change', renderAllLog);
 document.addEventListener('click', e => {
+  const er = e.target.closest('[data-emp]'); if (er) { showEmployeeDay(er.dataset.emp); return; }
+  const ac = e.target.closest('[data-allclient]'); if (ac) { openAnyClient(all.clients.get(ac.dataset.allclient)); return; }
+  const lt = e.target.closest('[data-logtask]'); if (lt) { const t = all.dayTasks.get(lt.dataset.logtask); if (t) { const c = [...all.clients.values()].find(c => c.id === t.clientId || c._docId === t.clientId); if (c) openAnyClient(c); else if (t.clientId) getDocs(query(col('clients'), where('id', '==', t.clientId))).then(s => { s.forEach(d => putDoc(all.clients, d)); openAnyClient([...all.clients.values()].find(c => c.id === t.clientId)); }).catch(() => {}); } return; }
   const pick = e.target.closest('[data-pick]'); if (pick) { setChosen(state.clients.get(pick.dataset.pick)); return; }
   const ci = e.target.closest('[data-client]'); if (ci) { openClient(state.clients.get(ci.dataset.client)); return; }
   const ti = e.target.closest('[data-task]'); if (ti) { const t = state.tasks.get(ti.dataset.task) || [...state.tasks.values()].find(x => x.id === ti.dataset.task); const c = t && findClientForTask(t); if (c) openClient(c); else if (t) openAction(null); }

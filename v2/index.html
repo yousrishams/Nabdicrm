@@ -7,7 +7,7 @@
 <title>نبضي CRM — النسخة 2 (تجريبية)</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=204">
+<link rel="stylesheet" href="./app.css?v=205">
 </head>
 <body>
 <div id="beta" class="beta">نسخة تجريبية 2.0 — الشغل بيتحفظ في نفس قاعدة البيانات الحقيقية</div>
@@ -36,6 +36,8 @@
       <button data-tab="clients" class="tab">عملائي</button>
       <button data-tab="log" class="tab">سجل اليوم</button>
       <button data-tab="team" class="tab hidden" id="teamTabBtn">الفريق</button>
+      <button data-tab="allclients" class="tab hidden mgr">كل العملاء</button>
+      <button data-tab="alllog" class="tab hidden mgr">سجل الإجراءات</button>
     </nav>
     <div class="who"><button id="attBtn" class="btn att sm">الحضور</button> <span id="whoName"></span> <button id="logoutBtn" class="btn ghost sm">خروج</button></div>
   </header>
@@ -78,6 +80,20 @@
         <div class="grid2"><div><label>اليوم</label><input id="teamDate" type="date"></div><div><label>القسم</label><select id="teamDept"></select></div></div>
         <div class="muted small" id="teamNote"></div>
         <div style="overflow:auto"><table class="tbl" id="teamTable"></table></div>
+      </div>
+    </section>
+    <section id="tab-allclients" class="hidden">
+      <div class="card">
+        <input id="allSearch" placeholder="ابحث بالاسم أو رقم الجوال في كل العملاء…">
+        <div class="muted small" id="allCount"></div>
+        <div id="allList" class="list"></div>
+      </div>
+    </section>
+    <section id="tab-alllog" class="hidden">
+      <div class="card">
+        <div class="grid2"><div><label>اليوم</label><input id="allLogDate" type="date"></div><div><label>الموظف</label><select id="allLogEmp"></select></div></div>
+        <div class="muted small" id="allLogNote"></div>
+        <div id="allLogList" class="list"></div>
       </div>
     </section>
   </main>
@@ -144,6 +160,6 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=204"></script>
+<script type="module" src="./app.js?v=205"></script>
 </body>
 </html>
