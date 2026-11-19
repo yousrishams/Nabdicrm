@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="nabdi-app-version" content="2.3.0">
+<meta name="nabdi-app-version" content="3.0.0">
 <meta name="theme-color" content="#5A3B8B">
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=209">
+<link rel="stylesheet" href="./app.css?v=211">
 </head>
 <body>
 
@@ -33,7 +33,7 @@
   <header class="top">
     <button id="menuBtn" class="iconbtn" aria-label="القائمة"><i class="fa-solid fa-bars"></i></button>
     <div class="brand"><span class="logo"><i class="fa-solid fa-heart-pulse"></i></span> نبضي <small>CRM</small></div>
-    <div class="who"><button id="attBtn" class="btn att sm">الحضور</button><span class="avatar" id="whoAvatar"></span><span id="whoName" class="whoname"></span><button id="logoutBtn" class="iconbtn" title="خروج"><i class="fa-solid fa-right-from-bracket"></i></button></div>
+    <div class="who"><button id="bellBtn" class="iconbtn bell" title="الإشعارات"><i class="fa-solid fa-bell"></i><b id="bellCount" class="hidden"></b></button><button id="attBtn" class="btn att sm">الحضور</button><span class="avatar" id="whoAvatar"></span><span id="whoName" class="whoname"></span><button id="pinBtn" class="iconbtn" title="تغيير رمز الدخول"><i class="fa-solid fa-key"></i></button><button id="logoutBtn" class="iconbtn" title="خروج"><i class="fa-solid fa-right-from-bracket"></i></button></div>
   </header>
   <aside class="side" id="side">
     <nav>
@@ -44,14 +44,15 @@
       <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>أداء الفريق اليوم</span></button>
       <button data-tab="allclients" class="tab hidden mgr"><i class="fa-solid fa-address-book"></i><span>جميع العملاء</span></button>
       <button data-tab="alllog" class="tab hidden mgr"><i class="fa-solid fa-list-check"></i><span>سجل الإجراءات</span></button>
-      <button data-tab="accounts" class="tab hidden mgr"><i class="fa-solid fa-user-shield"></i><span>حسابات الموظفين</span><b class="nbadge hidden" id="accBadge"></b></button>
+      <button data-tab="itasks" class="tab hidden mgrsup"><i class="fa-solid fa-clipboard-check"></i><span>المهام المسندة</span></button>
+      <button data-tab="accounts" class="tab hidden mgr"><i class="fa-solid fa-user-gear"></i><span>إدارة الموظفين</span><b class="nbadge hidden" id="accBadge"></b></button>
       <div class="navlbl agentsec">مساحة العمل</div>
       <button data-tab="today" class="tab on"><i class="fa-solid fa-house"></i><span>مهام اليوم</span></button>
       <button data-tab="clients" class="tab"><i class="fa-solid fa-user-group"></i><span>عملائي</span></button>
       <button data-tab="log" class="tab"><i class="fa-solid fa-clock-rotate-left"></i><span>سجل اليوم</span></button>
       <button data-tab="dash" class="tab agentrep"><i class="fa-solid fa-chart-line"></i><span>تقرير أدائي</span></button>
     </nav>
-    <div class="sidefoot muted small">نبضي CRM · النسخة 2</div>
+    <div class="sidefoot muted small">نبضي CRM · الإصدار 3.0</div>
   </aside>
   <div id="syncBar" class="sync"></div>
 
@@ -98,6 +99,14 @@
         <div id="repDoc" class="repdoc"></div>
       </div>
     </section>
+    <!-- المهام المسندة -->
+    <section id="tab-itasks" class="hidden">
+      <div class="pagehead"><h1>المهام المسندة</h1><div class="tools"><button class="btn primary sm" id="itNew"><i class="fa-solid fa-plus"></i> إسناد مهمة</button></div></div>
+      <div class="kpis" id="itKpis"></div>
+      <div class="card filters"><div class="seg" id="itScope"><button data-s="open" class="on">المفتوحة</button><button data-s="new">لم تُستلم</button><button data-s="late">المتأخرة</button><button data-s="done">المكتملة</button><button data-s="all">الكل</button></div>
+        <div class="frow"><label>الموظف</label><select id="itEmp"></select><input id="itSearch" placeholder="بحث في المهام…" style="flex:1"></div></div>
+      <div id="itList" class="list" style="max-height:none"></div>
+    </section>
     <!-- الدعم الفني -->
     <section id="tab-support" class="hidden">
       <div class="pagehead"><h1>الدعم الفني وتنفيذ العملاء</h1>
@@ -109,12 +118,13 @@
       </div>
       <div class="suplayout">
         <div id="supList" class="suplist"></div>
-        <div class="card supside"><h3><i class="fa-solid fa-ranking-star"></i> إنجاز فريق الدعم</h3><div id="supBoard"></div></div>
+        <div class="supside"><div class="card"><h3><i class="fa-solid fa-bullhorn"></i> نشرات وتعميمات الدعم</h3><div id="bulForm" class="hidden"><input id="bulTitle" maxlength="120" placeholder="عنوان النشرة"><textarea id="bulMsg" rows="3" maxlength="4000" placeholder="نص التعميم" style="margin-top:6px"></textarea><button class="btn primary sm block" id="bulSave">نشر التعميم</button></div><div id="bulList" class="list" style="margin-top:8px"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-ranking-star"></i> إنجاز فريق الدعم</h3><div id="supBoard"></div></div></div>
       </div>
     </section>
     <!-- حسابات الموظفين -->
     <section id="tab-accounts" class="hidden">
-      <div class="pagehead"><h1>حسابات الموظفين</h1></div>
+      <div class="pagehead"><h1>إدارة الموظفين</h1><div class="tools"><button class="btn primary sm" id="empAdd"><i class="fa-solid fa-user-plus"></i> إضافة موظف</button></div></div>
       <div class="card">
         <p class="muted small" style="margin-top:0">يُنشأ لكل موظف حساب آمن خاص به عند أول دخول للنظام. ويمكنك من هنا إنشاء حساب للموظفين الذين لم يسجلوا الدخول بعد، برمز دخول جديد يُرسل إليهم.</p>
         <div class="kpis" id="accKpis"></div>
@@ -125,7 +135,7 @@
     <section id="tab-today" class="hidden">
       <div class="kpis" id="kpis"></div>
       <div class="actions-row">
-        <button class="btn primary" id="newActionBtn"><i class="fa-solid fa-plus"></i> تسجيل إجراء / عميل جديد</button>
+        <button class="btn primary" id="newActionBtn"><i class="fa-solid fa-plus"></i> تسجيل إجراء</button> <button class="btn line" id="newClientBtn"><i class="fa-solid fa-user-plus"></i> تسجيل عميل جديد بالتفصيل</button>
       </div>
       <div class="grid3">
         <div class="card"><h3><i class="fa-solid fa-triangle-exclamation red"></i> متأخر <span id="cLate" class="pill"></span></h3><div id="listLate" class="list"></div></div>
@@ -133,6 +143,12 @@
         <div class="card"><h3><i class="fa-solid fa-phone-slash grey"></i> لم يرد <span id="cNoAnswer" class="pill"></span></h3><div id="listNoAnswer" class="list"></div></div>
       </div>
       <div class="card"><h3><i class="fa-solid fa-calendar-week"></i> قادم <span id="cNext" class="pill"></span></h3><div id="listNext" class="list"></div></div>
+      <div class="grid2c">
+        <div class="card"><h3><i class="fa-solid fa-clipboard-check"></i> المهام المسندة إليّ <span id="cMyIt" class="pill"></span></h3><div id="myItList" class="list"></div></div>
+        <div class="card"><h3><i class="fa-solid fa-list-check"></i> ملاحظات يومي <span id="cNotes" class="pill"></span></h3>
+          <div class="frow"><input id="noteInput" maxlength="180" placeholder="أضف مهمة لليوم…" style="flex:1"><button class="btn primary sm" id="noteAdd"><i class="fa-solid fa-plus"></i> إضافة</button></div>
+          <div id="noteList" class="list" style="margin-top:8px"></div></div>
+      </div>
     </section>
 
     <!-- عملائي -->
@@ -274,8 +290,107 @@
     <div id="stMsg" class="msg"></div>
   </div>
 </div>
+
+<!-- بيانات العميل الكاملة -->
+<div id="cfModal" class="modal hidden">
+  <div class="sheet wide">
+    <button class="x" data-close="cfModal">×</button>
+    <h2 id="cfTitle">بيانات العميل</h2>
+    <div class="fsec">البيانات الأساسية</div>
+    <div class="grid2">
+      <div><label>اسم العميل / المنشأة *</label><input id="cfName"></div>
+      <div><label>اسم الشخص المسؤول</label><input id="cfContact"></div>
+      <div><label>رقم الجوال *</label><input id="cfPhone" dir="ltr" inputmode="tel"></div>
+      <div><label>رقم الهوية الوطنية / الإقامة</label><input id="cfNid" dir="ltr" inputmode="numeric" maxlength="10"></div>
+      <div><label>نوع المنشأة</label><select id="cfEntity"></select></div>
+      <div><label>التخصص</label><input id="cfSpecialty"></div>
+      <div><label>المدينة</label><select id="cfCity"></select></div>
+      <div><label>مرحلة العميل</label><select id="cfStage"></select></div>
+    </div>
+    <label>الإفادة / الحالة الحالية للعميل</label><input id="cfStatusNote">
+    <label>العنوان التفصيلي</label><input id="cfAddress">
+    <label>ملاحظات</label><textarea id="cfNotes" rows="2"></textarea>
+    <div class="fsec">البيانات المالية</div>
+    <div class="grid2">
+      <div><label>رقم الحساب البنكي</label><input id="cfAccount" dir="ltr"></div>
+      <div><label>رقم الآيبان (IBAN)</label><input id="cfIban" dir="ltr"></div>
+      <div><label>العمولة المتفق عليها</label><input id="cfCommission"></div>
+    </div>
+    <div class="fsec">بيانات التعاقد</div>
+    <div class="grid2">
+      <div><label>الاسم التجاري الرسمي بالعقد</label><input id="cfTrade"></div>
+      <div><label>رقم السجل التجاري (CR)</label><input id="cfCr" dir="ltr"></div>
+      <div><label>الرقم الضريبي (VAT)</label><input id="cfVat" dir="ltr"></div>
+      <div><label>اسم المفوض بالتوقيع</label><input id="cfSigner"></div>
+    </div>
+    <div class="fsec">المرفقات</div>
+    <div id="cfDocs" class="docgrid"></div>
+    <button id="cfSave" class="btn primary block">حفظ بيانات العميل</button>
+    <div id="cfMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- موظف -->
+<div id="empModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="empModal">×</button>
+    <h2 id="emTitle">إضافة موظف</h2>
+    <label>اسم الموظف *</label><input id="emName">
+    <div class="grid2">
+      <div><label>القسم</label><select id="emDept"><option>خدمات العملاء</option><option>الدعم الفني</option><option>الإدارة</option></select></div>
+      <div><label>الصلاحية</label><select id="emLevel"><option value="employee">موظف</option><option value="supervisor">مشرف — تقارير ومتابعة الفريق</option><option value="manager">مدير متابعة — صلاحيات المدير</option></select></div>
+      <div><label>الشفت</label><select id="emShift"><option>شفت صباحي</option><option>شفت مسائي</option></select></div>
+      <div id="emPinWrap"><label>رمز الدخول (من 6 أرقام أو أكثر) *</label><input id="emPin" inputmode="numeric"></div>
+    </div>
+    <button id="emSave" class="btn primary block">حفظ</button>
+    <div id="emMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- مهمة مسندة -->
+<div id="itModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="itModal">×</button>
+    <h2 id="itTitleH">إسناد مهمة</h2>
+    <label>المستلم *</label><select id="itAssignee"></select>
+    <label>عنوان المهمة *</label><input id="itTitle" maxlength="160">
+    <label>التفاصيل</label><textarea id="itDesc" rows="3"></textarea>
+    <div class="grid2"><div><label>تاريخ التسليم *</label><input id="itDue" type="date"></div><div><label>الأولوية</label><select id="itPriority"><option>عادية</option><option>متوسطة</option><option>عالية جداً</option></select></div></div>
+    <button id="itSave" class="btn primary block">حفظ المهمة</button>
+    <div id="itMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- إجراء على مهمة مسندة -->
+<div id="itActModal" class="modal hidden">
+  <div class="sheet">
+    <button class="x" data-close="itActModal">×</button>
+    <h2>إضافة إجراء على المهمة</h2>
+    <div class="muted" id="iaTask"></div>
+    <label>نوع الإجراء</label><select id="iaType"><option>بدء التنفيذ</option><option>تحديث العمل</option><option>طلب توضيح</option><option>مراجعة</option><option>تعليق</option></select>
+    <label>التعليق وما تم تنفيذه *</label><textarea id="iaComment" rows="3"></textarea>
+    <button id="iaSave" class="btn primary block">حفظ الإجراء</button>
+    <div id="iaMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- تغيير الرمز -->
+<div id="pinModal" class="modal hidden">
+  <div class="sheet" style="max-width:420px">
+    <button class="x" data-close="pinModal">×</button>
+    <h2>تغيير رمز الدخول</h2>
+    <label>الرمز الحالي</label><input id="pnCur" type="password" inputmode="numeric">
+    <label>الرمز الجديد (6 أرقام أو أكثر)</label><input id="pnNew" type="password" inputmode="numeric">
+    <label>تأكيد الرمز الجديد</label><input id="pnConf" type="password" inputmode="numeric">
+    <button id="pnSave" class="btn primary block">حفظ الرمز الجديد</button>
+    <div id="pnMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- الإشعارات -->
+<div id="bellPanel" class="bellpanel hidden"><div class="bphead"><b>الإشعارات</b><button class="btn line sm" id="bellRead">تحديد الكل كمقروء</button></div><div id="bellList"></div></div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=209"></script>
+<script type="module" src="./app.js?v=211"></script>
 </body>
 </html>

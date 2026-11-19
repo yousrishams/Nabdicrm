@@ -164,6 +164,27 @@ h3 i{color:var(--p2)}
 .rfoot{margin-top:24px;border-top:1px solid #ddd;padding-top:8px;font-size:10px;color:#888;display:flex;justify-content:space-between}
 .rempty{color:#888;text-align:center;padding:14px;border:1px dashed #ddd;border-radius:8px}
 
+/* إضافات */
+.sheet.wide{max-width:860px}
+.fsec{font-weight:800;color:var(--p);border-bottom:1px solid var(--b);padding-bottom:4px;margin:16px 0 4px}
+.docgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;margin-top:8px}
+.docitem{border:1px dashed #cfc4e8;border-radius:12px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:4px}
+.docitem b{color:var(--t)}.docitem .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.docitem input[type=file]{display:none}
+.bell{position:relative}.bell b{position:absolute;top:2px;left:2px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;min-width:17px;height:17px;line-height:17px;padding:0 4px}
+.bellpanel{position:fixed;top:60px;left:14px;width:360px;max-width:calc(100vw - 28px);max-height:70vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 14px 40px rgba(20,10,40,.22);z-index:35;border:1px solid var(--b)}
+.bphead{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--b);position:sticky;top:0;background:#fff}
+.bitem{padding:10px 12px;border-bottom:1px solid #f2eff8;cursor:pointer;font-size:13px}.bitem:hover{background:#faf8fd}.bitem.unread{background:#f6f1ff}
+.bitem .s{font-size:11px;color:var(--m)}
+.it{background:#fff;border:1px solid var(--b);border-radius:14px;padding:12px 14px}
+.it .ih{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.it h4{margin:0;font-size:14px}.it .log{margin-top:8px;border-top:1px dashed var(--b);padding-top:6px;font-size:12px;color:#4b4863}
+.it .log div{margin:3px 0}
+.note{display:flex;align-items:center;gap:8px;border:1px solid var(--b);border-radius:10px;padding:6px 8px}
+.note.done{background:#f0fdf4;border-color:#bbf7d0}.note.done span{text-decoration:line-through;color:var(--m)}
+.note span{flex:1;font-weight:700;font-size:13px}
+.tl-act{display:flex;gap:4px;margin-top:4px}
+
 /* موبايل */
 @media screen and (max-width:900px){
   #menuBtn{display:inline-block}

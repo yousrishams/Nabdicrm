@@ -5,7 +5,8 @@ import {
   initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup,
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, setDoc as rawSetDoc, getDoc, getDocs, onSnapshot,
-  query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED
+  query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED,
+  updatePassword, getStorage, storageRef, uploadBytesResumable, getDownloadURL
 } from '../firebase-11.6.1-b3.bundle.js';
 
 const firebaseConfig = {
@@ -223,6 +224,7 @@ function renderToday() {
   fill('listLate', 'cLate', late, t => `· كان موعدها ${esc(t.nextFollowUpDate)}`);
   fill('listToday', 'cToday', due, t => t.nextFollowUpTime ? `· الساعة ${esc(t.nextFollowUpTime)}` : '');
   fill('listNoAnswer', 'cNoAnswer', noAns, t => `· آخر محاولة ${esc(t.date || '')}`);
+  renderMyItasks(); updateBell();
   fill('listNext', 'cNext', next, t => `· ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}`);
 }
 function lastActionAt(c) { const t = tasksOfClient(c)[0]; return t ? (t.createdAt || 0) : (c.updatedAt || c.createdAt || 0); }
@@ -250,12 +252,16 @@ function openClient(c) {
     <div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')}</div>
     <p><span class="tag">${esc(normStage(c.stage))}</span> ${c.statusNote ? esc(c.statusNote) : ''}</p>
     <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm"><i class="fa-solid fa-phone"></i> ${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm"><i class="fa-brands fa-whatsapp"></i> واتساب</a>` : ''}
-    <button class="btn primary sm" id="clientAction">تسجيل إجراء</button> <button class="btn line sm" id="clientHandoff"><i class="fa-solid fa-headset"></i> ${c.supportPackage ? 'تحديث بيانات الدعم' : 'إحالة إلى الدعم الفني'}</button></p>
+    <button class="btn primary sm" id="clientAction">تسجيل إجراء</button> <button class="btn line sm" id="clientEdit"><i class="fa-solid fa-pen-to-square"></i> البيانات الكاملة والمرفقات</button> <button class="btn line sm" id="clientHandoff"><i class="fa-solid fa-headset"></i> ${c.supportPackage ? 'تحديث بيانات الدعم' : 'إحالة إلى الدعم الفني'}</button></p>
+    ${Object.entries(c.docs || {}).filter(([, d]) => d?.url).length ? `<div class="pact">${Object.entries(c.docs || {}).filter(([, d]) => d?.url).map(([k, d]) => `<a class="btn line sm" target="_blank" rel="noopener" href="${esc(d.url)}"><i class="fa-solid fa-paperclip"></i> ${esc((DOC_KEYS.find(x => x[0] === k) || [k, k])[1])}</a>`).join('')}</div>` : ''}
     <h3>سجل الإجراءات (${ts.length})</h3>
-    <div class="list timeline">${ts.length ? ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">موعد المتابعة التالية: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') : '<div class="empty">لا توجد إجراءات بعد</div>'}</div>`;
+    <div class="list timeline">${ts.length ? ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">موعد المتابعة التالية: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div>${t.isClientRegistration ? '' : `<div class="tl-act"><button class="btn line sm" data-tedit="${esc(t._docId || t.id)}"><i class="fa-solid fa-pen"></i> تعديل</button><button class="btn danger sm" data-tdel="${esc(t._docId || t.id)}"><i class="fa-solid fa-trash"></i> حذف</button></div>`}</div>`).join('') : '<div class="empty">لا توجد إجراءات بعد</div>'}</div>
+    <p style="margin-top:14px"><button class="btn danger sm" id="clientDelete"><i class="fa-solid fa-trash"></i> حذف العميل</button></p>`;
   $('clientModal').classList.remove('hidden');
   $('clientAction').onclick = () => { $('clientModal').classList.add('hidden'); openAction(c); };
   $('clientHandoff').onclick = () => openHandoff(c);
+  $('clientEdit').onclick = () => openClientForm(c);
+  $('clientDelete').onclick = () => deleteClient(c);
 }
 
 // ---------------- تسجيل إجراء ----------------
@@ -271,6 +277,7 @@ function openAction(client = null) {
   ['aSearch', 'aName', 'aPhone', 'aSpecialty', 'aNotes', 'aStatusNote', 'aNextDate', 'aNextTime'].forEach(id => { $(id).value = ''; });
   $('aCity').value = CITIES[0]; $('aEntity').value = ENTITIES[0]; $('aCategory').value = STAGES[0]; $('aChannel').value = CHANNELS[0]; $('aStatus').value = STATUSES[0]; $('aPriority').value = PRIORITIES[0];
   $('aAlsoWa').checked = false; $('aMatches').innerHTML = ''; $('aMsg').textContent = '';
+  state.editTask = null; $('actionTitle').textContent = 'تسجيل إجراء';
   setChosen(client);
   $('actionModal').classList.remove('hidden');
 }
@@ -293,6 +300,7 @@ async function findExistingClient(name, phone) {
   return found.filter(c => !c.deletedAt);
 }
 async function saveAction() {
+  if (state.editTask) return saveEditedTask();
   const btn = $('aSave'), msg = $('aMsg');
   const me = state.me, now = Date.now(), today = cairoDate();
   const category = $('aCategory').value, notes = $('aNotes').value.trim(), statusNote = $('aStatusNote').value.trim();
@@ -469,9 +477,12 @@ async function openAnyClient(c) {
   const ph = digits(c.phone); const wa = ph ? `https://wa.me/${ph.startsWith('0') ? '966' + ph.slice(1) : ph}` : '';
   $('clientBody').innerHTML = `<h2>${esc(c.name)}</h2><div class="muted">${esc(c.entityType || '')} · ${esc(c.specialty || '')} · ${esc(c.city || '')} · المسؤول: <b>${esc(c.addedBy || '—')}</b></div>
     <p><span class="tag">${esc(normStage(c.stage))}</span> ${c.statusNote ? esc(c.statusNote) : ''}</p>
-    <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm">${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm">واتساب</a>` : ''}</p>
+    <p>${c.phone ? `<a href="tel:${esc(c.phone)}" class="btn line sm">${esc(c.phone)}</a>` : ''} ${wa ? `<a href="${esc(wa)}" target="_blank" class="btn line sm">واتساب</a>` : ''} ${isMgr() ? `<button class="btn line sm" id="anyEdit"><i class="fa-solid fa-pen-to-square"></i> البيانات الكاملة والمرفقات</button> <button class="btn danger sm" id="anyDel"><i class="fa-solid fa-trash"></i> حذف</button>` : ''}</p>
+    ${c.accountNumber || c.iban || c.commission || c.contractCrNumber ? `<div class="pkg">${c.contactPerson ? `<div><b>المسؤول</b>${esc(c.contactPerson)}</div>` : ''}${c.iban ? `<div><b>الآيبان</b>${esc(c.iban)}</div>` : ''}${c.commission ? `<div><b>العمولة</b>${esc(c.commission)}</div>` : ''}${c.contractCrNumber ? `<div><b>السجل التجاري</b>${esc(c.contractCrNumber)}</div>` : ''}${c.contractVatNumber ? `<div><b>الرقم الضريبي</b>${esc(c.contractVatNumber)}</div>` : ''}</div>` : ''}
+    ${Object.entries(c.docs || {}).filter(([, d]) => d?.url).length ? `<div class="pact">${Object.entries(c.docs || {}).filter(([, d]) => d?.url).map(([k, d]) => `<a class="btn line sm" target="_blank" rel="noopener" href="${esc(d.url)}"><i class="fa-solid fa-paperclip"></i> ${esc((DOC_KEYS.find(x => x[0] === k) || [k, k])[1])}</a>`).join('')}</div>` : ''}
     <h3>سجل الإجراءات (${ts.length})</h3><div class="list timeline">${ts.map(t => `<div class="item"><div class="t">${esc(t.category)} <span class="tag">${esc(t.date || '')} ${esc(t.time || '')}</span></div>${t.notes ? `<div class="s">${esc(t.notes)}</div>` : ''}${t.nextFollowUpDate ? `<div class="s">المتابعة: ${esc(t.nextFollowUpDate)} ${esc(t.nextFollowUpTime || '')}</div>` : ''}<div class="s">${esc(t.agent || '')}</div></div>`).join('') || '<div class="empty">لا توجد إجراءات</div>'}</div>`;
   $('clientModal').classList.remove('hidden');
+  if ($('anyEdit')) { $('anyEdit').onclick = () => openClientForm(c); $('anyDel').onclick = () => deleteClient(c); }
 }
 function startAllLog() {
   if (all.dayUnsub) all.dayUnsub();
@@ -853,9 +864,9 @@ function renderAccounts() {
   $('accBadge').textContent = missing.length; $('accBadge').classList.toggle('hidden', !missing.length);
   $('accKpis').innerHTML = `<div class="kpi" style="--c:#5A3B8B"><span>جميع الموظفين</span><b>${emps.length}</b></div><div class="kpi" style="--c:#16a34a"><span>لديهم حساب</span><b>${emps.length - missing.length}</b></div><div class="kpi" style="--c:#dc2626"><span>لم يسجلوا الدخول بعد</span><b>${missing.length}</b></div>`;
   const rows = [...emps].sort((a, b) => has(a) - has(b) || String(a.name).localeCompare(String(b.name), 'ar'));
-  $('accTable').innerHTML = '<tr><th>الموظف</th><th>القسم</th><th>الحالة</th><th>آخر دخول</th><th></th></tr>' + rows.map(e => {
+  $('accTable').innerHTML = '<tr><th>الموظف</th><th>القسم</th><th>الصلاحية</th><th>الشفت</th><th>حالة الحساب</th><th>آخر دخول</th><th></th></tr>' + rows.map(e => {
     const a = ACC.map.get(e.id);
-    return `<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.department || '')}</td><td>${a ? '<span class="st working">لديه حساب ✓</span>' : '<span class="st not_started">لم يسجل الدخول بعد</span>'}</td><td>${a?.lastLoginAt ? esc(new Date(a.lastLoginAt).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })) : '—'}</td><td>${a ? '' : `<button class="btn primary sm" data-mkacc="${esc(e.id)}"><i class="fa-solid fa-user-plus"></i> إنشاء حساب</button>`}</td></tr>`;
+    return `<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.department || '')}</td><td>${{ manager: 'مدير متابعة', supervisor: 'مشرف', employee: 'موظف' }[accessOf(e)]}</td><td>${esc(e.shift || '')}</td><td>${a ? '<span class="st working">لديه حساب ✓</span>' : '<span class="st not_started">لم يسجل الدخول بعد</span>'}</td><td>${a?.lastLoginAt ? esc(new Date(a.lastLoginAt).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })) : '—'}</td><td style="white-space:nowrap">${a ? '' : `<button class="btn primary sm" data-mkacc="${esc(e.id)}"><i class="fa-solid fa-user-plus"></i> إنشاء حساب</button> `}<button class="iconbtn" data-emedit="${esc(e.id)}" title="تعديل"><i class="fa-solid fa-pen"></i></button><button class="iconbtn" data-emdel="${esc(e.id)}" title="حذف"><i class="fa-solid fa-trash"></i></button></td></tr>`;
   }).join('');
 }
 let adminAuth = null;
@@ -1007,7 +1018,8 @@ function repEmp(r, pr, empId) {
 function repActions(r) { RP.sheet = null; const cat = $('repCat').value; const T = cat ? r.T.filter(t => (LEGACY[t.category] || t.category) === cat) : r.T; return actionsTable(T, cat ? `إجراءات «${cat}»` : 'تفاصيل الإجراءات'); }
 function repAtt(r) {
   RP.sheet = null; RP.rows = null;
-  const sum = `<div class="rsec"><h3>ملخص الحضور</h3><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>القسم</th><th>أيام الحضور</th><th>إجمالي ساعات العمل</th><th>متوسط الساعات يوميًا</th></tr></thead><tbody>${r.rows.map(x => `<tr><td class="l"><b>${esc(x.e.name)}</b></td><td>${esc(x.e.department || '')}</td><td>${x.daysP}</td><td>${hrsTxt(x.work)}</td><td>${x.daysP ? hrsTxt(x.work / x.daysP) : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+  const wd = r.days.filter(d => d <= cairoDate() && new Date(d + 'T12:00:00Z').getUTCDay() !== 5).length;
+  const sum = `<div class="rsec"><h3>ملخص الحضور</h3><div class="rnote" style="margin-bottom:8px">أيام العمل المحتسبة خلال الفترة: <b>${wd}</b> يوم (باستثناء أيام الجمعة)</div><table class="rtbl"><thead><tr><th class="l">الموظف</th><th>القسم</th><th>أيام الحضور</th><th>أيام الغياب</th><th>إجمالي ساعات العمل</th><th>متوسط الساعات يوميًا</th></tr></thead><tbody>${r.rows.map(x => `<tr><td class="l"><b>${esc(x.e.name)}</b></td><td>${esc(x.e.department || '')}</td><td>${x.daysP}</td><td><b style="color:${wd - x.daysP > 0 ? '#dc2626' : 'inherit'}">${Math.max(0, wd - x.daysP)}</b></td><td>${hrsTxt(x.work)}</td><td>${x.daysP ? hrsTxt(x.work / x.daysP) : '—'}</td></tr>`).join('')}</tbody></table></div>`;
   const recs = [...r.A].sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.employeeName).localeCompare(String(b.employeeName), 'ar'));
   RP.att = recs;
   const det = `<div class="rsec"><h3>السجل اليومي</h3>${recs.length ? `<table class="rtbl"><thead><tr><th>التاريخ</th><th class="l">الموظف</th><th>الحضور</th><th>الانصراف</th><th>الاستراحة</th><th>ساعات العمل</th></tr></thead><tbody>${recs.map(a => { const m = attMetrics(a); return `<tr><td>${fmtDate(a.date)}</td><td class="l">${esc(a.employeeName || '')}</td><td>${fmtTime(a.checkInAt)}</td><td>${fmtTime(a.checkOutAt)}</td><td>${hrsTxt(m.brk)}</td><td><b>${hrsTxt(m.work)}</b></td></tr>`; }).join('')}</tbody></table>` : '<div class="rempty">لا توجد سجلات</div>'}</div>`;
@@ -1054,6 +1066,377 @@ function repExcel() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${L.type.t}-${L.from}_${L.to}.xls`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
+
+// ================= مميزات منقولة من النسخة السابقة =================
+const isMgr = () => accessOf(state.me) === 'manager';
+const isSup = () => accessOf(state.me) === 'supervisor';
+const sameEmp = (aName, aId, e) => (aId && e?.id && aId === e.id) || normName(aName) === normName(e?.name);
+let storage = null; const getSt = () => storage || (storage = getStorage(app));
+
+// ---------- 1) بيانات العميل الكاملة + المرفقات ----------
+const DOC_KEYS = [['docMainName', 'مستند المنشأة / الاسم'], ['docContactPerson', 'مستند الشخص المسؤول'], ['docPhone', 'مستند رقم الجوال'], ['docAccountNum', 'مستند الحساب البنكي'], ['docIban', 'شهادة الآيبان'], ['docCommission', 'مستند العمولة'], ['docTradeName', 'العقد / الاسم التجاري'], ['docCr', 'السجل التجاري'], ['docVat', 'الشهادة الضريبية'], ['docSigner', 'تفويض التوقيع']];
+const CF = { client: null, docs: {}, files: {} };
+const canEditClient = c => !c || isMgr() || owns('clients', c);
+function openClientForm(c = null) {
+  if (c && !canEditClient(c)) { toast('هذا العميل تابع لموظف آخر ولا يمكن تعديله من حسابك', 'err'); return; }
+  CF.client = c; CF.docs = JSON.parse(JSON.stringify(c?.docs || {})); CF.files = {};
+  fillSelect('cfEntity', ENTITIES); fillSelect('cfCity', CITIES); fillSelect('cfStage', STAGES);
+  const v = (id, val) => { $(id).value = val || ''; };
+  $('cfTitle').textContent = c ? `تعديل بيانات: ${c.name}` : 'تسجيل عميل جديد';
+  v('cfName', c?.name); v('cfContact', c?.contactPerson); v('cfPhone', c?.phone); v('cfNid', c?.nationalId); v('cfSpecialty', c?.specialty); v('cfStatusNote', c?.statusNote); v('cfAddress', c?.address); v('cfNotes', c?.notes);
+  v('cfAccount', c?.accountNumber); v('cfIban', c?.iban); v('cfCommission', c?.commission); v('cfTrade', c?.contractTradeName); v('cfCr', c?.contractCrNumber); v('cfVat', c?.contractVatNumber); v('cfSigner', c?.contractSignerName);
+  $('cfEntity').value = c?.entityType && ENTITIES.includes(c.entityType) ? c.entityType : ENTITIES[0];
+  $('cfCity').value = c?.city && CITIES.includes(c.city) ? c.city : CITIES[0];
+  $('cfStage').value = normStage(c?.stage);
+  $('cfMsg').textContent = '';
+  renderDocSlots();
+  $('clientModal').classList.add('hidden');
+  $('cfModal').classList.remove('hidden');
+}
+function renderDocSlots() {
+  $('cfDocs').innerHTML = DOC_KEYS.map(([k, label]) => {
+    const d = CF.docs[k], f = CF.files[k];
+    const st = f ? `<span class="amber">سيُرفع عند الحفظ: ${esc(f.name)}</span>` : d?.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" class="btn line sm"><i class="fa-solid fa-eye"></i> عرض ${esc(d.name || '')}</a>` : d?.localId ? `<span class="muted">${esc(d.name || 'ملف')} — محفوظ على جهاز آخر ولم يُرفع بعد</span>` : '<span class="muted">لا يوجد ملف</span>';
+    return `<div class="docitem"><b>${label}</b><div class="row">${st}</div><div class="row"><label class="btn line sm" style="margin:0"><i class="fa-solid fa-paperclip"></i> ${d || f ? 'استبدال' : 'إرفاق'}<input type="file" data-docf="${k}" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"></label>${d || f ? `<button class="btn danger sm" data-docdel="${k}">إزالة</button>` : ''}</div></div>`;
+  }).join('');
+}
+async function uploadDoc(file, clientId, key) {
+  const seg = s => String(s || '').replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
+  const path = `artifacts/${APP_ID}/clients/${seg(clientId)}/${key}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${seg(file.name)}`;
+  const ref = storageRef(getSt(), path);
+  const task = uploadBytesResumable(ref, file, { contentType: file.type || 'application/octet-stream', customMetadata: { clientId: String(clientId), fieldKey: key, uploadedBy: auth.currentUser?.uid || '' } });
+  await new Promise((res, rej) => { const to = setTimeout(() => { try { task.cancel(); } catch (e) {} rej(new Error('استغرق رفع الملف وقتًا أطول من المسموح')); }, 60000); task.on('state_changed', null, e => { clearTimeout(to); rej(e); }, () => { clearTimeout(to); res(); }); });
+  const url = await getDownloadURL(task.snapshot.ref);
+  const kb = file.size / 1024;
+  return { name: file.name, size: kb > 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.round(kb) + ' KB', sizeBytes: file.size, type: file.type || 'application/octet-stream', url, storagePath: path, uploadedAt: Date.now() };
+}
+async function saveClientForm() {
+  const msg = $('cfMsg'); msg.className = 'msg err';
+  const c = CF.client, me = state.me, now = Date.now();
+  const name = $('cfName').value.trim(), phone = $('cfPhone').value.trim(), nid = digits($('cfNid').value);
+  if (!name || digits(phone).length < 8) { msg.textContent = 'يرجى إدخال اسم المنشأة ورقم جوال صحيح'; return; }
+  if (nid && !/^[12]\d{9}$/.test(nid)) { msg.textContent = 'رقم الهوية / الإقامة يجب أن يتكون من 10 أرقام ويبدأ بـ 1 أو 2'; return; }
+  const btn = $('cfSave'); btn.disabled = true; btn.textContent = 'جارٍ الحفظ…';
+  try {
+    const city = $('cfCity').value;
+    if (!c) {
+      const existing = await withTimeout(findExistingClient(name, phone), 10000, 'الاتصال بطيء، يرجى المحاولة مرة أخرى');
+      if (existing.length) throw new Error(`هذا العميل مسجّل مسبقًا باسم ${existing[0].addedBy || 'موظف آخر'}`);
+    }
+    const id = c?.id || canonicalClientId(name, phone, city), docId = c?._docId || id;
+    const docs = { ...CF.docs };
+    for (const [k, f] of Object.entries(CF.files)) { btn.textContent = `جارٍ رفع ${f.name}…`; docs[k] = await uploadDoc(f, id, k); }
+    const stage = $('cfStage').value;
+    const data = { id, name, contactPerson: $('cfContact').value.trim(), phone, nationalId: nid, entityType: $('cfEntity').value, specialty: $('cfSpecialty').value.trim(), city, stage, address: $('cfAddress').value.trim(), notes: $('cfNotes').value.trim(), statusNote: $('cfStatusNote').value.trim(), accountNumber: $('cfAccount').value.trim(), iban: $('cfIban').value.trim().replace(/\s+/g, '').toUpperCase(), commission: $('cfCommission').value.trim(), contractTradeName: $('cfTrade').value.trim(), contractCrNumber: $('cfCr').value.trim(), contractVatNumber: $('cfVat').value.trim(), contractSignerName: $('cfSigner').value.trim(), docs, updatedAt: now };
+    if (c && data.statusNote !== String(c.statusNote || '').trim()) { data.statusUpdatedAt = now; data.statusUpdatedBy = actor(); }
+    if (c && normStage(c.stage) !== stage) { const h = Array.isArray(c.stageHistory) ? c.stageHistory.slice() : []; h.push({ stage, at: new Date(now).toISOString(), by: actor() }); data.stageHistory = h; data.stageUpdatedAt = new Date(now).toISOString(); }
+    if (!c) Object.assign(data, { addedBy: me.name, addedById: me.id, createdAt: now, registeredAt: now, stageHistory: [{ stage, at: new Date(now).toISOString() }] });
+    await withTimeout(setDoc(doc(col('clients'), docId), data, { merge: true }), 15000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
+    const merged = { ...(c || {}), ...data, _docId: docId };
+    if (state.clients.has(docId) || !c) state.clients.set(docId, merged);
+    if (all.clients.has(docId)) all.clients.set(docId, merged);
+    if (!c) {
+      const tid = `task_${now}_${Math.random().toString(36).slice(2, 7)}`;
+      const t = { id: tid, clientId: id, time: cairoTime(), date: cairoDate(), shift: me.shift || '', agent: me.name, agentId: me.id, customer: name, phone, entityType: data.entityType, specialty: data.specialty, city, category: 'تسجيل جهة جديدة', channel: 'نظام نبضي', priority: 'عادية', status: 'مكتمل', activityType: 'client_registration', isClientRegistration: true, createdAt: now, updatedAt: now, affectsFunnel: false, affectsFollowUp: false, clientStatusNote: data.statusNote, notes: 'تم تسجيل بيانات الجهة في النظام.' + (data.notes ? ' ملاحظات: ' + data.notes : ''), source: 'v2' };
+      setDoc(doc(col('tasks'), tid), t).then(() => { state.tasks.set(tid, { ...t, _docId: tid }); render(); }).catch(() => {});
+    }
+    $('cfModal').classList.add('hidden');
+    toast(c ? '✓ تم حفظ بيانات العميل' : '✓ تم تسجيل العميل بنجاح', 'ok');
+    render(); if (state.tab === 'allclients') renderAllClients();
+    if (stage === 'إرفاق رابط Google Drive بالبيانات' || stage === 'إرسال البيانات إلى الدعم الفني') setTimeout(() => openHandoff(merged), 200);
+  } catch (e) { msg.textContent = e.message || 'تعذّر الحفظ'; }
+  finally { btn.disabled = false; btn.textContent = 'حفظ بيانات العميل'; }
+}
+async function deleteClient(c) {
+  if (!c) return;
+  if (!canEditClient(c)) { toast('لا يمكنك حذف عميل تابع لموظف آخر', 'err'); return; }
+  if (!confirm(`هل تريد حذف العميل «${c.name}» وجميع إجراءاته نهائيًا؟`)) return;
+  const deletedAt = new Date().toISOString(), upd = Date.now(), by = actor();
+  try {
+    const ids = [...new Set([c.id, c._docId].filter(Boolean))];
+    const ts = new Map();
+    for (const id of ids) { try { (await getDocs(query(col('tasks'), where('clientId', '==', id)))).forEach(d => ts.set(d.id, 1)); } catch (e) {} }
+    for (const tid of ts.keys()) { await setDoc(doc(col('tasks'), tid), { id: tid, deletedAt, updatedAt: upd, deletedBy: by }, { merge: true }); const t = state.tasks.get(tid); if (t) t.deletedAt = deletedAt; }
+    try { (await getDocs(query(col('supportProjects'), where('clientId', '==', c.id)))).forEach(d => setDoc(doc(col('supportProjects'), d.id), { id: d.id, deletedAt, updatedAt: upd, deletedBy: by }, { merge: true })); } catch (e) {}
+    await setDoc(doc(col('clients'), c._docId || c.id), { id: c.id, deletedAt, updatedAt: upd, deletedBy: by }, { merge: true });
+    state.clients.delete(c._docId); all.clients.delete(c._docId);
+    $('clientModal').classList.add('hidden'); toast('✓ تم حذف العميل', 'ok'); render(); if (state.tab === 'allclients') renderAllClients();
+  } catch (e) { toast('تعذّر الحذف: ' + e.message, 'err'); }
+}
+async function deleteTask(t) {
+  if (!t) return;
+  if (!isMgr() && !sameEmp(t.agent, t.agentId, state.me)) { toast('يمكنك حذف الإجراءات المسجلة باسمك فقط', 'err'); return; }
+  if (!confirm('هل تريد حذف هذا الإجراء نهائيًا؟')) return;
+  try {
+    const id = t._docId || t.id;
+    await setDoc(doc(col('tasks'), id), { id: t.id, deletedAt: new Date().toISOString(), updatedAt: Date.now(), deletedBy: actor() }, { merge: true });
+    const lt = state.tasks.get(id); if (lt) lt.deletedAt = new Date().toISOString();
+    toast('✓ تم حذف الإجراء', 'ok'); $('clientModal').classList.add('hidden'); render();
+  } catch (e) { toast('تعذّر الحذف: ' + e.message, 'err'); }
+}
+function editTask(t) {
+  if (!t) return;
+  if (!isMgr() && !sameEmp(t.agent, t.agentId, state.me)) { toast('يمكنك تعديل الإجراءات المسجلة باسمك فقط', 'err'); return; }
+  const c = findClientForTask(t) || { id: t.clientId, _docId: t.clientId, name: t.customer, phone: t.phone, stage: t.category };
+  openAction(c);
+  state.editTask = t;
+  $('actionTitle').textContent = 'تعديل إجراء';
+  $('aCategory').value = STAGES.includes(normStage(t.category)) ? normStage(t.category) : STAGES[0];
+  $('aChannel').value = CHANNELS.includes(t.channel) ? t.channel : CHANNELS[0];
+  $('aStatus').value = STATUSES.includes(t.status) ? t.status : STATUSES[0];
+  $('aPriority').value = PRIORITIES.includes(t.priority) ? t.priority : PRIORITIES[0];
+  $('aNotes').value = t.notes || ''; $('aStatusNote').value = t.clientStatusNote || ''; $('aNextDate').value = t.nextFollowUpDate || ''; $('aNextTime').value = t.nextFollowUpTime || '';
+  $('clientModal').classList.add('hidden');
+}
+async function saveEditedTask() {
+  const t = state.editTask, msg = $('aMsg'); msg.className = 'msg err';
+  const nextDate = $('aNextDate').value, nextTime = $('aNextTime').value;
+  if (nextTime && !nextDate) { msg.textContent = 'يرجى تحديد تاريخ المتابعة أولًا'; return; }
+  const btn = $('aSave'); btn.disabled = true;
+  try {
+    const id = t._docId || t.id;
+    const upd = { category: $('aCategory').value, channel: $('aChannel').value, status: $('aStatus').value, priority: $('aPriority').value, notes: $('aNotes').value.trim(), clientStatusNote: $('aStatusNote').value.trim(), nextFollowUpDate: nextDate, nextFollowUpTime: nextTime, updatedAt: Date.now(), editedBy: actor(), editedAt: new Date().toISOString() };
+    await withTimeout(setDoc(doc(col('tasks'), id), upd, { merge: true }), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
+    state.tasks.set(id, { ...t, ...upd });
+    $('actionModal').classList.add('hidden'); toast('✓ تم تعديل الإجراء', 'ok'); render();
+  } catch (e) { msg.textContent = e.message; } finally { btn.disabled = false; state.editTask = null; }
+}
+
+// ---------- 2) إدارة الموظفين ----------
+let EM = null;
+function openEmp(e = null) {
+  EM = e;
+  $('emTitle').textContent = e ? `تعديل: ${e.name}` : 'إضافة موظف';
+  $('emName').value = e?.name || ''; $('emDept').value = deptOf(e) === 'الدعم الفني' ? 'الدعم الفني' : (String(e?.department || '').includes('إدارة') ? 'الإدارة' : 'خدمات العملاء');
+  $('emLevel').value = e ? accessOf(e) : 'employee'; $('emShift').value = e?.shift === 'شفت مسائي' ? 'شفت مسائي' : 'شفت صباحي';
+  $('emPin').value = ''; $('emPinWrap').classList.toggle('hidden', !!e); $('emMsg').textContent = '';
+  $('empModal').classList.remove('hidden');
+}
+async function saveEmp() {
+  const msg = $('emMsg'); msg.className = 'msg err';
+  const name = $('emName').value.trim(), pin = $('emPin').value.trim();
+  if (!name) { msg.textContent = 'يرجى كتابة اسم الموظف'; return; }
+  if (!EM && !/^\d{6,12}$/.test(pin)) { msg.textContent = 'رمز الدخول يجب أن يتكون من 6 أرقام على الأقل'; return; }
+  if (!EM && state.employees.some(x => normName(x.name) === normName(name))) { msg.textContent = 'يوجد موظف مسجّل بنفس الاسم'; return; }
+  const level = $('emLevel').value;
+  const data = EM ? { ...EM, name, shift: $('emShift').value, department: level === 'manager' ? 'الإدارة' : $('emDept').value, accessLevel: level, updatedAt: Date.now() } : { id: 'emp_' + Date.now(), name, shift: $('emShift').value, department: level === 'manager' ? 'الإدارة' : $('emDept').value, accessLevel: level, pin, createdAt: Date.now(), updatedAt: Date.now() };
+  delete data._docId; delete data._syncAt;
+  $('emSave').disabled = true;
+  try {
+    const docId = EM?._docId || data.id;
+    await withTimeout(setDoc(doc(col('employees'), docId), data, { merge: true }), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
+    const i = state.employees.findIndex(x => x.id === data.id);
+    if (i >= 0) state.employees[i] = { ...data, _docId: docId }; else state.employees.push({ ...data, _docId: docId });
+    $('empModal').classList.add('hidden'); toast(EM ? '✓ تم حفظ بيانات الموظف' : `✓ تمت إضافة ${name}`, 'ok'); renderAccounts();
+  } catch (e) { msg.textContent = e.message; } finally { $('emSave').disabled = false; }
+}
+async function deleteEmp(e) {
+  if (!e || !confirm(`هل تريد حذف الموظف «${e.name}»؟ لن تُحذف إجراءاته السابقة.`)) return;
+  try {
+    await setDoc(doc(col('employees'), e._docId || e.id), { id: e.id, deletedAt: new Date().toISOString(), updatedAt: Date.now(), deletedBy: actor() }, { merge: true });
+    state.employees = state.employees.filter(x => x.id !== e.id); toast('✓ تم حذف الموظف', 'ok'); renderAccounts();
+  } catch (er) { toast('تعذّر الحذف: ' + er.message, 'err'); }
+}
+
+// ---------- 3) تغيير رمز الدخول ----------
+async function savePin() {
+  const msg = $('pnMsg'); msg.className = 'msg err';
+  const me = state.employees.find(e => e.id === state.me.id) || state.me;
+  const cur = $('pnCur').value.trim(), nw = $('pnNew').value.trim(), cf = $('pnConf').value.trim();
+  if (cur !== String(me.pin || '').trim()) { msg.textContent = 'الرمز الحالي غير صحيح'; return; }
+  if (!/^\d{6,12}$/.test(nw)) { msg.textContent = 'الرمز الجديد يجب أن يتكون من 6 أرقام على الأقل'; return; }
+  if (nw !== cf) { msg.textContent = 'تأكيد الرمز غير مطابق'; return; }
+  $('pnSave').disabled = true;
+  try {
+    if (auth.currentUser && auth.currentUser.email === staffEmailFor(me)) await updatePassword(auth.currentUser, `nb-${nw}`);
+    await setDoc(doc(col('employees'), me._docId || me.id), { pin: nw, updatedAt: Date.now() }, { merge: true });
+    me.pin = nw; state.me.pin = nw;
+    $('pinModal').classList.add('hidden'); toast('✓ تم تغيير رمز الدخول', 'ok');
+  } catch (e) { msg.textContent = e?.code === 'auth/requires-recent-login' ? 'لأسباب أمنية، يرجى تسجيل الخروج ثم الدخول مرة أخرى قبل تغيير الرمز' : ('تعذّر تغيير الرمز: ' + (e.message || e)); }
+  finally { $('pnSave').disabled = false; }
+}
+
+// ---------- 4) المهام المسندة ----------
+const IT = { map: new Map(), unsub: null, scope: 'open', editing: null, actOn: null };
+const isInternal = t => t && t.taskType === 'internal' && !t.deletedAt;
+const curLog = t => (t.activityLog || []).filter(l => !t.assignmentStartedAt || Date.parse(l.at) >= Date.parse(t.assignmentStartedAt));
+const itAccepted = t => Boolean(t.acceptedAt || curLog(t).some(l => !['تعديل الإسناد', 'إعادة إسناد المهمة'].includes(l.type)));
+function itState(t) {
+  if (t.status === 'مكتمل' || t.status === 'مكتملة' || t.completedAt) return 'مكتملة';
+  if (t.date && t.date < cairoDate()) return 'متأخرة';
+  return itAccepted(t) ? 'جاري التنفيذ' : 'جديدة';
+}
+const IT_CLS = { 'مكتملة': 'done', 'متأخرة': 'ret', 'جاري التنفيذ': 'recv', 'جديدة': 'wait' };
+function myInternalTasks() { return [...state.tasks.values()].filter(t => isInternal(t) && sameEmp(t.agent, t.agentId, state.me)); }
+function startItasks() {
+  if (IT.unsub) return;
+  IT.unsub = onSnapshot(query(col('tasks'), where('taskType', '==', 'internal')), snap => {
+    snap.docChanges().forEach(ch => { if (ch.type === 'removed') IT.map.delete(ch.doc.id); else { const d = ch.doc.data(); IT.map.set(ch.doc.id, { ...d, id: d.id || ch.doc.id, _docId: ch.doc.id }); } });
+    if (state.tab === 'itasks') renderItasks(); updateBell();
+  }, () => {});
+}
+function itScopeEmployees() {
+  if (isMgr()) return state.employees.filter(e => !e.deletedAt);
+  return state.employees.filter(e => deptOf(e) === deptOf(state.me) && accessOf(e) === 'employee');
+}
+function itCard(t, mine) {
+  const st = itState(t), log = curLog(t);
+  const btns = [];
+  if (mine && st !== 'مكتملة') {
+    if (!itAccepted(t)) btns.push(`<button class="btn primary sm" data-itact="accept|${esc(t._docId)}"><i class="fa-solid fa-hand"></i> استلام المهمة</button>`);
+    else { btns.push(`<button class="btn line sm" data-itact="act|${esc(t._docId)}"><i class="fa-solid fa-comment-dots"></i> إضافة إجراء</button>`); btns.push(`<button class="btn ok sm" data-itact="done|${esc(t._docId)}"><i class="fa-solid fa-circle-check"></i> إنهاء المهمة</button>`); }
+  }
+  if (!mine && (isMgr() || isSup())) { btns.push(`<button class="btn line sm" data-itact="edit|${esc(t._docId)}"><i class="fa-solid fa-pen"></i> تعديل</button>`); btns.push(`<button class="btn danger sm" data-itact="del|${esc(t._docId)}"><i class="fa-solid fa-trash"></i> حذف</button>`); }
+  return `<div class="it"><div class="ih"><div><h4>${esc(t.title || t.notes || 'مهمة')}</h4><div class="small muted">${mine ? `من: ${esc(t.assignedBy || 'الإدارة')}` : `المستلم: <b>${esc(t.agent || '')}</b> · ${esc(t.department || '')}`} · التسليم: ${fmtDate(t.date)}${t.priority && t.priority !== 'عادية' ? ` · <b class="amber">${esc(t.priority)}</b>` : ''}</div></div><span class="hs ${IT_CLS[st]}">${st}</span></div>
+    ${t.description ? `<div class="small" style="margin-top:6px;white-space:pre-wrap">${esc(t.description)}</div>` : ''}
+    ${log.length ? `<div class="log">${log.slice(-4).map(l => `<div><b>${esc(l.type)}</b> — ${esc(l.comment || '')} <span class="muted">(${esc(l.by || '')} · ${l.at ? esc(new Date(l.at).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'short', timeStyle: 'short' })) : ''})</span></div>`).join('')}</div>` : ''}
+    ${t.finalResult ? `<div class="rnote" style="margin-top:6px"><b>النتيجة النهائية:</b> ${esc(t.finalResult)}</div>` : ''}
+    ${btns.length ? `<div class="pact">${btns.join('')}</div>` : ''}</div>`;
+}
+function renderMyItasks() {
+  const list = myInternalTasks().sort((a, b) => (itState(a) === 'مكتملة') - (itState(b) === 'مكتملة') || String(a.date).localeCompare(String(b.date)));
+  const open = list.filter(t => itState(t) !== 'مكتملة');
+  $('cMyIt').textContent = open.length;
+  $('myItList').innerHTML = list.length ? list.slice(0, 30).map(t => itCard(t, true)).join('') : '<div class="empty">لا توجد مهام مسندة إليك</div>';
+}
+function renderItasks() {
+  const emps = itScopeEmployees(), allowed = new Set(emps.map(e => e.id));
+  const empSel = $('itEmp').value, q = plain($('itSearch').value);
+  let list = [...IT.map.values()].filter(t => isInternal(t) && (isMgr() || emps.some(e => sameEmp(t.agent, t.agentId, e))));
+  const k = { all: list.length, nw: list.filter(t => itState(t) === 'جديدة').length, run: list.filter(t => itState(t) === 'جاري التنفيذ').length, late: list.filter(t => itState(t) === 'متأخرة').length, done: list.filter(t => itState(t) === 'مكتملة').length };
+  const kp = (l, v, c) => `<div class="kpi" style="--c:${c}"><span>${l}</span><b>${v}</b></div>`;
+  $('itKpis').innerHTML = kp('إجمالي المهام', k.all, '#5A3B8B') + kp('لم تُستلم', k.nw, '#f59e0b') + kp('جاري التنفيذ', k.run, '#7c3aed') + kp('متأخرة', k.late, '#dc2626') + kp('مكتملة', k.done, '#16a34a') + kp('نسبة الإنجاز', pct(k.done, k.all) + '%', '#0d9488');
+  if (empSel) { const e = state.employees.find(x => x.id === empSel); list = list.filter(t => sameEmp(t.agent, t.agentId, e)); }
+  if (q) list = list.filter(t => plain(t.title).includes(q) || plain(t.description).includes(q) || plain(t.agent).includes(q));
+  list = list.filter(t => { const st = itState(t); return IT.scope === 'all' || (IT.scope === 'open' && st !== 'مكتملة') || (IT.scope === 'new' && st === 'جديدة') || (IT.scope === 'late' && st === 'متأخرة') || (IT.scope === 'done' && st === 'مكتملة'); });
+  list.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  $('itList').innerHTML = list.length ? list.slice(0, 200).map(t => itCard(t, false)).join('') : '<div class="card empty">لا توجد مهام</div>';
+}
+function openItask(t = null) {
+  IT.editing = t;
+  const emps = itScopeEmployees();
+  $('itAssignee').innerHTML = emps.map(e => `<option value="${esc(e.id)}">${esc(e.name)} — ${esc(deptOf(e) || e.department || '')}</option>`).join('');
+  $('itTitleH').textContent = t ? 'تعديل المهمة المسندة' : 'إسناد مهمة';
+  const ae = t && state.employees.find(e => sameEmp(t.agent, t.agentId, e)); if (ae) $('itAssignee').value = ae.id;
+  $('itTitle').value = t?.title || ''; $('itDesc').value = t?.description || ''; $('itDue').value = t?.date || cairoDate(); $('itPriority').value = t?.priority || 'عادية'; $('itMsg').textContent = '';
+  $('itModal').classList.remove('hidden');
+}
+async function saveItask() {
+  const msg = $('itMsg'); msg.className = 'msg err';
+  const emp = state.employees.find(e => e.id === $('itAssignee').value), title = $('itTitle').value.trim(), date = $('itDue').value, desc = $('itDesc').value.trim();
+  if (!emp || !title || !date) { msg.textContent = 'يرجى إكمال المستلم وعنوان المهمة وتاريخ التسليم'; return; }
+  const old = IT.editing, now = new Date().toISOString();
+  const same = old && sameEmp(old.agent, old.agentId, emp);
+  if (old && !same && itState(old) === 'مكتملة') { msg.textContent = 'المهمة مكتملة؛ لإسناد عمل جديد أنشئ مهمة جديدة'; return; }
+  const dept = deptOf(emp) || emp.department || 'خدمات العملاء';
+  const t = { ...(old || {}), id: old?.id || 'task_' + (crypto.randomUUID ? crypto.randomUUID() : Date.now()), taskType: 'internal', department: dept, agent: emp.name, agentId: emp.id, date, time: old?.time || cairoTime(), shift: emp.shift || 'شفت صباحي', customer: 'مهمة داخلية — ' + dept, phone: '-', entityType: 'مهمة داخلية', specialty: dept, city: '-', category: 'مهمة داخلية', channel: 'نظام نبضي', priority: $('itPriority').value, title, description: desc, notes: title + (desc ? ' — ' + desc : ''), status: old?.status || 'جديدة', activityLog: [...(old?.activityLog || [])], updatedAt: Date.now() };
+  if (!old) { t.assignedBy = actor(); t.assignedById = state.me.id; t.createdAt = Date.now(); }
+  else { t.activityLog.push({ type: same ? 'تعديل الإسناد' : 'إعادة إسناد المهمة', comment: same ? 'تم تعديل تفاصيل المهمة' : `تم تغيير المستلم من ${old.agent} إلى ${emp.name}`, by: actor(), at: now }); if (!same) { t.status = 'جديدة'; t.assignmentStartedAt = now; ['acceptedAt', 'acceptedBy', 'startedAt', 'completedAt', 'completedBy', 'finalResult'].forEach(k => delete t[k]); } }
+  delete t._docId; delete t._syncAt;
+  $('itSave').disabled = true;
+  try {
+    const id = old?._docId || t.id;
+    await withTimeout(setDoc(doc(col('tasks'), id), t), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
+    IT.map.set(id, { ...t, _docId: id }); $('itModal').classList.add('hidden'); toast(old ? '✓ تم حفظ التعديل' : `✓ تم إسناد المهمة إلى ${emp.name}`, 'ok'); renderItasks();
+  } catch (e) { msg.textContent = e.message; } finally { $('itSave').disabled = false; }
+}
+async function mutateTask(id, fn) {
+  const ref = doc(col('tasks'), id);
+  const snap = await withTimeout(getDoc(ref), 10000, 'الاتصال بطيء، يرجى المحاولة مرة أخرى');
+  if (!snap.exists()) throw new Error('المهمة غير موجودة');
+  const t = JSON.parse(JSON.stringify(snap.data())); if (fn(t) === false) return;
+  delete t._syncAt; t.updatedAt = Date.now();
+  await withTimeout(setDoc(ref, t), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
+  const v = { ...t, id: t.id || id, _docId: id };
+  if (state.tasks.has(id)) state.tasks.set(id, v); if (IT.map.has(id)) IT.map.set(id, v);
+  renderMyItasks(); if (state.tab === 'itasks') renderItasks(); updateBell();
+}
+async function itAction(kind, id) {
+  const t = state.tasks.get(id) || IT.map.get(id); if (!t) return;
+  try {
+    const now = new Date().toISOString(), by = actor();
+    if (kind === 'accept') { await mutateTask(id, x => { x.activityLog = [...(x.activityLog || []), { type: 'استلام المهمة', comment: 'تم استلام المهمة', by, at: now }]; x.acceptedAt = now; x.acceptedBy = by; x.status = 'تم الاستلام'; }); markRead('it:' + id); toast('✓ تم استلام المهمة', 'ok'); }
+    else if (kind === 'act') { IT.actOn = id; $('iaTask').textContent = t.title || ''; $('iaComment').value = ''; $('iaMsg').textContent = ''; $('itActModal').classList.remove('hidden'); }
+    else if (kind === 'done') {
+      if (!(t.activityLog || []).length) { toast('يرجى إضافة إجراء على المهمة قبل إنهائها', 'err'); return; }
+      const res = prompt('اكتب النتيجة النهائية للمهمة:'); if (!res || !res.trim()) return;
+      await mutateTask(id, x => { x.activityLog = [...(x.activityLog || []), { type: 'إنهاء المهمة', comment: res.trim(), by, at: now }]; x.finalResult = res.trim(); x.status = 'مكتمل'; x.completedBy = by; x.completedAt = now; });
+      toast('✓ تم إنهاء المهمة', 'ok');
+    }
+    else if (kind === 'edit') openItask(t);
+    else if (kind === 'del') { if (!confirm('هل تريد حذف المهمة المسندة نهائيًا؟')) return; await setDoc(doc(col('tasks'), id), { id: t.id, deletedAt: now, updatedAt: Date.now(), deletedBy: by }, { merge: true }); IT.map.delete(id); renderItasks(); toast('✓ تم حذف المهمة', 'ok'); }
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function saveItAct() {
+  const c = $('iaComment').value.trim(); if (!c) { $('iaMsg').className = 'msg err'; $('iaMsg').textContent = 'يرجى كتابة التعليق'; return; }
+  $('iaSave').disabled = true;
+  try { await mutateTask(IT.actOn, x => { x.activityLog = [...(x.activityLog || []), { type: $('iaType').value, comment: c, by: actor(), at: new Date().toISOString() }]; x.status = 'قيد المعالجة'; x.startedAt = x.startedAt || new Date().toISOString(); }); $('itActModal').classList.add('hidden'); toast('✓ تم حفظ الإجراء', 'ok'); }
+  catch (e) { $('iaMsg').textContent = e.message; } finally { $('iaSave').disabled = false; }
+}
+
+// ---------- 5) ملاحظات يومي ----------
+const NT = { doc: null };
+const noteId = () => `${String(state.me.id).replace(/[^a-zA-Z0-9_-]/g, '_')}_${cairoDate()}`;
+async function loadNotes() { try { const s = await getDoc(doc(col('dailyNotes'), noteId())); NT.doc = s.exists() ? s.data() : { items: [] }; } catch (e) { NT.doc = NT.doc || { items: [] }; } renderNotes(); }
+function renderNotes() {
+  const items = (NT.doc?.items || []).filter(i => !i.deletedAt), done = items.filter(i => i.done).length;
+  $('cNotes').textContent = `${done}/${items.length}`;
+  $('noteList').innerHTML = items.length ? items.map(i => `<div class="note ${i.done ? 'done' : ''}"><button class="iconbtn" data-note="toggle|${esc(i.id)}" title="تم"><i class="fa-solid ${i.done ? 'fa-square-check' : 'fa-square'}"></i></button><span>${esc(i.text)}</span><button class="iconbtn" data-note="edit|${esc(i.id)}" title="تعديل"><i class="fa-solid fa-pen"></i></button><button class="iconbtn" data-note="del|${esc(i.id)}" title="حذف"><i class="fa-solid fa-trash"></i></button></div>`).join('') : '<div class="empty">لا توجد ملاحظات لليوم</div>';
+}
+async function saveNotes(items) {
+  const payload = { ...(NT.doc || {}), items, id: noteId(), ownerId: state.me.id, ownerName: state.me.name, date: cairoDate(), updatedAt: new Date().toISOString() };
+  delete payload._syncAt;
+  await withTimeout(setDoc(doc(col('dailyNotes'), noteId()), payload), 10000, 'تأخر الحفظ'); NT.doc = payload; renderNotes();
+}
+async function noteAction(kind, id) {
+  const items = (NT.doc?.items || []).slice();
+  try {
+    if (kind === 'add') { const v = $('noteInput').value.trim(); if (!v) return; items.push({ id: 'note_' + Date.now(), text: v, done: false, createdAt: new Date().toISOString() }); await saveNotes(items); $('noteInput').value = ''; }
+    else if (kind === 'toggle') await saveNotes(items.map(i => i.id === id ? { ...i, done: !i.done, completedAt: !i.done ? new Date().toISOString() : '' } : i));
+    else if (kind === 'edit') { const it = items.find(i => i.id === id); const v = prompt('تعديل الملاحظة:', it?.text || ''); if (v === null || !v.trim()) return; await saveNotes(items.map(i => i.id === id ? { ...i, text: v.trim(), editedAt: new Date().toISOString() } : i)); }
+    else if (kind === 'del') { if (!confirm('هل تريد حذف هذه الملاحظة؟')) return; await saveNotes(items.map(i => i.id === id ? { ...i, deletedAt: new Date().toISOString() } : i)); }
+  } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'err'); }
+}
+
+// ---------- 6) نشرات الدعم ----------
+const BL = { list: [], unsub: null };
+const canSeeBulletins = () => isMgr() || isSupport(state.me);
+const canPublish = () => isMgr() || (isSup() && isSupport(state.me));
+function startBulletins() {
+  if (BL.unsub || !canSeeBulletins()) return;
+  BL.unsub = onSnapshot(query(col('tasks'), where('taskType', '==', 'support_bulletin')), s => { BL.list = []; s.forEach(d => { const x = d.data(); if (!x.deletedAt) BL.list.push({ ...x, _docId: d.id }); }); BL.list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); renderBulletins(); updateBell(); }, () => {});
+}
+function renderBulletins() {
+  if (!$('bulList')) return;
+  $('bulForm').classList.toggle('hidden', !canPublish());
+  $('bulList').innerHTML = BL.list.length ? BL.list.slice(0, 30).map(b => `<div class="item" style="cursor:default"><div class="t">${esc(b.title)}</div><div class="s" style="white-space:pre-wrap">${esc(b.message)}</div><div class="s">${esc(b.assignedBy || '')} · ${b.createdAt ? esc(new Date(b.createdAt).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })) : ''}</div></div>`).join('') : '<div class="empty">لا توجد نشرات</div>';
+}
+async function publishBulletin() {
+  const title = $('bulTitle').value.trim(), message = $('bulMsg').value.trim(); if (!title || !message) { toast('يرجى كتابة العنوان والنص', 'err'); return; }
+  const r = { id: 'bulletin_' + (crypto.randomUUID ? crypto.randomUUID() : Date.now()), taskType: 'support_bulletin', department: 'الدعم الفني', title, message, assignedBy: actor(), createdAt: Date.now() };
+  try { await withTimeout(setDoc(doc(col('tasks'), r.id), r), 10000, 'تأخر الحفظ'); $('bulTitle').value = ''; $('bulMsg').value = ''; toast('✓ تم نشر التعميم', 'ok'); } catch (e) { toast(e.message, 'err'); }
+}
+
+// ---------- 7) الإشعارات ----------
+const readKey = () => `v2_read_${state.me?.id}`;
+const getRead = () => { try { return new Set(JSON.parse(localStorage.getItem(readKey()) || '[]')); } catch (e) { return new Set(); } };
+function markRead(k) { const s = getRead(); s.add(k); localStorage.setItem(readKey(), JSON.stringify([...s].slice(-500))); updateBell(); }
+function bellItems() {
+  const out = [];
+  if (state.me?.id !== 'manager') for (const t of myInternalTasks()) if (itState(t) !== 'مكتملة') out.push({ key: 'it:' + t._docId, title: `مهمة مسندة: ${t.title || ''}`, sub: `من ${t.assignedBy || 'الإدارة'} · التسليم ${fmtDate(t.date)}`, at: t.createdAt || 0, go: () => setTab('today') });
+  if (isMgr() || isSup()) for (const t of IT.map.values()) if (isInternal(t)) { const l = (t.activityLog || []).slice(-1)[0]; if (l && !['تعديل الإسناد', 'إعادة إسناد المهمة'].includes(l.type) && Date.now() - Date.parse(l.at) < 7 * 864e5) out.push({ key: 'itl:' + t._docId + ':' + l.at, title: `${l.type}: ${t.title || ''}`, sub: `${l.by || ''} — ${l.comment || ''}`, at: Date.parse(l.at), go: () => setTab('itasks') }); }
+  if (canSeeBulletins()) for (const b of BL.list.slice(0, 10)) out.push({ key: 'bul:' + b._docId, title: `تعميم: ${b.title}`, sub: b.assignedBy || '', at: b.createdAt || 0, go: () => setTab('support') });
+  return out.sort((a, b) => b.at - a.at).slice(0, 40);
+}
+function updateBell() {
+  if (!state.me) return;
+  const r = getRead(), items = bellItems(), n = items.filter(i => !r.has(i.key)).length;
+  $('bellCount').textContent = n; $('bellCount').classList.toggle('hidden', !n);
+  if (!$('bellPanel').classList.contains('hidden')) $('bellList').innerHTML = items.length ? items.map((i, x) => `<div class="bitem ${r.has(i.key) ? '' : 'unread'}" data-bell="${x}"><div><b>${esc(i.title)}</b></div><div class="s">${esc(i.sub)}</div></div>`).join('') : '<div class="empty">لا توجد إشعارات</div>';
+  BELL_ITEMS = items;
+}
+let BELL_ITEMS = [];
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
@@ -1068,6 +1451,8 @@ function startApp(emp) {
     if (lvl === 'manager' || isSupport(emp)) { document.querySelector('.supnav').classList.remove('hidden'); startSupport(); }
     setupDash();
     setupReports();
+    startItasks();
+    $('itEmp').innerHTML = '<option value="">جميع الموظفين</option>' + itScopeEmployees().map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
     const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))];
     $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">جميع الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
     $('teamDate').value = cairoDate();
@@ -1076,14 +1461,16 @@ function startApp(emp) {
     if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'reports', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
+    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'reports', 'itasks', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
     document.querySelector('.agentsec').classList.add('hidden');
-    $('attBtn').classList.add('hidden'); $('syncBar').textContent = '';
+    $('attBtn').classList.add('hidden'); $('pinBtn').classList.add('hidden'); $('syncBar').textContent = '';
+    startBulletins();
     setTab('dash');
     getDocs(col('authAccounts')).then(s => { s.forEach(d => ACC.map.set(d.id, d.data())); renderAccounts(); }).catch(() => {});
     return;
   }
   if (lvl === 'employee') setupDash();
+  loadNotes(); startBulletins();
   if (isSupport(emp)) { document.querySelector('.supnav').classList.remove('hidden'); startSupport(); setTab('support'); } else setTab('today');
   syncMsg();
   loadAttendance();
@@ -1094,11 +1481,13 @@ function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   document.body.classList.remove('menu');
-  ['dash', 'reports', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['dash', 'reports', 'itasks', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
   if (tab === 'accounts') loadAccounts();
+  if (tab === 'itasks') { startItasks(); renderItasks(); }
+  if (tab === 'support') { startBulletins(); renderBulletins(); }
   if (tab === 'support') { startSupport(); renderSupport(); }
   if (tab === 'alllog') startAllLog(); else if (all.dayUnsub) { all.dayUnsub(); all.dayUnsub = null; }
   render();
@@ -1133,8 +1522,34 @@ $('supScope').onclick = e => { const b = e.target.closest('button[data-s]'); if 
 $('supAddTask').onclick = () => openSupTask('', '');
 $('stSave').onclick = saveSupTask;
 $('hoSave').onclick = saveHandoff;
+$('cfSave').onclick = saveClientForm;
+$('newClientBtn').onclick = () => openClientForm(null);
+$('empAdd').onclick = () => openEmp(null);
+$('emSave').onclick = saveEmp;
+$('pinBtn').onclick = () => { ['pnCur', 'pnNew', 'pnConf'].forEach(i => { $(i).value = ''; }); $('pnMsg').textContent = ''; $('pinModal').classList.remove('hidden'); };
+$('pnSave').onclick = savePin;
+$('itNew').onclick = () => openItask(null);
+$('itSave').onclick = saveItask;
+$('iaSave').onclick = saveItAct;
+$('itScope').onclick = e => { const b = e.target.closest('button[data-s]'); if (!b) return; IT.scope = b.dataset.s; $('itScope').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderItasks(); };
+$('itEmp').onchange = renderItasks; $('itSearch').oninput = renderItasks;
+$('noteAdd').onclick = () => noteAction('add');
+$('noteInput').addEventListener('keydown', e => { if (e.key === 'Enter') noteAction('add'); });
+$('bulSave').onclick = publishBulletin;
+$('bellBtn').onclick = e => { e.stopPropagation(); $('bellPanel').classList.toggle('hidden'); updateBell(); };
+$('bellRead').onclick = () => { const s = getRead(); BELL_ITEMS.forEach(i => s.add(i.key)); localStorage.setItem(readKey(), JSON.stringify([...s].slice(-500))); updateBell(); };
+document.addEventListener('change', e => { const f = e.target.closest('[data-docf]'); if (f && f.files[0]) { if (f.files[0].size > 15 * 1024 * 1024) { toast('حجم الملف أكبر من 15 ميجابايت', 'err'); return; } CF.files[f.dataset.docf] = f.files[0]; renderDocSlots(); } });
 document.addEventListener('change', e => { const s = e.target.closest('[data-stst]'); if (s) { const [pid, tid] = s.dataset.stst.split('|'); setSupTaskStatus(pid, tid, s.value); } });
 document.addEventListener('click', e => {
+  if (!e.target.closest('#bellPanel') && !e.target.closest('#bellBtn')) $('bellPanel').classList.add('hidden');
+  const bi = e.target.closest('[data-bell]'); if (bi) { const it = BELL_ITEMS[+bi.dataset.bell]; if (it) { markRead(it.key); $('bellPanel').classList.add('hidden'); it.go(); } return; }
+  const dd = e.target.closest('[data-docdel]'); if (dd) { delete CF.docs[dd.dataset.docdel]; delete CF.files[dd.dataset.docdel]; renderDocSlots(); return; }
+  const te = e.target.closest('[data-tedit]'); if (te) { editTask(state.tasks.get(te.dataset.tedit) || [...state.tasks.values()].find(t => t.id === te.dataset.tedit)); return; }
+  const td = e.target.closest('[data-tdel]'); if (td) { deleteTask(state.tasks.get(td.dataset.tdel) || [...state.tasks.values()].find(t => t.id === td.dataset.tdel)); return; }
+  const ia = e.target.closest('[data-itact]'); if (ia) { const [k, id] = ia.dataset.itact.split('|'); itAction(k, id); return; }
+  const nt = e.target.closest('[data-note]'); if (nt) { const [k, id] = nt.dataset.note.split('|'); noteAction(k, id); return; }
+  const ee = e.target.closest('[data-emedit]'); if (ee) { openEmp(state.employees.find(x => x.id === ee.dataset.emedit)); return; }
+  const ed = e.target.closest('[data-emdel]'); if (ed) { deleteEmp(state.employees.find(x => x.id === ed.dataset.emdel)); return; }
   const mk = e.target.closest('[data-mkacc]'); if (mk) { makeAccount(mk.dataset.mkacc); return; }
   const pt = e.target.closest('[data-ptoggle]'); if (pt) { const id = pt.dataset.ptoggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderSupport(); return; }
   const pa = e.target.closest('[data-pact]'); if (pa) { const [k, id] = pa.dataset.pact.split('|'); projAction(k, id); return; }
