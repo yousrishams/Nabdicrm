@@ -356,5 +356,3 @@ document.addEventListener('click', e => {
   if (emp) startApp(emp);
 })();
 
-// للاختبار فقط: ?debug=1
-if (new URLSearchParams(location.search).get('debug') === '1') window.__v2 = { state, startApp, render };
