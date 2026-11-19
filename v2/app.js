@@ -686,7 +686,18 @@ function startSupport() {
     if (state.tab === 'support') renderSupport();
   }, e => { $('supList').innerHTML = `<div class="card empty">تعذّر تحميل ملفات الدعم: ${esc(e.message)}</div>`; });
 }
-const liveProjects = () => [...S.projects.values()].filter(p => !p.deletedAt);
+const HS_RANK = { 'تم الرفع بنجاح': 4, 'تم الاستلام': 3, 'تم إرسال رابط البيانات': 2, 'بانتظار الاستلام': 1, 'بانتظار رابط البيانات': 0 };
+// ملف واحد لكل عميل: لو فيه نسخ مكررة نعرض الأحسن حالة بس
+const liveProjects = () => {
+  const best = new Map();
+  for (const p of S.projects.values()) {
+    if (p.deletedAt) continue;
+    const k = p.clientId || plain(p.clientName);
+    const cur = best.get(k);
+    if (!cur || (HS_RANK[p.handoffStatus] ?? -1) > (HS_RANK[cur.handoffStatus] ?? -1) || ((HS_RANK[p.handoffStatus] ?? -1) === (HS_RANK[cur.handoffStatus] ?? -1) && liveSTasks(p).length > liveSTasks(cur).length)) best.set(k, p);
+  }
+  return [...best.values()];
+};
 const liveSTasks = p => (p.tasks || []).filter(t => !t.deletedAt);
 const taskLate = t => t.due && !isDoneSt(t.status) && t.due < cairoDate();
 function supBadge() {
@@ -839,7 +850,8 @@ async function saveHandoff() {
     const pack = { driveLink: link, products: $('hoProducts').value.trim(), doctors: $('hoDoctors').value.trim(), schedules: $('hoSchedules').value.trim(), notes: $('hoNotes').value.trim(), sentBy: me, sentAt: now };
     await withTimeout(setDoc(doc(col('clients'), c._docId || c.id), { supportPackage: pack, updatedAt: Date.now() }, { merge: true }), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
     let snap = null; try { snap = await getDocs(query(col('supportProjects'), where('clientId', '==', c.id))); } catch (e) {}
-    let existing = null; snap?.forEach(d => { const x = d.data(); if (!x.deletedAt && !existing) existing = { ...x, _docId: d.id }; });
+    let existing = null; snap?.forEach(d => { const x = d.data(); if (x.deletedAt) return; if (!existing || (HS_RANK[x.handoffStatus] ?? -1) > (HS_RANK[existing.handoffStatus] ?? -1)) existing = { ...x, _docId: d.id }; });
+    if (existing?.handoffStatus === 'تم الرفع بنجاح' && !confirm('ملف هذا العميل مكتمل لدى الدعم الفني. هل تريد إعادة إرساله لتحديث بياناته؟')) { btn.disabled = false; return; }
     const pid = existing?._docId || ('sp_' + Date.now());
     const base = existing ? (({ _docId, _syncAt, ...r }) => r)(existing) : { id: pid, clientId: c.id, clientName: c.name, phone: c.phone || '', createdAt: now, tasks: [] };
     Object.assign(base, { clientName: c.name, phone: c.phone || '', sender: me, sentAt: now, handoffStatus: 'تم إرسال رابط البيانات', receivedBy: '', receivedAt: '', returnedReason: '', supportPackage: pack, tasks: existing?.handoffStatus === 'تم الاستلام' ? base.tasks : [] });

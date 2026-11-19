@@ -9711,7 +9711,7 @@
             document.getElementById('technicalSupportWorkspace').scrollTo({top:0,behavior:'smooth'}); renderTechnicalSupport();
         };
         window.supportLogout=function(){document.getElementById('technicalSupportWorkspace').classList.add('hidden');logout();};
-        window.syncSupportProjectsFromFunnel=function(notify=true){
+        window.syncSupportProjectsFromFunnel=function(notify=true){return; /* معطّل: كان ينشئ ملفات دعم مكررة — النظام الجديد يتولى الإحالة */
             let projects=loadSupport(),changed=0,deletedClients=new Set(JSON.parse(window.nabdiStorage.getItem('nabdi_deleted_support_client_ids')||'[]'));
             (window.clients||[]).filter(c=>['إرسال البيانات إلى الدعم الفني','إرفاق رابط Google Drive بالبيانات'].includes(window.normalizeFunnelStage(c.stage))).forEach(c=>{
                 if(c.supportHandoffDeletedAt||deletedClients.has(c.id))return;
