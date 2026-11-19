@@ -2,7 +2,7 @@
 // بتشتغل على نفس قاعدة البيانات ونفس شكل البيانات بتاع النسخة الحالية،
 // بس كل موظف بيسحب عملاءه وإجراءاته هو بس، وبعدها التغييرات الجديدة بس.
 import {
-  initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
+  initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup,
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, setDoc as rawSetDoc, getDoc, getDocs, onSnapshot,
   query, where, serverTimestamp, getDocsFromCache, Timestamp, CACHE_SIZE_UNLIMITED
@@ -110,6 +110,17 @@ async function login() {
   startApp(emp);
 }
 
+const MANAGER_EMAIL = 'yousri.shams@gmail.com';
+const MANAGER_ME = { id: 'manager', name: 'المدير العام', accessLevel: 'manager', department: '' };
+async function googleLogin() {
+  const msg = $('loginMsg');
+  try {
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    if (String(cred.user.email || '').toLowerCase() !== MANAGER_EMAIL) { await signOut(auth); msg.textContent = 'الحساب ده مش مصرح له كمدير'; msg.className = 'msg err'; return; }
+    sessionStorage.setItem('v2_emp', 'manager');
+    startApp(MANAGER_ME);
+  } catch (e) { msg.textContent = 'تعذر الدخول بجوجل: ' + (e.code || e.message); msg.className = 'msg err'; }
+}
 async function logout() { sessionStorage.removeItem('v2_emp'); try { await signOut(auth); } catch (e) {} location.reload(); }
 
 // ---------------- المزامنة ----------------
@@ -441,6 +452,12 @@ function startApp(emp) {
     $('teamDept').innerHTML = lvl === 'manager' ? '<option value="">كل الأقسام</option>' + depts.map(d => `<option>${esc(d)}</option>`).join('') : `<option>${esc(emp.department || '')}</option>`;
     $('teamDate').value = cairoDate();
   }
+  if (emp.id === 'manager') {
+    document.querySelectorAll('.tab').forEach(b => { if (b.dataset.tab !== 'team') b.classList.add('hidden'); });
+    $('attBtn').classList.add('hidden'); $('syncBar').textContent = 'دخول المدير';
+    setTab('team');
+    return;
+  }
   syncMsg();
   loadAttendance();
   syncCollection('clients').catch(e => { $('syncBar').textContent = 'تعذر تحميل العملاء: ' + e.message; $('syncBar').classList.add('err'); });
@@ -456,6 +473,7 @@ function setTab(tab) {
 
 fillSelect('aCity', CITIES); fillSelect('aEntity', ENTITIES); fillSelect('aCategory', STAGES); fillSelect('aChannel', CHANNELS); fillSelect('aStatus', STATUSES); fillSelect('aPriority', PRIORITIES);
 $('loginBtn').onclick = login;
+$('googleBtn').onclick = googleLogin;
 $('loginPin').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 $('logoutBtn').onclick = logout;
 document.querySelectorAll('.tab').forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
@@ -482,6 +500,7 @@ document.addEventListener('click', e => {
   await authReady();
   await loadEmployees();
   const saved = sessionStorage.getItem('v2_emp');
+  if (saved === 'manager' && String(auth.currentUser?.email || '').toLowerCase() === MANAGER_EMAIL) { startApp(MANAGER_ME); return; }
   const emp = saved && state.employees.find(e => e.id === saved);
   if (emp) startApp(emp);
 })();
