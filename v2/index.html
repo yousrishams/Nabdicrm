@@ -8,7 +8,7 @@
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=207">
+<link rel="stylesheet" href="./app.css?v=208">
 </head>
 <body>
 
@@ -43,6 +43,7 @@
       <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>الفريق النهارده</span></button>
       <button data-tab="allclients" class="tab hidden mgr"><i class="fa-solid fa-address-book"></i><span>كل العملاء</span></button>
       <button data-tab="alllog" class="tab hidden mgr"><i class="fa-solid fa-list-check"></i><span>سجل الإجراءات</span></button>
+      <button data-tab="accounts" class="tab hidden mgr"><i class="fa-solid fa-user-shield"></i><span>حسابات الموظفين</span><b class="nbadge hidden" id="accBadge"></b></button>
       <div class="navlbl agentsec">شغلي</div>
       <button data-tab="today" class="tab on"><i class="fa-solid fa-house"></i><span>شغلي النهارده</span></button>
       <button data-tab="clients" class="tab"><i class="fa-solid fa-user-group"></i><span>عملائي</span></button>
@@ -89,6 +90,15 @@
       <div class="suplayout">
         <div id="supList" class="suplist"></div>
         <div class="card supside"><h3><i class="fa-solid fa-ranking-star"></i> إنجاز فريق الدعم</h3><div id="supBoard"></div></div>
+      </div>
+    </section>
+    <!-- حسابات الموظفين -->
+    <section id="tab-accounts" class="hidden">
+      <div class="pagehead"><h1>حسابات الموظفين</h1></div>
+      <div class="card">
+        <p class="muted small" style="margin-top:0">كل موظف بيدخل مرة واحدة على النسخة الجديدة بيتعمله حساب محمي لوحده. اللي لسه ما دخلش تقدر تعمله الحساب من هنا برمز جديد وتبعتهوله.</p>
+        <div class="kpis" id="accKpis"></div>
+        <div style="overflow:auto"><table class="tbl" id="accTable"></table></div>
       </div>
     </section>
     <!-- شغلي النهارده -->
@@ -246,6 +256,6 @@
 </div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=207"></script>
+<script type="module" src="./app.js?v=208"></script>
 </body>
 </html>

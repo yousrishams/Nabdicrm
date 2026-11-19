@@ -89,7 +89,7 @@ async function loadEmployees() {
   let snap = null;
   try { snap = await getDocs(col('employees')); } catch (e) { try { snap = await getDocsFromCache(col('employees')); } catch (e2) { snap = null; } }
   const list = [];
-  if (snap) snap.forEach(d => { const e = { ...d.data(), id: d.data().id || d.id }; if (!e.deletedAt && e.name) list.push(e); });
+  if (snap) snap.forEach(d => { const e = { ...d.data(), id: d.data().id || d.id, _docId: d.id }; if (!e.deletedAt && e.name) list.push(e); });
   list.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
   state.employees = list;
   $('loginEmp').innerHTML = '<option value="">— اختار اسمك —</option>' + list.map(e => `<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');
@@ -837,6 +837,55 @@ async function saveHandoff() {
   } catch (e) { msg.textContent = e.message; } finally { btn.disabled = false; }
 }
 
+
+// ---------------- حسابات الموظفين (للمدير) ----------------
+const ACC = { map: new Map(), loaded: false };
+async function loadAccounts() {
+  $('accTable').innerHTML = '<tr><td class="empty">جاري التحميل…</td></tr>';
+  try { const s = await getDocs(col('authAccounts')); ACC.map.clear(); s.forEach(d => ACC.map.set(d.id, d.data())); ACC.loaded = true; }
+  catch (e) { $('accTable').innerHTML = `<tr><td class="empty">تعذر التحميل: ${esc(e.message)}</td></tr>`; return; }
+  renderAccounts();
+}
+function accEmployees() { return state.employees; }
+function renderAccounts() {
+  const emps = accEmployees();
+  const has = e => ACC.map.has(e.id);
+  const missing = emps.filter(e => !has(e));
+  $('accBadge').textContent = missing.length; $('accBadge').classList.toggle('hidden', !missing.length);
+  $('accKpis').innerHTML = `<div class="kpi" style="--c:#5A3B8B"><span>كل الموظفين</span><b>${emps.length}</b></div><div class="kpi" style="--c:#16a34a"><span>عندهم حساب</span><b>${emps.length - missing.length}</b></div><div class="kpi" style="--c:#dc2626"><span>لسه ما دخلوش</span><b>${missing.length}</b></div>`;
+  const rows = [...emps].sort((a, b) => has(a) - has(b) || String(a.name).localeCompare(String(b.name), 'ar'));
+  $('accTable').innerHTML = '<tr><th>الموظف</th><th>القسم</th><th>الحالة</th><th>آخر دخول</th><th></th></tr>' + rows.map(e => {
+    const a = ACC.map.get(e.id);
+    return `<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.department || '')}</td><td>${a ? '<span class="st working">عنده حساب ✓</span>' : '<span class="st not_started">لسه ما دخلش</span>'}</td><td>${a?.lastLoginAt ? esc(new Date(a.lastLoginAt).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' })) : '—'}</td><td>${a ? '' : `<button class="btn primary sm" data-mkacc="${esc(e.id)}"><i class="fa-solid fa-user-plus"></i> عمل حساب</button>`}</td></tr>`;
+  }).join('');
+}
+let adminAuth = null;
+async function makeAccount(empId) {
+  const emp = state.employees.find(e => e.id === empId); if (!emp) return;
+  const pin = (prompt(`اكتب رمز دخول جديد لـ ${emp.name} (أرقام بس، من 4 لـ 8 أرقام):`) || '').trim();
+  if (!pin) return;
+  if (!/^\d{4,8}$/.test(pin)) { toast('الرمز لازم يكون من 4 لـ 8 أرقام', 'err'); return; }
+  const btn = document.querySelector(`[data-mkacc="${CSS.escape(empId)}"]`); if (btn) { btn.disabled = true; btn.textContent = 'جاري…'; }
+  try {
+    if (!adminAuth) adminAuth = getAuth(initializeApp(firebaseConfig, 'nabdi-admin'));
+    const email = staffEmailFor(emp), password = `nb-${pin}`;
+    let uid = '';
+    try { uid = (await createUserWithEmailAndPassword(adminAuth, email, password)).user.uid; }
+    catch (e) {
+      if (e?.code !== 'auth/email-already-in-use') throw e;
+      try { uid = (await signInWithEmailAndPassword(adminAuth, email, password)).user.uid; }
+      catch (e2) { throw new Error('الموظف ده عنده حساب قديم برمز تاني — خليه يدخل برمزه القديم مرة واحدة على النسخة الجديدة'); }
+    }
+    try { await signOut(adminAuth); } catch (e) {}
+    await setDoc(doc(col('employees'), emp._docId || emp.id), { pin, updatedAt: Date.now() }, { merge: true });
+    emp.pin = pin;
+    await setDoc(doc(col('authAccounts'), emp.id), { empId: emp.id, name: emp.name || '', uid, email, createdByManagerAt: Date.now() }, { merge: true });
+    ACC.map.set(emp.id, { empId: emp.id, uid, email });
+    renderAccounts();
+    toast(`✓ اتعمل حساب ${emp.name} — ابعتله الرمز الجديد: ${pin}`, 'ok');
+  } catch (e) { toast(e.message || 'تعذر عمل الحساب', 'err'); if (btn) { btn.disabled = false; btn.textContent = 'عمل حساب'; } }
+}
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
@@ -858,10 +907,11 @@ function startApp(emp) {
     if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'support', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
+    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
     document.querySelector('.agentsec').classList.add('hidden');
     $('attBtn').classList.add('hidden'); $('syncBar').textContent = '';
     setTab('dash');
+    getDocs(col('authAccounts')).then(s => { s.forEach(d => ACC.map.set(d.id, d.data())); renderAccounts(); }).catch(() => {});
     return;
   }
   if (lvl === 'employee') setupDash();
@@ -875,10 +925,11 @@ function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   document.body.classList.remove('menu');
-  ['dash', 'support', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['dash', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
+  if (tab === 'accounts') loadAccounts();
   if (tab === 'support') { startSupport(); renderSupport(); }
   if (tab === 'alllog') startAllLog(); else if (all.dayUnsub) { all.dayUnsub(); all.dayUnsub = null; }
   render();
@@ -915,6 +966,7 @@ $('stSave').onclick = saveSupTask;
 $('hoSave').onclick = saveHandoff;
 document.addEventListener('change', e => { const s = e.target.closest('[data-stst]'); if (s) { const [pid, tid] = s.dataset.stst.split('|'); setSupTaskStatus(pid, tid, s.value); } });
 document.addEventListener('click', e => {
+  const mk = e.target.closest('[data-mkacc]'); if (mk) { makeAccount(mk.dataset.mkacc); return; }
   const pt = e.target.closest('[data-ptoggle]'); if (pt) { const id = pt.dataset.ptoggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderSupport(); return; }
   const pa = e.target.closest('[data-pact]'); if (pa) { const [k, id] = pa.dataset.pact.split('|'); projAction(k, id); return; }
   const se = e.target.closest('[data-stedit]'); if (se) { const [pid, tid] = se.dataset.stedit.split('|'); openSupTask(pid, tid); return; }
