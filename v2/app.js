@@ -1680,7 +1680,10 @@ const KPI_DEF = [
   { k: 'commit', l: 'الالتزام بالمهام والمتابعات', w: 10, m: 'المهام المنجزة في موعدها ÷ المهام المطلوبة' },
   { k: 'disc', l: 'الانضباط الوظيفي', w: 5, m: 'الحضور والالتزام بمواعيد العمل' }
 ];
-const KP = { targets: { signed: 4, meet: 12, leads: 40, calls: 600 }, manual: {}, last: null, busy: 0 };
+const KP = { targets: { signed: 4, meet: 12, leads: 40, calls: 600 }, weights: {}, callsBasis: 'all', manual: {}, last: null, busy: 0 };
+const KPI_W0 = Object.fromEntries(KPI_DEF.map(d => [d.k, d.w]));
+const kw = d => KP.weights[d.k] ?? KPI_W0[d.k];
+const CALL_BASIS = { all: 'كل المكالمات (تم الرد + لم يتم الرد)', answered: 'المكالمات التي تم الرد عليها فقط' };
 const QUAL_FROM = STAGES.indexOf('عميل مهتم');
 const kpiEmps = () => state.employees.filter(e => !e.deletedAt && deptKey(e) === 'خدمات العملاء' && (accessOf(e) === 'employee' || ($('kpiSup').checked && accessOf(e) === 'supervisor')));
 function kpiRange() {
@@ -1691,7 +1694,7 @@ function kpiRange() {
 }
 const workDays = (from, to) => daysBetween(from, to).filter(d => new Date(d + 'T12:00:00Z').getUTCDay() !== 5).length;
 async function loadKpiSettings(m) {
-  try { const s = await getDoc(doc(col('settings'), 'kpiTargets')); if (s.exists()) KP.targets = { ...KP.targets, ...(s.data().targets || {}) }; } catch (e) {}
+  try { const s = await getDoc(doc(col('settings'), 'kpiTargets')); if (s.exists()) { const d = s.data(); KP.targets = { ...KP.targets, ...(d.targets || {}) }; KP.weights = d.weights || {}; KP.callsBasis = d.callsBasis || 'all'; } } catch (e) {}
   try { const s = await getDoc(doc(col('kpiScores'), m)); KP.manual = s.exists() ? (s.data().scores || {}) : {}; } catch (e) { KP.manual = {}; }
 }
 async function loadKpi() {
@@ -1720,7 +1723,7 @@ function computeKpi({ m, from, to, last, pack, fus }) {
     v.signed = uniqDay(ts, CAT.signed);
     v.meet = uniqDay(ts, CAT.meet);
     v.leads = new Set(ts.filter(t => { const i = STAGES.indexOf(ccat(t)); return i >= QUAL_FROM && ccat(t) !== CAT.wa; }).map(t => t.clientId || plain(t.customer))).size;
-    v.calls = ts.filter(t => ccat(t) === CAT.call || ccat(t) === CAT.na).length;
+    v.calls = ts.filter(t => ccat(t) === CAT.call || (KP.callsBasis !== 'answered' && ccat(t) === CAT.na)).length;
     // الالتزام: المتابعات المستحقة حتى اليوم + المهام المسندة المستحقة
     const myFu = fus.filter(t => match(t.agentId, t.agent)?.id === e.id && t.nextFollowUpDate <= today);
     let req = 0, ok = 0;
@@ -1743,14 +1746,14 @@ function computeKpi({ m, from, to, last, pack, fus }) {
       let ratio;
       if (d.t) { const tgt = (+KP.targets[d.k] || 0) * factor; ratio = tgt > 0 ? Math.min(1, v[d.k] / tgt) : 0; sc[d.k + 'T'] = Math.round(tgt * 10) / 10; }
       else ratio = v[d.k] == null ? 0 : Math.min(1, v[d.k] / 100);
-      sc[d.k] = Math.round(ratio * d.w * 10) / 10; sc[d.k + 'R'] = Math.round(ratio * 100); total += ratio * d.w;
+      sc[d.k] = Math.round(ratio * kw(d) * 10) / 10; sc[d.k + 'R'] = Math.round(ratio * 100); total += ratio * kw(d);
     }
     return { e, v, sc, total: Math.round(total * 10) / 10 };
   }).sort((a, b) => b.total - a.total || b.v.signed - a.v.signed);
   return { m, from, to, last, rows, factor, wdNow, wdAll };
 }
 function kpiDetailHtml(r, L) {
-  return `<table class="rtbl"><thead><tr><th class="l">المعيار</th><th>الوزن</th><th>المحقق</th><th>المستهدف</th><th>نسبة التحقيق</th><th>الدرجة</th></tr></thead><tbody>${KPI_DEF.map(d => `<tr><td class="l">${d.l}</td><td>${d.w}%</td><td>${d.t ? r.v[d.k] : d.k === 'commit' ? (r.v.commitReq ? `${r.v.commitOk} من ${r.v.commitReq}` : '—') : d.k === 'disc' ? `${r.v.disc ?? '—'}%${r.v.discManual ? ' (يدوي)' : ` (${r.v.daysP} من ${r.v.wd} يوم)`}` : (r.v.quality == null ? 'لم يُقيَّم' : r.v.quality + '%')}</td><td>${d.t ? r.sc[d.k + 'T'] : '100%'}</td><td>${r.sc[d.k + 'R']}%</td><td><b>${r.sc[d.k]}</b></td></tr>`).join('')}<tr class="tot"><td class="l">الإجمالي</td><td>100%</td><td></td><td></td><td></td><td>${r.total}</td></tr></tbody></table>`;
+  return `<table class="rtbl"><thead><tr><th class="l">المعيار</th><th>الوزن</th><th>المحقق</th><th>المستهدف</th><th>نسبة التحقيق</th><th>الدرجة</th></tr></thead><tbody>${KPI_DEF.map(d => `<tr><td class="l">${d.l}</td><td>${kw(d)}%</td><td>${d.t ? r.v[d.k] : d.k === 'commit' ? (r.v.commitReq ? `${r.v.commitOk} من ${r.v.commitReq}` : '—') : d.k === 'disc' ? `${r.v.disc ?? '—'}%${r.v.discManual ? ' (يدوي)' : ` (${r.v.daysP} من ${r.v.wd} يوم)`}` : (r.v.quality == null ? 'لم يُقيَّم' : r.v.quality + '%')}</td><td>${d.t ? r.sc[d.k + 'T'] : '100%'}</td><td>${r.sc[d.k + 'R']}%</td><td><b>${r.sc[d.k]}</b></td></tr>`).join('')}<tr class="tot"><td class="l">الإجمالي</td><td>100%</td><td></td><td></td><td></td><td>${r.total}</td></tr></tbody></table>`;
 }
 const MEDAL = ['🥇', '🥈', '🥉'];
 const monthName = m => new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(m + '-15T12:00:00Z'));
@@ -1760,16 +1763,29 @@ function renderKpi() {
   const top = L.rows.filter(r => r.total > 0).slice(0, 3);
   const pod = i => { const r = top[i]; if (!r) return '<div></div>'; return `<div class="pod p${i + 1}" data-kpiemp="${esc(r.e.id)}"><div class="md">${MEDAL[i]}</div><b>${esc(r.e.name)}</b><div class="sc">${r.total}</div><div class="s">من 100 درجة</div>${i === 0 ? '<span class="crown">الموظف المثالي</span>' : `<div class="s">المركز ${i === 1 ? 'الثاني' : 'الثالث'}</div>`}</div>`; };
   $('kpiPodium').innerHTML = top.length ? pod(1) + pod(0) + pod(2) : '';
-  $('kpiTable').innerHTML = `<tr><th>الترتيب</th><th>الموظف</th>${KPI_DEF.map(d => `<th>${d.l}<div class="small" style="font-weight:400">${d.w}%</div></th>`).join('')}<th>الإجمالي</th><th></th></tr>` + L.rows.map((r, i) => `<tr data-kpiemp="${esc(r.e.id)}" style="cursor:pointer"><td>${r.total > 0 && i < 3 ? MEDAL[i] : i + 1}</td><td><b>${esc(r.e.name)}</b></td>${KPI_DEF.map(d => `<td title="${d.t ? `المحقق ${r.v[d.k]} من ${r.sc[d.k + 'T']}` : ''}">${r.sc[d.k]}<div class="small muted">${d.t ? r.v[d.k] : d.k === 'quality' && r.v.quality == null ? 'لم يُقيَّم' : r.sc[d.k + 'R'] + '%'}</div></td>`).join('')}<td><b style="font-size:16px">${r.total}</b></td><td><div class="scorebar"><i style="width:${r.total}%"></i></div></td></tr>`).join('');
+  $('kpiTable').innerHTML = `<tr><th>الترتيب</th><th>الموظف</th>${KPI_DEF.map(d => `<th>${d.l}<div class="small" style="font-weight:400">${kw(d)}%</div></th>`).join('')}<th>الإجمالي</th><th></th></tr>` + L.rows.map((r, i) => `<tr data-kpiemp="${esc(r.e.id)}" style="cursor:pointer"><td>${r.total > 0 && i < 3 ? MEDAL[i] : i + 1}</td><td><b>${esc(r.e.name)}</b></td>${KPI_DEF.map(d => `<td title="${d.t ? `المحقق ${r.v[d.k]} من ${r.sc[d.k + 'T']}` : ''}">${r.sc[d.k]}<div class="small muted">${d.t ? r.v[d.k] : d.k === 'quality' && r.v.quality == null ? 'لم يُقيَّم' : r.sc[d.k + 'R'] + '%'}</div></td>`).join('')}<td><b style="font-size:16px">${r.total}</b></td><td><div class="scorebar"><i style="width:${r.total}%"></i></div></td></tr>`).join('');
   const canEditT = isMgr();
   $('kpiTargets').innerHTML = KPI_DEF.filter(d => d.t).map(d => `<div><label>${d.l} (شهريًا)</label><input type="number" min="0" id="kpiT_${d.k}" value="${esc(KP.targets[d.k] ?? '')}" ${canEditT ? '' : 'disabled'}></div>`).join('');
   $('kpiSaveTargets').classList.toggle('hidden', !canEditT);
   $('kpiManual').innerHTML = '<tr><th>الموظف</th><th>جودة المكالمات (0-100)</th><th>الانضباط (0-100)</th></tr>' + L.rows.map(r => { const m = KP.manual[r.e.id] || {}; return `<tr><td><b>${esc(r.e.name)}</b></td><td><input type="number" min="0" max="100" data-kq="${esc(r.e.id)}" value="${esc(m.quality ?? '')}" placeholder="—"></td><td><input type="number" min="0" max="100" data-kd="${esc(r.e.id)}" value="${esc(m.disc ?? '')}" placeholder="تلقائي ${r.v.discManual ? '' : r.v.disc ?? ''}"></td></tr>`; }).join('');
-  $('kpiCriteria').innerHTML = '<tr><th>م</th><th>معيار الأداء KPI</th><th>الوزن النسبي</th><th>آلية القياس</th><th>مصدر البيانات</th></tr>' + KPI_DEF.map((d, i) => `<tr><td>${i + 1}</td><td><b>${d.l}</b></td><td>${d.w}%</td><td>${d.m}</td><td class="small">${{ signed: 'إجراءات «توقيع العقد» (العميل مرة واحدة في اليوم)', meet: 'إجراءات «عقد اجتماع»', leads: 'العملاء الذين وصلوا لمرحلة «عميل مهتم» أو ما بعدها', calls: 'المكالمات (تم الرد + لم يتم الرد)', quality: 'تقييم المشرف اليدوي', commit: 'المتابعات المستحقة التي نُفذت في موعدها + المهام المسندة المنجزة في موعدها', disc: 'أيام الحضور ÷ أيام العمل (باستثناء الجمعة)، أو تقييم يدوي' }[d.k]}</td></tr>`).join('') + '<tr class="tot"><th></th><th>الإجمالي</th><th>100%</th><th></th><th></th></tr>';
+  const mg = isMgr(), sumW = KPI_DEF.reduce((s, d) => s + (+kw(d) || 0), 0);
+  $('kpiCriteria').innerHTML = '<tr><th>م</th><th>معيار الأداء KPI</th><th>الوزن النسبي</th><th>آلية القياس</th><th>مصدر البيانات</th></tr>' + KPI_DEF.map((d, i) => `<tr><td>${i + 1}</td><td><b>${d.l}</b></td><td>${mg ? `<input type="number" min="0" max="100" data-kw="${d.k}" value="${kw(d)}" style="width:70px;padding:5px;text-align:center">%` : kw(d) + '%'}</td><td>${d.k === 'calls' ? (KP.callsBasis === 'answered' ? 'المكالمات التي تم الرد عليها ÷ المستهدف' : 'المكالمات المنفذة ÷ المستهدف') : d.m}</td><td class="small">${d.k === 'calls' && mg ? `<select id="kpiCallBasis" style="padding:5px">${Object.entries(CALL_BASIS).map(([k, l]) => `<option value="${k}" ${KP.callsBasis === k ? 'selected' : ''}>${l}</option>`).join('')}</select>` : { signed: 'إجراءات «توقيع العقد» (العميل مرة واحدة في اليوم)', meet: 'إجراءات «عقد اجتماع»', leads: 'العملاء الذين وصلوا لمرحلة «عميل مهتم» أو ما بعدها', calls: CALL_BASIS[KP.callsBasis] || CALL_BASIS.all, quality: 'تقييم المشرف اليدوي', commit: 'المتابعات المستحقة التي نُفذت في موعدها + المهام المسندة المنجزة في موعدها', disc: 'أيام الحضور ÷ أيام العمل (باستثناء الجمعة)، أو تقييم يدوي' }[d.k]}</td></tr>`).join('') + `<tr class="tot"><th></th><th>الإجمالي</th><th id="kpiSumW" style="color:${sumW === 100 ? 'inherit' : '#dc2626'}">${sumW}%</th><th colspan="2">${mg ? '<button class="btn primary sm" id="kpiSaveCrit">حفظ المعايير</button> <button class="btn line sm" id="kpiResetCrit">استعادة الأوزان الأصلية</button>' : ''}</th></tr>`;
+  if (mg) {
+    $('kpiCriteria').querySelectorAll('[data-kw]').forEach(i => i.oninput = () => { const s = [...$('kpiCriteria').querySelectorAll('[data-kw]')].reduce((a, x) => a + (+x.value || 0), 0); $('kpiSumW').textContent = s + '%'; $('kpiSumW').style.color = s === 100 ? 'inherit' : '#dc2626'; });
+    $('kpiSaveCrit').onclick = saveKpiCriteria;
+    $('kpiResetCrit').onclick = () => { $('kpiCriteria').querySelectorAll('[data-kw]').forEach(i => { i.value = KPI_W0[i.dataset.kw]; }); $('kpiCriteria').querySelector('[data-kw]').oninput(); };
+  }
 }
 async function saveKpiTargets() {
   const t = {}; KPI_DEF.filter(d => d.t).forEach(d => { t[d.k] = +$('kpiT_' + d.k).value || 0; });
   try { await setDoc(doc(col('settings'), 'kpiTargets'), { id: 'kpiTargets', targets: t, updatedAt: Date.now(), updatedBy: actor() }, { merge: true }); KP.targets = t; toast('✓ تم حفظ المستهدفات', 'ok'); loadKpi(); } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'err'); }
+}
+async function saveKpiCriteria() {
+  const w = {}; let sum = 0;
+  $('kpiCriteria').querySelectorAll('[data-kw]').forEach(i => { const v = +i.value || 0; w[i.dataset.kw] = v; sum += v; });
+  if (sum !== 100) { toast(`مجموع الأوزان يجب أن يساوي 100% (الحالي ${sum}%)`, 'err'); return; }
+  const basis = $('kpiCallBasis')?.value || 'all';
+  try { await setDoc(doc(col('settings'), 'kpiTargets'), { id: 'kpiTargets', weights: w, callsBasis: basis, updatedAt: Date.now(), updatedBy: actor() }, { merge: true }); KP.weights = w; KP.callsBasis = basis; toast('✓ تم حفظ المعايير وإعادة حساب التقييم', 'ok'); loadKpi(); } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'err'); }
 }
 async function saveKpiManual() {
   const { m } = kpiRange(); const scores = { ...KP.manual };
@@ -1790,7 +1806,7 @@ function kpiReport() {
   const L = KP.last; if (!L) return;
   const top = L.rows.filter(r => r.total > 0).slice(0, 3);
   const body = `${top.length ? `<div class="rsec"><h3>الموظف المثالي والمراكز الأولى</h3><div class="rkpis">${top.map((r, i) => rk(`${MEDAL[i]} المركز ${['الأول', 'الثاني', 'الثالث'][i]}${i === 0 ? ' — الموظف المثالي' : ''}`, `${esc(r.e.name)}<div style="font-size:14px;color:#5A3B8B">${r.total} درجة</div>`)).join('')}</div></div>` : ''}
-    <div class="rsec"><h3>جدول الترتيب</h3><table class="rtbl"><thead><tr><th>الترتيب</th><th class="l">الموظف</th>${KPI_DEF.map(d => `<th>${d.l} (${d.w}%)</th>`).join('')}<th>الإجمالي</th></tr></thead><tbody>${L.rows.map((r, i) => `<tr><td>${r.total > 0 && i < 3 ? MEDAL[i] : i + 1}</td><td class="l"><b>${esc(r.e.name)}</b></td>${KPI_DEF.map(d => `<td>${r.sc[d.k]}</td>`).join('')}<td><b>${r.total}</b></td></tr>`).join('')}</tbody></table></div>
+    <div class="rsec"><h3>جدول الترتيب</h3><table class="rtbl"><thead><tr><th>الترتيب</th><th class="l">الموظف</th>${KPI_DEF.map(d => `<th>${d.l} (${kw(d)}%)</th>`).join('')}<th>الإجمالي</th></tr></thead><tbody>${L.rows.map((r, i) => `<tr><td>${r.total > 0 && i < 3 ? MEDAL[i] : i + 1}</td><td class="l"><b>${esc(r.e.name)}</b></td>${KPI_DEF.map(d => `<td>${r.sc[d.k]}</td>`).join('')}<td><b>${r.total}</b></td></tr>`).join('')}</tbody></table></div>
     <div class="rsec"><h3>المستهدفات الشهرية المعتمدة</h3><table class="rtbl"><thead><tr>${KPI_DEF.filter(d => d.t).map(d => `<th>${d.l}</th>`).join('')}</tr></thead><tbody><tr>${KPI_DEF.filter(d => d.t).map(d => `<td>${KP.targets[d.k] ?? 0}</td>`).join('')}</tr></tbody></table>${L.factor < 1 ? `<div class="rnote" style="margin-top:6px">التقييم لجزء من الشهر (${L.wdNow} من ${L.wdAll} يوم عمل)، والمستهدف محسوب بنفس النسبة.</div>` : ''}</div>
     ${L.rows.map(r => `<div class="rsec"><h3>${esc(r.e.name)} — ${r.total} درجة</h3>${kpiDetailHtml(r, L)}</div>`).join('')}`;
   RP.last = { type: { t: 'تقييم أداء فريق خدمة العملاء' }, from: L.from, to: L.to, scope: 'فريق خدمة العملاء' };
