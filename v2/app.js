@@ -934,7 +934,8 @@ const REP_TYPES = [
   { id: 'actions', icon: 'fa-list-ol', t: 'سجل الإجراءات التفصيلي', d: 'جميع الإجراءات مع إمكانية التصفية', cat: true },
   { id: 'att', icon: 'fa-user-clock', t: 'تقرير الحضور والانصراف', d: 'أيام وساعات العمل لكل موظف' },
   { id: 'clients', icon: 'fa-user-plus', t: 'تقرير العملاء الجدد', d: 'العملاء المسجلون خلال الفترة' },
-  { id: 'support', icon: 'fa-headset', t: 'تقرير الدعم الفني', d: 'الملفات المستلمة والمنجزة والمتأخرة' }
+  { id: 'support', icon: 'fa-headset', t: 'تقرير الدعم الفني', d: 'الملفات المستلمة والمنجزة والمتأخرة' },
+  { id: 'kpi', icon: 'fa-trophy', t: 'تقييم الأداء الشهري', d: 'درجات الموظفين والموظف المثالي (اختر موظفًا أو الكل)' }
 ];
 const RP = { type: 'team', range: 'month', last: null };
 function repPeriod() {
@@ -972,6 +973,13 @@ async function runReport() {
   const btn = $('repRun'); btn.disabled = true; $('repMsg').textContent = 'جارٍ إعداد التقرير…';
   try {
     let html = '';
+    if (type.id === 'kpi') {
+      if (isSup() && deptKey(state.me) !== 'خدمات العملاء') throw new Error('تقييم الأداء متاح لمشرفي خدمات العملاء والإدارة فقط');
+      $('kpiMonth').value = from.slice(0, 7); await loadKpi();
+      if (!KP.last) throw new Error('تعذّر حساب التقييم');
+      if (empId) { if (!KP.last.rows.some(r => r.e.id === empId)) throw new Error('هذا الموظف ليس ضمن فريق خدمة العملاء المشمول بالتقييم'); kpiEmpDetail(empId); } else kpiReport();
+      $('repMsg').textContent = ''; return;
+    }
     if (type.id === 'support') { startSupport(); await new Promise(r => setTimeout(r, S.projects.size ? 0 : 1500)); html = repSupport(from, to, empId); }
     else {
       const n = daysBetween(from, to).length;
@@ -1621,7 +1629,7 @@ function openKpiReport(key, src) {
   const title = `تقرير ${def.l}`;
   RP.last = { type: { t: title }, from: r.from, to: r.to, scope };
   $('repDoc').innerHTML = repWrap(title, r.from, r.to, scope, kpiReportHtml(def, r, pr));
-  if (state.tab !== 'reports') setTab('reports');
+  if (state.tab !== 'reports') { window._keepRep = true; setTab('reports'); window._keepRep = false; }
   document.querySelector('.repbuilder').classList.add('hidden');
   $('repOut').classList.remove('hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1776,7 +1784,7 @@ function kpiEmpDetail(id) {
   const rank = L.rows.indexOf(r) + 1;
   RP.last = { type: { t: `تقييم أداء — ${r.e.name}` }, from: L.from, to: L.to, scope: r.e.name };
   $('repDoc').innerHTML = repWrap(`تقييم أداء الموظف — ${r.e.name}`, L.from, L.to, r.e.name, `<div class="rsec"><h3>النتيجة</h3><div class="rkpis">${rk('الدرجة الإجمالية', r.total + ' / 100')}${rk('الترتيب', rank + ' من ' + L.rows.length)}${rk('شهر التقييم', monthName(L.m))}</div></div><div class="rsec"><h3>تفاصيل الدرجات</h3>${kpiDetailHtml(r, L)}</div>`);
-  setTab('reports'); document.querySelector('.repbuilder').classList.add('hidden'); $('repOut').classList.remove('hidden');
+  window._keepRep = true; setTab('reports'); window._keepRep = false; document.querySelector('.repbuilder').classList.add('hidden'); $('repOut').classList.remove('hidden');
 }
 function kpiReport() {
   const L = KP.last; if (!L) return;
@@ -1787,7 +1795,7 @@ function kpiReport() {
     ${L.rows.map(r => `<div class="rsec"><h3>${esc(r.e.name)} — ${r.total} درجة</h3>${kpiDetailHtml(r, L)}</div>`).join('')}`;
   RP.last = { type: { t: 'تقييم أداء فريق خدمة العملاء' }, from: L.from, to: L.to, scope: 'فريق خدمة العملاء' };
   $('repDoc').innerHTML = repWrap(`تقييم أداء فريق خدمة العملاء — ${monthName(L.m)}`, L.from, L.to, 'فريق خدمة العملاء', body);
-  setTab('reports'); document.querySelector('.repbuilder').classList.add('hidden'); $('repOut').classList.remove('hidden');
+  window._keepRep = true; setTab('reports'); window._keepRep = false; document.querySelector('.repbuilder').classList.add('hidden'); $('repOut').classList.remove('hidden');
 }
 
 // ---------------- التشغيل ----------------
@@ -1839,6 +1847,7 @@ function setTab(tab) {
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
+  if (tab === 'reports' && !window._keepRep) { $('repOut').classList.add('hidden'); document.querySelector('.repbuilder').classList.remove('hidden'); }
   if (tab === 'kpi' && isSup() && deptKey(state.me) !== 'خدمات العملاء') { setTab('dash'); return; }
   if (tab === 'kpi') { if (!$('kpiMonth').value) $('kpiMonth').value = cairoDate().slice(0, 7); loadKpi(); }
   if (tab === 'accounts') loadAccounts();
