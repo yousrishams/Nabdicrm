@@ -1661,6 +1661,135 @@ async function checkActionPhone() {
   } catch (e) { el.textContent = ''; }
 }
 
+
+// ================= تقييم أداء فريق خدمة العملاء =================
+const KPI_DEF = [
+  { k: 'signed', l: 'العقود الموقعة', w: 30, m: 'العقود الموقعة ÷ المستهدف', t: true },
+  { k: 'meet', l: 'الاجتماعات المنعقدة', w: 20, m: 'الاجتماعات الفعلية ÷ المستهدف', t: true },
+  { k: 'leads', l: 'العملاء المحتملون (Leads)', w: 15, m: 'العملاء المؤهلون ÷ المستهدف', t: true },
+  { k: 'calls', l: 'عدد المكالمات', w: 10, m: 'المكالمات المنفذة ÷ المستهدف', t: true },
+  { k: 'quality', l: 'جودة المكالمات', w: 10, m: 'نتيجة تقييم جودة المكالمات (يدوي)' },
+  { k: 'commit', l: 'الالتزام بالمهام والمتابعات', w: 10, m: 'المهام المنجزة في موعدها ÷ المهام المطلوبة' },
+  { k: 'disc', l: 'الانضباط الوظيفي', w: 5, m: 'الحضور والالتزام بمواعيد العمل' }
+];
+const KP = { targets: { signed: 4, meet: 12, leads: 40, calls: 600 }, manual: {}, last: null, busy: 0 };
+const QUAL_FROM = STAGES.indexOf('عميل مهتم');
+const kpiEmps = () => state.employees.filter(e => !e.deletedAt && deptKey(e) === 'خدمات العملاء' && (accessOf(e) === 'employee' || ($('kpiSup').checked && accessOf(e) === 'supervisor')));
+function kpiRange() {
+  const m = $('kpiMonth').value || cairoDate().slice(0, 7);
+  const from = m + '-01', last = addDays(addDays(from, 32).slice(0, 8) + '01', -1);
+  const today = cairoDate(); const to = last > today ? today : last;
+  return { m, from, to, last };
+}
+const workDays = (from, to) => daysBetween(from, to).filter(d => new Date(d + 'T12:00:00Z').getUTCDay() !== 5).length;
+async function loadKpiSettings(m) {
+  try { const s = await getDoc(doc(col('settings'), 'kpiTargets')); if (s.exists()) KP.targets = { ...KP.targets, ...(s.data().targets || {}) }; } catch (e) {}
+  try { const s = await getDoc(doc(col('kpiScores'), m)); KP.manual = s.exists() ? (s.data().scores || {}) : {}; } catch (e) { KP.manual = {}; }
+}
+async function loadKpi() {
+  const run = ++KP.busy; const { m, from, to, last } = kpiRange();
+  if (from > cairoDate()) { $('kpiNote').textContent = 'هذا الشهر لم يبدأ بعد'; return; }
+  $('kpiNote').textContent = 'جارٍ حساب التقييم…';
+  try {
+    await loadKpiSettings(m);
+    const [pack, fu] = await Promise.all([loadPack(from, to), getDocs(query(col('tasks'), where('nextFollowUpDate', '>=', from), where('nextFollowUpDate', '<=', to))).catch(() => null)]);
+    startItasks();
+    if (run !== KP.busy) return;
+    const fus = []; fu?.forEach(d => { const t = d.data(); if (!t.deletedAt && t.taskType !== 'internal') fus.push(t); });
+    KP.last = computeKpi({ m, from, to, last, pack, fus });
+    renderKpi();
+  } catch (e) { $('kpiNote').textContent = 'تعذّر حساب التقييم: ' + e.message; }
+}
+function computeKpi({ m, from, to, last, pack, fus }) {
+  const match = empMatcher(), emps = kpiEmps();
+  const wdAll = workDays(from, last), wdNow = workDays(from, to), factor = wdAll ? wdNow / wdAll : 1;
+  const today = cairoDate();
+  const uniqDay = (ts, cat) => new Set(ts.filter(t => ccat(t) === cat).map(t => (t.clientId || plain(t.customer)) + '|' + t.date)).size;
+  const rows = emps.map(e => {
+    const ts = pack.tasks.filter(t => match(t.agentId, t.agent)?.id === e.id);
+    const att = pack.att.filter(r => match(r.employeeId, r.employeeName)?.id === e.id && r.checkInAt);
+    const v = {};
+    v.signed = uniqDay(ts, CAT.signed);
+    v.meet = uniqDay(ts, CAT.meet);
+    v.leads = new Set(ts.filter(t => { const i = STAGES.indexOf(ccat(t)); return i >= QUAL_FROM && ccat(t) !== CAT.wa; }).map(t => t.clientId || plain(t.customer))).size;
+    v.calls = ts.filter(t => ccat(t) === CAT.call || ccat(t) === CAT.na).length;
+    // الالتزام: المتابعات المستحقة حتى اليوم + المهام المسندة المستحقة
+    const myFu = fus.filter(t => match(t.agentId, t.agent)?.id === e.id && t.nextFollowUpDate <= today);
+    let req = 0, ok = 0;
+    for (const f of myFu) {
+      req++;
+      const key = f.clientId || plain(f.customer);
+      if (pack.tasks.some(x => (x.clientId || plain(x.customer)) === key && (x.createdAt || 0) > (f.createdAt || 0) && x.date <= f.nextFollowUpDate)) ok++;
+    }
+    for (const it of IT.map.values()) if (isInternal(it) && sameEmp(it.agent, it.agentId, e) && it.date >= from && it.date <= to && it.date <= today) { req++; if (it.completedAt && cairoDate(new Date(it.completedAt)) <= it.date) ok++; }
+    v.commitReq = req; v.commitOk = ok;
+    v.commit = req ? Math.round(ok * 100 / req) : null;
+    const days = new Set(att.map(r => r.date)).size;
+    v.daysP = days; v.wd = wdNow;
+    const man = KP.manual[e.id] || {};
+    v.disc = man.disc != null && man.disc !== '' ? +man.disc : (wdNow ? Math.min(100, Math.round(days * 100 / wdNow)) : null);
+    v.discManual = man.disc != null && man.disc !== '';
+    v.quality = man.quality != null && man.quality !== '' ? +man.quality : null;
+    const sc = {}; let total = 0;
+    for (const d of KPI_DEF) {
+      let ratio;
+      if (d.t) { const tgt = (+KP.targets[d.k] || 0) * factor; ratio = tgt > 0 ? Math.min(1, v[d.k] / tgt) : 0; sc[d.k + 'T'] = Math.round(tgt * 10) / 10; }
+      else ratio = v[d.k] == null ? 0 : Math.min(1, v[d.k] / 100);
+      sc[d.k] = Math.round(ratio * d.w * 10) / 10; sc[d.k + 'R'] = Math.round(ratio * 100); total += ratio * d.w;
+    }
+    return { e, v, sc, total: Math.round(total * 10) / 10 };
+  }).sort((a, b) => b.total - a.total || b.v.signed - a.v.signed);
+  return { m, from, to, last, rows, factor, wdNow, wdAll };
+}
+function kpiDetailHtml(r, L) {
+  return `<table class="rtbl"><thead><tr><th class="l">المعيار</th><th>الوزن</th><th>المحقق</th><th>المستهدف</th><th>نسبة التحقيق</th><th>الدرجة</th></tr></thead><tbody>${KPI_DEF.map(d => `<tr><td class="l">${d.l}</td><td>${d.w}%</td><td>${d.t ? r.v[d.k] : d.k === 'commit' ? (r.v.commitReq ? `${r.v.commitOk} من ${r.v.commitReq}` : '—') : d.k === 'disc' ? `${r.v.disc ?? '—'}%${r.v.discManual ? ' (يدوي)' : ` (${r.v.daysP} من ${r.v.wd} يوم)`}` : (r.v.quality == null ? 'لم يُقيَّم' : r.v.quality + '%')}</td><td>${d.t ? r.sc[d.k + 'T'] : '100%'}</td><td>${r.sc[d.k + 'R']}%</td><td><b>${r.sc[d.k]}</b></td></tr>`).join('')}<tr class="tot"><td class="l">الإجمالي</td><td>100%</td><td></td><td></td><td></td><td>${r.total}</td></tr></tbody></table>`;
+}
+const MEDAL = ['🥇', '🥈', '🥉'];
+const monthName = m => new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(m + '-15T12:00:00Z'));
+function renderKpi() {
+  const L = KP.last; if (!L) return;
+  $('kpiNote').textContent = `${monthName(L.m)} — أيام العمل المحتسبة: ${L.wdNow} من ${L.wdAll}${L.factor < 1 ? ' (المستهدف محسوب بنسبة الأيام المنقضية)' : ''}`;
+  const top = L.rows.filter(r => r.total > 0).slice(0, 3);
+  const pod = i => { const r = top[i]; if (!r) return '<div></div>'; return `<div class="pod p${i + 1}" data-kpiemp="${esc(r.e.id)}"><div class="md">${MEDAL[i]}</div><b>${esc(r.e.name)}</b><div class="sc">${r.total}</div><div class="s">من 100 درجة</div>${i === 0 ? '<span class="crown">الموظف المثالي</span>' : `<div class="s">المركز ${i === 1 ? 'الثاني' : 'الثالث'}</div>`}</div>`; };
+  $('kpiPodium').innerHTML = top.length ? pod(1) + pod(0) + pod(2) : '';
+  $('kpiTable').innerHTML = `<tr><th>الترتيب</th><th>الموظف</th>${KPI_DEF.map(d => `<th>${d.l}<div class="small" style="font-weight:400">${d.w}%</div></th>`).join('')}<th>الإجمالي</th><th></th></tr>` + L.rows.map((r, i) => `<tr data-kpiemp="${esc(r.e.id)}" style="cursor:pointer"><td>${r.total > 0 && i < 3 ? MEDAL[i] : i + 1}</td><td><b>${esc(r.e.name)}</b></td>${KPI_DEF.map(d => `<td title="${d.t ? `المحقق ${r.v[d.k]} من ${r.sc[d.k + 'T']}` : ''}">${r.sc[d.k]}<div class="small muted">${d.t ? r.v[d.k] : d.k === 'quality' && r.v.quality == null ? 'لم يُقيَّم' : r.sc[d.k + 'R'] + '%'}</div></td>`).join('')}<td><b style="font-size:16px">${r.total}</b></td><td><div class="scorebar"><i style="width:${r.total}%"></i></div></td></tr>`).join('');
+  const canEditT = isMgr();
+  $('kpiTargets').innerHTML = KPI_DEF.filter(d => d.t).map(d => `<div><label>${d.l} (شهريًا)</label><input type="number" min="0" id="kpiT_${d.k}" value="${esc(KP.targets[d.k] ?? '')}" ${canEditT ? '' : 'disabled'}></div>`).join('');
+  $('kpiSaveTargets').classList.toggle('hidden', !canEditT);
+  $('kpiManual').innerHTML = '<tr><th>الموظف</th><th>جودة المكالمات (0-100)</th><th>الانضباط (0-100)</th></tr>' + L.rows.map(r => { const m = KP.manual[r.e.id] || {}; return `<tr><td><b>${esc(r.e.name)}</b></td><td><input type="number" min="0" max="100" data-kq="${esc(r.e.id)}" value="${esc(m.quality ?? '')}" placeholder="—"></td><td><input type="number" min="0" max="100" data-kd="${esc(r.e.id)}" value="${esc(m.disc ?? '')}" placeholder="تلقائي ${r.v.discManual ? '' : r.v.disc ?? ''}"></td></tr>`; }).join('');
+  $('kpiCriteria').innerHTML = '<tr><th>م</th><th>معيار الأداء KPI</th><th>الوزن النسبي</th><th>آلية القياس</th><th>مصدر البيانات</th></tr>' + KPI_DEF.map((d, i) => `<tr><td>${i + 1}</td><td><b>${d.l}</b></td><td>${d.w}%</td><td>${d.m}</td><td class="small">${{ signed: 'إجراءات «توقيع العقد» (العميل مرة واحدة في اليوم)', meet: 'إجراءات «عقد اجتماع»', leads: 'العملاء الذين وصلوا لمرحلة «عميل مهتم» أو ما بعدها', calls: 'المكالمات (تم الرد + لم يتم الرد)', quality: 'تقييم المشرف اليدوي', commit: 'المتابعات المستحقة التي نُفذت في موعدها + المهام المسندة المنجزة في موعدها', disc: 'أيام الحضور ÷ أيام العمل (باستثناء الجمعة)، أو تقييم يدوي' }[d.k]}</td></tr>`).join('') + '<tr class="tot"><th></th><th>الإجمالي</th><th>100%</th><th></th><th></th></tr>';
+}
+async function saveKpiTargets() {
+  const t = {}; KPI_DEF.filter(d => d.t).forEach(d => { t[d.k] = +$('kpiT_' + d.k).value || 0; });
+  try { await setDoc(doc(col('settings'), 'kpiTargets'), { id: 'kpiTargets', targets: t, updatedAt: Date.now(), updatedBy: actor() }, { merge: true }); KP.targets = t; toast('✓ تم حفظ المستهدفات', 'ok'); loadKpi(); } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'err'); }
+}
+async function saveKpiManual() {
+  const { m } = kpiRange(); const scores = { ...KP.manual };
+  let bad = false;
+  document.querySelectorAll('[data-kq]').forEach(i => { const v = i.value.trim(); if (v !== '' && (+v < 0 || +v > 100)) bad = true; scores[i.dataset.kq] = { ...(scores[i.dataset.kq] || {}), quality: v === '' ? null : +v }; });
+  document.querySelectorAll('[data-kd]').forEach(i => { const v = i.value.trim(); if (v !== '' && (+v < 0 || +v > 100)) bad = true; scores[i.dataset.kd] = { ...(scores[i.dataset.kd] || {}), disc: v === '' ? null : +v }; });
+  if (bad) { toast('الدرجات يجب أن تكون بين 0 و100', 'err'); return; }
+  try { await setDoc(doc(col('kpiScores'), m), { id: m, scores, updatedAt: Date.now(), updatedBy: actor() }, { merge: true }); KP.manual = scores; toast('✓ تم حفظ التقييمات', 'ok'); loadKpi(); } catch (e) { toast('تعذّر الحفظ: ' + e.message, 'err'); }
+}
+function kpiEmpDetail(id) {
+  const L = KP.last, r = L?.rows.find(x => x.e.id === id); if (!r) return;
+  const rank = L.rows.indexOf(r) + 1;
+  RP.last = { type: { t: `تقييم أداء — ${r.e.name}` }, from: L.from, to: L.to, scope: r.e.name };
+  $('repDoc').innerHTML = repWrap(`تقييم أداء الموظف — ${r.e.name}`, L.from, L.to, r.e.name, `<div class="rsec"><h3>النتيجة</h3><div class="rkpis">${rk('الدرجة الإجمالية', r.total + ' / 100')}${rk('الترتيب', rank + ' من ' + L.rows.length)}${rk('شهر التقييم', monthName(L.m))}</div></div><div class="rsec"><h3>تفاصيل الدرجات</h3>${kpiDetailHtml(r, L)}</div>`);
+  setTab('reports'); document.querySelector('.repbuilder').classList.add('hidden'); $('repOut').classList.remove('hidden');
+}
+function kpiReport() {
+  const L = KP.last; if (!L) return;
+  const top = L.rows.filter(r => r.total > 0).slice(0, 3);
+  const body = `${top.length ? `<div class="rsec"><h3>الموظف المثالي والمراكز الأولى</h3><div class="rkpis">${top.map((r, i) => rk(`${MEDAL[i]} المركز ${['الأول', 'الثاني', 'الثالث'][i]}${i === 0 ? ' — الموظف المثالي' : ''}`, `${esc(r.e.name)}<div style="font-size:14px;color:#5A3B8B">${r.total} درجة</div>`)).join('')}</div></div>` : ''}
+    <div class="rsec"><h3>جدول الترتيب</h3><table class="rtbl"><thead><tr><th>الترتيب</th><th class="l">الموظف</th>${KPI_DEF.map(d => `<th>${d.l} (${d.w}%)</th>`).join('')}<th>الإجمالي</th></tr></thead><tbody>${L.rows.map((r, i) => `<tr><td>${r.total > 0 && i < 3 ? MEDAL[i] : i + 1}</td><td class="l"><b>${esc(r.e.name)}</b></td>${KPI_DEF.map(d => `<td>${r.sc[d.k]}</td>`).join('')}<td><b>${r.total}</b></td></tr>`).join('')}</tbody></table></div>
+    <div class="rsec"><h3>المستهدفات الشهرية المعتمدة</h3><table class="rtbl"><thead><tr>${KPI_DEF.filter(d => d.t).map(d => `<th>${d.l}</th>`).join('')}</tr></thead><tbody><tr>${KPI_DEF.filter(d => d.t).map(d => `<td>${KP.targets[d.k] ?? 0}</td>`).join('')}</tr></tbody></table>${L.factor < 1 ? `<div class="rnote" style="margin-top:6px">التقييم لجزء من الشهر (${L.wdNow} من ${L.wdAll} يوم عمل)، والمستهدف محسوب بنفس النسبة.</div>` : ''}</div>
+    ${L.rows.map(r => `<div class="rsec"><h3>${esc(r.e.name)} — ${r.total} درجة</h3>${kpiDetailHtml(r, L)}</div>`).join('')}`;
+  RP.last = { type: { t: 'تقييم أداء فريق خدمة العملاء' }, from: L.from, to: L.to, scope: 'فريق خدمة العملاء' };
+  $('repDoc').innerHTML = repWrap(`تقييم أداء فريق خدمة العملاء — ${monthName(L.m)}`, L.from, L.to, 'فريق خدمة العملاء', body);
+  setTab('reports'); document.querySelector('.repbuilder').classList.add('hidden'); $('repOut').classList.remove('hidden');
+}
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
@@ -1685,7 +1814,7 @@ function startApp(emp) {
     if (lvl === 'manager') document.querySelectorAll('.tab.mgr').forEach(b => b.classList.remove('hidden'));
   }
   if (emp.id === 'manager') {
-    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'reports', 'itasks', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
+    document.querySelectorAll('.tab').forEach(b => { if (!['dash', 'kpi', 'reports', 'itasks', 'support', 'accounts', 'team', 'allclients', 'alllog'].includes(b.dataset.tab) || b.classList.contains('agentrep')) b.classList.add('hidden'); });
     document.querySelector('.agentsec').classList.add('hidden');
     $('attBtn').classList.add('hidden'); $('pinBtn').classList.add('hidden'); $('syncBar').textContent = '';
     startBulletins();
@@ -1705,10 +1834,11 @@ function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   document.body.classList.remove('menu');
-  ['dash', 'reports', 'itasks', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['dash', 'kpi', 'reports', 'itasks', 'support', 'accounts', 'today', 'clients', 'log', 'team', 'allclients', 'alllog'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== tab));
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
+  if (tab === 'kpi') { if (!$('kpiMonth').value) $('kpiMonth').value = cairoDate().slice(0, 7); loadKpi(); }
   if (tab === 'accounts') loadAccounts();
   if (tab === 'itasks') { startItasks(); renderItasks(); }
   if (tab === 'support') { startBulletins(); renderBulletins(); }
@@ -1747,6 +1877,8 @@ $('supAddTask').onclick = () => openSupTask('', '');
 $('stSave').onclick = saveSupTask;
 $('hoSave').onclick = saveHandoff;
 $('cfSave').onclick = saveClientForm;
+$('kpiMonth').onchange = loadKpi; $('kpiSup').onchange = loadKpi;
+$('kpiSaveTargets').onclick = saveKpiTargets; $('kpiSaveManual').onclick = saveKpiManual; $('kpiPrint').onclick = kpiReport;
 ['cPeriod', 'cBasis', 'cFrom', 'cTo'].forEach(id => $(id).addEventListener('change', () => { $('cCustom').classList.toggle('hidden', $('cPeriod').value !== 'custom'); renderClients(); }));
 document.querySelectorAll('.chkcard').forEach(box => { box.querySelector('.chkBtn').onclick = () => checkPhone(box); box.querySelector('.chkPhone').addEventListener('keydown', e => { if (e.key === 'Enter') checkPhone(box); }); });
 $('aPhone').addEventListener('blur', checkActionPhone);
@@ -1783,6 +1915,7 @@ document.addEventListener('click', e => {
   const nt = e.target.closest('[data-note]'); if (nt) { const [k, id] = nt.dataset.note.split('|'); noteAction(k, id); return; }
   const ee = e.target.closest('[data-emedit]'); if (ee) { openEmp(state.employees.find(x => x.id === ee.dataset.emedit)); return; }
   const ed = e.target.closest('[data-emdel]'); if (ed) { deleteEmp(state.employees.find(x => x.id === ed.dataset.emdel)); return; }
+  const ke = e.target.closest('[data-kpiemp]'); if (ke) { kpiEmpDetail(ke.dataset.kpiemp); return; }
   const cst = e.target.closest('[data-cst]'); if (cst) { window._cStage = cst.dataset.cst; renderClients(); return; }
   const co = e.target.closest('[data-chkopen]'); if (co) { openClient(state.clients.get(co.dataset.chkopen)); return; }
   const cn = e.target.closest('[data-chknew]'); if (cn) { openAction(null); $('aPhone').value = cn.dataset.chknew; checkActionPhone(); return; }

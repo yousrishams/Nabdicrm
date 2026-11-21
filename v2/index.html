@@ -8,7 +8,7 @@
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=218">
+<link rel="stylesheet" href="./app.css?v=219">
 </head>
 <body>
 
@@ -39,6 +39,7 @@
     <nav>
       <div class="navlbl mgrsec hidden">الإدارة</div>
       <button data-tab="dash" class="tab hidden mgrsup"><i class="fa-solid fa-chart-pie"></i><span>لوحة التحكم</span></button>
+      <button data-tab="kpi" class="tab hidden mgrsup"><i class="fa-solid fa-trophy"></i><span>تقييم الأداء</span></button>
       <button data-tab="reports" class="tab hidden mgrsup"><i class="fa-solid fa-file-lines"></i><span>التقارير</span></button>
       <button data-tab="support" class="tab hidden supnav"><i class="fa-solid fa-headset"></i><span>الدعم الفني</span><b class="nbadge hidden" id="supBadge"></b></button>
       <button data-tab="team" class="tab hidden" id="teamTabBtn"><i class="fa-solid fa-users"></i><span>أداء الفريق اليوم</span></button>
@@ -98,6 +99,27 @@
         <div class="reptools"><button class="btn primary" id="repPrint"><i class="fa-solid fa-print"></i> طباعة / حفظ PDF</button><button class="btn line" id="repXls"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button><button class="btn line" id="repClose"><i class="fa-solid fa-xmark"></i> إغلاق التقرير</button></div>
         <div id="repDoc" class="repdoc"></div>
       </div>
+    </section>
+    <!-- تقييم الأداء -->
+    <section id="tab-kpi" class="hidden">
+      <div class="pagehead"><h1>تقييم أداء فريق خدمة العملاء</h1>
+        <div class="tools"><button class="btn primary sm" id="kpiPrint"><i class="fa-solid fa-print"></i> تقرير للطباعة</button></div></div>
+      <div class="card filters">
+        <div class="frow"><label>شهر التقييم</label><input type="month" id="kpiMonth"><label class="check"><input type="checkbox" id="kpiSup"> تضمين المشرفين</label><span class="muted small" id="kpiNote"></span></div>
+      </div>
+      <div id="kpiPodium" class="podium"></div>
+      <div class="card"><h3><i class="fa-solid fa-ranking-star"></i> ترتيب الموظفين</h3><div style="overflow:auto"><table class="tbl" id="kpiTable"></table></div>
+        <p class="muted small">الدرجة = نسبة التحقيق (المحقق ÷ المستهدف، بحد أقصى 100%) × وزن المعيار. اضغط على اسم الموظف لعرض تفاصيل درجاته.</p></div>
+      <div class="grid2c">
+        <div class="card"><h3><i class="fa-solid fa-bullseye"></i> المستهدفات الشهرية لكل موظف</h3>
+          <div class="grid2" id="kpiTargets"></div>
+          <button class="btn primary sm" id="kpiSaveTargets" style="margin-top:10px">حفظ المستهدفات</button></div>
+        <div class="card"><h3><i class="fa-solid fa-pen-to-square"></i> التقييمات اليدوية لهذا الشهر</h3>
+          <p class="muted small" style="margin-top:0">جودة المكالمات تُدخل من المشرف (من 0 إلى 100). الانضباط يُحسب تلقائيًا من الحضور، ويمكن تعديله يدويًا.</p>
+          <div style="overflow:auto"><table class="tbl" id="kpiManual"></table></div>
+          <button class="btn primary sm" id="kpiSaveManual" style="margin-top:10px">حفظ التقييمات</button></div>
+      </div>
+      <div class="card"><h3><i class="fa-solid fa-table-list"></i> معايير التقييم</h3><div style="overflow:auto"><table class="tbl" id="kpiCriteria"></table></div></div>
     </section>
     <!-- المهام المسندة -->
     <section id="tab-itasks" class="hidden">
@@ -422,6 +444,6 @@
 <div id="bellPanel" class="bellpanel hidden"><div class="bphead"><b>الإشعارات</b><button class="btn line sm" id="bellRead">تحديد الكل كمقروء</button></div><div id="bellList"></div></div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=218"></script>
+<script type="module" src="./app.js?v=219"></script>
 </body>
 </html>
