@@ -8,7 +8,7 @@
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=215">
+<link rel="stylesheet" href="./app.css?v=216">
 </head>
 <body>
 
@@ -104,7 +104,7 @@
       <div class="pagehead"><h1>المهام المسندة</h1><div class="tools"><button class="btn primary sm" id="itNew"><i class="fa-solid fa-plus"></i> إسناد مهمة</button></div></div>
       <div class="kpis" id="itKpis"></div>
       <div class="card filters"><div class="seg" id="itScope"><button data-s="open" class="on">المفتوحة</button><button data-s="new">لم تُستلم</button><button data-s="late">المتأخرة</button><button data-s="done">المكتملة</button><button data-s="all">الكل</button></div>
-        <div class="frow"><label>الموظف</label><select id="itEmp"></select><input id="itSearch" placeholder="بحث في المهام…" style="flex:1"></div></div>
+        <div class="frow"><label>القسم</label><select id="itDept"><option value="">جميع الأقسام</option><option>خدمات العملاء</option><option>الدعم الفني</option><option>الإدارة</option></select><label>الموظف</label><select id="itEmp"></select><input id="itSearch" placeholder="بحث في المهام…" style="flex:1"></div></div>
       <div id="itList" class="list" style="max-height:none"></div>
     </section>
     <!-- الدعم الفني -->
@@ -370,7 +370,10 @@
   <div class="sheet">
     <button class="x" data-close="itModal">×</button>
     <h2 id="itTitleH">إسناد مهمة</h2>
-    <label>المستلم *</label><select id="itAssignee"></select>
+    <label>إرسال إلى *</label>
+    <div class="seg qsel" id="itQuick"></div>
+    <div id="itPick" class="pick"></div>
+    <div class="small muted" id="itPickCount"></div>
     <label>عنوان المهمة *</label><input id="itTitle" maxlength="160">
     <label>التفاصيل</label><textarea id="itDesc" rows="3"></textarea>
     <div class="grid2"><div><label>تاريخ التسليم *</label><input id="itDue" type="date"></div><div><label>الأولوية</label><select id="itPriority"><option>عادية</option><option>متوسطة</option><option>عالية جداً</option></select></div></div>
@@ -409,6 +412,6 @@
 <div id="bellPanel" class="bellpanel hidden"><div class="bphead"><b>الإشعارات</b><button class="btn line sm" id="bellRead">تحديد الكل كمقروء</button></div><div id="bellList"></div></div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=215"></script>
+<script type="module" src="./app.js?v=216"></script>
 </body>
 </html>

@@ -1307,8 +1307,32 @@ function startItasks() {
   }, () => {});
 }
 function itScopeEmployees() {
-  if (isMgr()) return state.employees.filter(e => !e.deletedAt);
-  return state.employees.filter(e => deptOf(e) === deptOf(state.me) && accessOf(e) === 'employee');
+  const me = state.me;
+  if (isMgr()) return state.employees.filter(e => !e.deletedAt && e.id !== me.id);
+  return state.employees.filter(e => !e.deletedAt && e.id !== me.id && deptOf(e) === deptOf(me) && accessOf(e) !== 'manager');
+}
+const DEPTS = ['خدمات العملاء', 'الدعم الفني', 'الإدارة'];
+const deptKey = e => { const d = deptOf(e) || e.department || ''; return d.includes('الدعم') ? 'الدعم الفني' : (d.includes('إدارة') || accessOf(e) === 'manager') ? 'الإدارة' : 'خدمات العملاء'; };
+function renderPick(sel) {
+  const emps = itScopeEmployees(), one = !!IT.editing;
+  $('itPick').innerHTML = DEPTS.map(dp => {
+    const list = emps.filter(e => deptKey(e) === dp).sort((a, b) => (accessOf(b) === 'supervisor') - (accessOf(a) === 'supervisor') || String(a.name).localeCompare(String(b.name), 'ar'));
+    if (!list.length) return '';
+    return `<div class="grp">${dp} <span>${one ? '' : `<button type="button" data-pickall="${dp}">تحديد الكل</button>`}</span></div>` + list.map(e => `<label><input type="${one ? 'radio' : 'checkbox'}" name="itp" value="${esc(e.id)}" ${sel.has(e.id) ? 'checked' : ''}> ${esc(e.name)} ${accessOf(e) === 'supervisor' ? '<span class="sv">مشرف</span>' : accessOf(e) === 'manager' ? '<span class="sv">مدير</span>' : ''}</label>`).join('');
+  }).join('') || '<div class="empty">لا يوجد موظفون</div>';
+  pickCount();
+}
+const pickedIds = () => [...document.querySelectorAll('#itPick input[name=itp]:checked')].map(x => x.value);
+function pickCount() { const n = pickedIds().length; $('itPickCount').textContent = n ? `تم اختيار ${n} — ستُرسل مهمة مستقلة لكل شخص` : 'لم يتم اختيار أحد'; }
+function quickPick(kind) {
+  const emps = itScopeEmployees(); let ids = [];
+  if (kind === 'cs') ids = emps.filter(e => deptKey(e) === 'خدمات العملاء').map(e => e.id);
+  else if (kind === 'ts') ids = emps.filter(e => deptKey(e) === 'الدعم الفني').map(e => e.id);
+  else if (kind === 'sup') ids = emps.filter(e => accessOf(e) === 'supervisor').map(e => e.id);
+  else if (kind === 'supcs') ids = emps.filter(e => accessOf(e) === 'supervisor' && deptKey(e) === 'خدمات العملاء').map(e => e.id);
+  else if (kind === 'supts') ids = emps.filter(e => accessOf(e) === 'supervisor' && deptKey(e) === 'الدعم الفني').map(e => e.id);
+  else if (kind === 'all') ids = emps.map(e => e.id);
+  renderPick(new Set(ids));
 }
 function itCard(t, mine) {
   const st = itState(t), log = curLog(t);
@@ -1337,6 +1361,7 @@ function renderItasks() {
   const k = { all: list.length, nw: list.filter(t => itState(t) === 'جديدة').length, run: list.filter(t => itState(t) === 'جاري التنفيذ').length, late: list.filter(t => itState(t) === 'متأخرة').length, done: list.filter(t => itState(t) === 'مكتملة').length };
   const kp = (l, v, c) => `<div class="kpi" style="--c:${c}"><span>${l}</span><b>${v}</b></div>`;
   $('itKpis').innerHTML = kp('إجمالي المهام', k.all, '#5A3B8B') + kp('لم تُستلم', k.nw, '#f59e0b') + kp('جاري التنفيذ', k.run, '#7c3aed') + kp('متأخرة', k.late, '#dc2626') + kp('مكتملة', k.done, '#16a34a') + kp('نسبة الإنجاز', pct(k.done, k.all) + '%', '#0d9488');
+  const dSel = $('itDept').value; if (dSel) list = list.filter(t => { const e = state.employees.find(x => sameEmp(t.agent, t.agentId, x)); return e ? deptKey(e) === dSel : String(t.department || '').includes(dSel.split(' ')[0]); });
   if (empSel) { const e = state.employees.find(x => x.id === empSel); list = list.filter(t => sameEmp(t.agent, t.agentId, e)); }
   if (q) list = list.filter(t => plain(t.title).includes(q) || plain(t.description).includes(q) || plain(t.agent).includes(q));
   list = list.filter(t => { const st = itState(t); return IT.scope === 'all' || (IT.scope === 'open' && st !== 'مكتملة') || (IT.scope === 'new' && st === 'جديدة') || (IT.scope === 'late' && st === 'متأخرة') || (IT.scope === 'done' && st === 'مكتملة'); });
@@ -1345,18 +1370,35 @@ function renderItasks() {
 }
 function openItask(t = null) {
   IT.editing = t;
-  const emps = itScopeEmployees();
-  $('itAssignee').innerHTML = emps.map(e => `<option value="${esc(e.id)}">${esc(e.name)} — ${esc(deptOf(e) || e.department || '')}</option>`).join('');
+  const one = !!t;
+  const opts = isMgr() ? [['cs', 'فريق خدمات العملاء'], ['ts', 'فريق الدعم الفني'], ['sup', 'كل المشرفين'], ['supcs', 'مشرفو خدمات العملاء'], ['supts', 'مشرفو الدعم الفني'], ['all', 'الجميع'], ['none', 'مسح الاختيار']] : [['all', 'كل فريقي'], ['none', 'مسح الاختيار']];
+  $('itQuick').innerHTML = one ? '' : opts.map(([k, l]) => `<button type="button" data-quick="${k}">${l}</button>`).join('');
+  const ae = t && state.employees.find(e => sameEmp(t.agent, t.agentId, e));
+  renderPick(new Set(ae ? [ae.id] : []));
   $('itTitleH').textContent = t ? 'تعديل المهمة المسندة' : 'إسناد مهمة';
-  const ae = t && state.employees.find(e => sameEmp(t.agent, t.agentId, e)); if (ae) $('itAssignee').value = ae.id;
   $('itTitle').value = t?.title || ''; $('itDesc').value = t?.description || ''; $('itDue').value = t?.date || cairoDate(); $('itPriority').value = t?.priority || 'عادية'; $('itMsg').textContent = '';
   $('itModal').classList.remove('hidden');
 }
 async function saveItask() {
   const msg = $('itMsg'); msg.className = 'msg err';
-  const emp = state.employees.find(e => e.id === $('itAssignee').value), title = $('itTitle').value.trim(), date = $('itDue').value, desc = $('itDesc').value.trim();
-  if (!emp || !title || !date) { msg.textContent = 'يرجى إكمال المستلم وعنوان المهمة وتاريخ التسليم'; return; }
+  const ids = pickedIds(), title = $('itTitle').value.trim(), date = $('itDue').value, desc = $('itDesc').value.trim();
+  if (!ids.length || !title || !date) { msg.textContent = 'يرجى اختيار المستلم وكتابة عنوان المهمة وتاريخ التسليم'; return; }
   const old = IT.editing, now = new Date().toISOString();
+  if (!old && ids.length > 1) {
+    const group = 'grp_' + Date.now(); $('itSave').disabled = true; let ok = 0;
+    try {
+      for (const eid of ids) {
+        const e = state.employees.find(x => x.id === eid); if (!e) continue;
+        const dp = deptOf(e) || e.department || 'خدمات العملاء';
+        const nt = { id: 'task_' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '_' + ok), taskType: 'internal', department: dp, agent: e.name, agentId: e.id, date, time: cairoTime(), shift: e.shift || 'شفت صباحي', customer: 'مهمة داخلية — ' + dp, phone: '-', entityType: 'مهمة داخلية', specialty: dp, city: '-', category: 'مهمة داخلية', channel: 'نظام نبضي', priority: $('itPriority').value, title, description: desc, notes: title + (desc ? ' — ' + desc : ''), status: 'جديدة', activityLog: [], assignedBy: actor(), assignedById: state.me.id, assignGroup: group, createdAt: Date.now(), updatedAt: Date.now() };
+        await withTimeout(setDoc(doc(col('tasks'), nt.id), nt), 12000, 'تأخر الحفظ، يرجى المحاولة مرة أخرى');
+        IT.map.set(nt.id, { ...nt, _docId: nt.id }); ok++;
+      }
+      $('itModal').classList.add('hidden'); toast(`✓ تم إرسال المهمة إلى ${ok} شخص`, 'ok'); renderItasks();
+    } catch (e) { msg.textContent = `تم الإرسال إلى ${ok} فقط — ` + e.message; } finally { $('itSave').disabled = false; }
+    return;
+  }
+  const emp = state.employees.find(e => e.id === ids[0]);
   const same = old && sameEmp(old.agent, old.agentId, emp);
   if (old && !same && itState(old) === 'مكتملة') { msg.textContent = 'المهمة مكتملة؛ لإسناد عمل جديد أنشئ مهمة جديدة'; return; }
   const dept = deptOf(emp) || emp.department || 'خدمات العملاء';
@@ -1692,7 +1734,10 @@ $('itNew').onclick = () => openItask(null);
 $('itSave').onclick = saveItask;
 $('iaSave').onclick = saveItAct;
 $('itScope').onclick = e => { const b = e.target.closest('button[data-s]'); if (!b) return; IT.scope = b.dataset.s; $('itScope').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderItasks(); };
-$('itEmp').onchange = renderItasks; $('itSearch').oninput = renderItasks;
+$('itEmp').onchange = renderItasks; $('itDept').onchange = renderItasks;
+$('itQuick').onclick = e => { const b = e.target.closest('[data-quick]'); if (b) quickPick(b.dataset.quick); };
+$('itPick').addEventListener('change', pickCount);
+$('itPick').addEventListener('click', e => { const b = e.target.closest('[data-pickall]'); if (!b) return; const dp = b.dataset.pickall; document.querySelectorAll('#itPick input[name=itp]').forEach(x => { const em = state.employees.find(y => y.id === x.value); if (em && deptKey(em) === dp) x.checked = true; }); pickCount(); }); $('itSearch').oninput = renderItasks;
 $('noteAdd').onclick = () => noteAction('add');
 $('noteInput').addEventListener('keydown', e => { if (e.key === 'Enter') noteAction('add'); });
 $('bulSave').onclick = publishBulletin;
