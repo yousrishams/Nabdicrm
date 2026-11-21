@@ -1336,15 +1336,16 @@ function quickPick(kind) {
 }
 function itCard(t, mine) {
   const st = itState(t), log = curLog(t);
+  const nFiles = (t.activityLog || []).reduce((s, l) => s + (l.files || []).length, 0);
   const btns = [];
   if (mine && st !== 'مكتملة') {
     if (!itAccepted(t)) btns.push(`<button class="btn primary sm" data-itact="accept|${esc(t._docId)}"><i class="fa-solid fa-hand"></i> استلام المهمة</button>`);
     else { btns.push(`<button class="btn line sm" data-itact="act|${esc(t._docId)}"><i class="fa-solid fa-comment-dots"></i> إضافة إجراء</button>`); btns.push(`<button class="btn ok sm" data-itact="done|${esc(t._docId)}"><i class="fa-solid fa-circle-check"></i> إنهاء المهمة</button>`); }
   }
-  if (!mine && (isMgr() || isSup())) { btns.push(`<button class="btn line sm" data-itact="edit|${esc(t._docId)}"><i class="fa-solid fa-pen"></i> تعديل</button>`); btns.push(`<button class="btn danger sm" data-itact="del|${esc(t._docId)}"><i class="fa-solid fa-trash"></i> حذف</button>`); }
-  return `<div class="it"><div class="ih"><div><h4>${esc(t.title || t.notes || 'مهمة')}</h4><div class="small muted">${mine ? `من: ${esc(t.assignedBy || 'الإدارة')}` : `المستلم: <b>${esc(t.agent || '')}</b> · ${esc(t.department || '')}`} · التسليم: ${fmtDate(t.date)}${t.priority && t.priority !== 'عادية' ? ` · <b class="amber">${esc(t.priority)}</b>` : ''}</div></div><span class="hs ${IT_CLS[st]}">${st}</span></div>
+  if (!mine && (isMgr() || isSup())) { if (st !== 'مكتملة') btns.push(`<button class="btn line sm" data-itact="act|${esc(t._docId)}"><i class="fa-solid fa-reply"></i> رد / تعليق</button>`); btns.push(`<button class="btn line sm" data-itact="edit|${esc(t._docId)}"><i class="fa-solid fa-pen"></i> تعديل</button>`); btns.push(`<button class="btn danger sm" data-itact="del|${esc(t._docId)}"><i class="fa-solid fa-trash"></i> حذف</button>`); }
+  return `<div class="it" data-itopen="${esc(t._docId)}"><div class="ih"><div><h4>${esc(t.title || t.notes || 'مهمة')}</h4><div class="small muted">${mine ? `من: ${esc(t.assignedBy || 'الإدارة')}` : `المستلم: <b>${esc(t.agent || '')}</b> · ${esc(t.department || '')}`} · التسليم: ${fmtDate(t.date)}${t.priority && t.priority !== 'عادية' ? ` · <b class="amber">${esc(t.priority)}</b>` : ''}</div></div><span class="hs ${IT_CLS[st]}">${st}</span></div>${nFiles ? `<div class="small" style="color:var(--p);margin-top:4px"><i class="fa-solid fa-paperclip"></i> ${nFiles} مرفقات</div>` : ''}
     ${t.description ? `<div class="small" style="margin-top:6px;white-space:pre-wrap">${esc(t.description)}</div>` : ''}
-    ${log.length ? `<div class="log">${log.slice(-4).map(l => `<div><b>${esc(l.type)}</b> — ${esc(l.comment || '')} <span class="muted">(${esc(l.by || '')} · ${l.at ? esc(new Date(l.at).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'short', timeStyle: 'short' })) : ''})</span></div>`).join('')}</div>` : ''}
+    ${log.length ? `<div class="log">${log.length > 2 ? `<div class="muted">… و${log.length - 2} إجراءات سابقة — اضغط على المهمة لعرض السجل كاملًا</div>` : ''}${log.slice(-2).map(l => `<div><b>${esc(l.type)}</b> — ${esc(l.comment || '')} <span class="muted">(${esc(l.by || '')} · ${l.at ? esc(new Date(l.at).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'short', timeStyle: 'short' })) : ''})</span></div>`).join('')}</div>` : ''}
     ${t.finalResult ? `<div class="rnote" style="margin-top:6px"><b>النتيجة النهائية:</b> ${esc(t.finalResult)}</div>` : ''}
     ${btns.length ? `<div class="pact">${btns.join('')}</div>` : ''}</div>`;
 }
@@ -1378,6 +1379,24 @@ function openItask(t = null) {
   $('itTitleH').textContent = t ? 'تعديل المهمة المسندة' : 'إسناد مهمة';
   $('itTitle').value = t?.title || ''; $('itDesc').value = t?.description || ''; $('itDue').value = t?.date || cairoDate(); $('itPriority').value = t?.priority || 'عادية'; $('itMsg').textContent = '';
   $('itModal').classList.remove('hidden');
+}
+
+function openItDetail(id) {
+  const t = IT.map.get(id) || state.tasks.get(id) || [...IT.map.values(), ...state.tasks.values()].find(x => x.id === id);
+  if (!t) { toast('لم يتم العثور على المهمة', 'err'); return; }
+  const mine = sameEmp(t.agent, t.agentId, state.me), st = itState(t);
+  const fmtAt = v => v ? new Date(v).toLocaleString('ar-EG', { timeZone: TZ, dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  const log = (t.activityLog || []);
+  const card = itCard({ ...t, _docId: t._docId || id }, mine);
+  const actions = (card.match(/<div class="pact">[\s\S]*<\/div><\/div>$/) || [''])[0].replace(/<\/div>$/, '');
+  $('itDetBody').innerHTML = `<h2>${esc(t.title || 'مهمة')} <span class="hs ${IT_CLS[st]}">${st}</span></h2>
+    <div class="dgrid"><div><b>المستلم</b>${esc(t.agent || '')}</div><div><b>القسم</b>${esc(t.department || '')}</div><div><b>أسندها</b>${esc(t.assignedBy || '—')}</div><div><b>تاريخ الإسناد</b>${fmtAt(t.createdAt)}</div><div><b>تاريخ التسليم</b>${fmtDate(t.date)}</div><div><b>الأولوية</b>${esc(t.priority || 'عادية')}</div><div><b>تاريخ الاستلام</b>${fmtAt(t.acceptedAt)}</div><div><b>تاريخ الإنهاء</b>${fmtAt(t.completedAt)}</div></div>
+    ${t.description ? `<div class="fsec">تفاصيل المهمة</div><div style="white-space:pre-wrap;font-size:14px">${esc(t.description)}</div>` : ''}
+    <div class="fsec">سجل الإجراءات (${log.length})</div>
+    ${log.length ? `<div class="tline">${log.map((l, i) => `<div class="tl ${l.type === 'إنهاء المهمة' ? 'done' : i === 0 ? 'first' : ''}"><div class="h">${esc(l.type || 'إجراء')} — ${esc(l.by || '')}<span>${fmtAt(l.at)}</span></div>${l.comment ? `<div class="c">${esc(l.comment)}</div>` : ''}${(l.files || []).length ? `<div class="pact" style="margin-top:6px">${l.files.map(f => `<a class="btn line sm" target="_blank" rel="noopener" href="${esc(f.url)}"><i class="fa-solid ${String(f.type || '').startsWith('image') ? 'fa-image' : 'fa-paperclip'}"></i> ${esc(f.name)}</a>`).join('')}</div>` : ''}</div>`).join('')}</div>` : '<div class="empty">لم يُسجَّل أي إجراء على هذه المهمة بعد</div>'}
+    ${t.finalResult ? `<div class="fsec">النتيجة النهائية</div><div class="rnote">${esc(t.finalResult)}</div>` : ''}
+    ${actions}`;
+  $('itDetModal').classList.remove('hidden');
 }
 async function saveItask() {
   const msg = $('itMsg'); msg.className = 'msg err';
@@ -1429,7 +1448,7 @@ async function itAction(kind, id) {
   try {
     const now = new Date().toISOString(), by = actor();
     if (kind === 'accept') { await mutateTask(id, x => { x.activityLog = [...(x.activityLog || []), { type: 'استلام المهمة', comment: 'تم استلام المهمة', by, at: now }]; x.acceptedAt = now; x.acceptedBy = by; x.status = 'تم الاستلام'; }); markRead('it:' + id); toast('✓ تم استلام المهمة', 'ok'); }
-    else if (kind === 'act') { IT.actOn = id; $('iaTask').textContent = t.title || ''; $('iaComment').value = ''; $('iaMsg').textContent = ''; $('itActModal').classList.remove('hidden'); }
+    else if (kind === 'act') { IT.actOn = id; $('iaTask').textContent = t.title || ''; $('iaComment').value = ''; $('iaFiles').value = ''; $('iaFileList').textContent = ''; $('iaMsg').textContent = ''; $('itActModal').classList.remove('hidden'); }
     else if (kind === 'done') {
       if (!(t.activityLog || []).length) { toast('يرجى إضافة إجراء على المهمة قبل إنهائها', 'err'); return; }
       const res = prompt('اكتب النتيجة النهائية للمهمة:'); if (!res || !res.trim()) return;
@@ -1442,9 +1461,16 @@ async function itAction(kind, id) {
 }
 async function saveItAct() {
   const c = $('iaComment').value.trim(); if (!c) { $('iaMsg').className = 'msg err'; $('iaMsg').textContent = 'يرجى كتابة التعليق'; return; }
+  const files = [...($('iaFiles').files || [])];
+  if (files.some(f => f.size > 15 * 1024 * 1024)) { $('iaMsg').className = 'msg err'; $('iaMsg').textContent = 'حجم الملف أكبر من 15 ميجابايت'; return; }
   $('iaSave').disabled = true;
-  try { await mutateTask(IT.actOn, x => { x.activityLog = [...(x.activityLog || []), { type: $('iaType').value, comment: c, by: actor(), at: new Date().toISOString() }]; x.status = 'قيد المعالجة'; x.startedAt = x.startedAt || new Date().toISOString(); }); $('itActModal').classList.add('hidden'); toast('✓ تم حفظ الإجراء', 'ok'); }
-  catch (e) { $('iaMsg').textContent = e.message; } finally { $('iaSave').disabled = false; }
+  try {
+    const att = [];
+    for (const f of files) { $('iaSave').textContent = `جارٍ رفع ${f.name}…`; const u = await uploadDoc(f, 'itask_' + IT.actOn, 'attachments'); att.push({ name: u.name, url: u.url, size: u.size, type: u.type, storagePath: u.storagePath }); }
+    await mutateTask(IT.actOn, x => { x.activityLog = [...(x.activityLog || []), { type: $('iaType').value, comment: c, by: actor(), at: new Date().toISOString(), ...(att.length ? { files: att } : {}) }]; x.status = 'قيد المعالجة'; x.startedAt = x.startedAt || new Date().toISOString(); });
+    $('itActModal').classList.add('hidden'); toast('✓ تم حفظ الإجراء', 'ok');
+    if (!$('itDetModal').classList.contains('hidden')) openItDetail(IT.actOn);
+  } catch (e) { $('iaMsg').className = 'msg err'; $('iaMsg').textContent = 'تعذّر الحفظ: ' + e.message; } finally { $('iaSave').disabled = false; $('iaSave').textContent = 'حفظ الإجراء'; }
 }
 
 // ---------- 5) ملاحظات يومي ----------
@@ -1496,8 +1522,8 @@ const getRead = () => { try { return new Set(JSON.parse(localStorage.getItem(rea
 function markRead(k) { const s = getRead(); s.add(k); localStorage.setItem(readKey(), JSON.stringify([...s].slice(-500))); updateBell(); }
 function bellItems() {
   const out = [];
-  if (state.me?.id !== 'manager') for (const t of myInternalTasks()) if (itState(t) !== 'مكتملة') out.push({ key: 'it:' + t._docId, title: `مهمة مسندة: ${t.title || ''}`, sub: `من ${t.assignedBy || 'الإدارة'} · التسليم ${fmtDate(t.date)}`, at: t.createdAt || 0, go: () => setTab('today') });
-  if (isMgr() || isSup()) for (const t of IT.map.values()) if (isInternal(t)) { const l = (t.activityLog || []).slice(-1)[0]; if (l && !['تعديل الإسناد', 'إعادة إسناد المهمة'].includes(l.type) && Date.now() - Date.parse(l.at) < 7 * 864e5) out.push({ key: 'itl:' + t._docId + ':' + l.at, title: `${l.type}: ${t.title || ''}`, sub: `${l.by || ''} — ${l.comment || ''}`, at: Date.parse(l.at), go: () => setTab('itasks') }); }
+  if (state.me?.id !== 'manager') for (const t of myInternalTasks()) if (itState(t) !== 'مكتملة') out.push({ key: 'it:' + t._docId, title: `مهمة مسندة: ${t.title || ''}`, sub: `من ${t.assignedBy || 'الإدارة'} · التسليم ${fmtDate(t.date)}`, at: t.createdAt || 0, go: () => { setTab('today'); openItDetail(t._docId); } });
+  if (isMgr() || isSup()) for (const t of IT.map.values()) if (isInternal(t)) { const l = (t.activityLog || []).slice(-1)[0]; if (l && !['تعديل الإسناد', 'إعادة إسناد المهمة'].includes(l.type) && Date.now() - Date.parse(l.at) < 7 * 864e5) out.push({ key: 'itl:' + t._docId + ':' + l.at, title: `${l.type}: ${t.title || ''}`, sub: `${l.by || ''} — ${l.comment || ''}`, at: Date.parse(l.at), go: () => { setTab('itasks'); openItDetail(t._docId); } }); }
   if (canSeeBulletins()) for (const b of BL.list.slice(0, 10)) out.push({ key: 'bul:' + b._docId, title: `تعميم: ${b.title}`, sub: b.assignedBy || '', at: b.createdAt || 0, go: () => setTab('support') });
   return out.sort((a, b) => b.at - a.at).slice(0, 40);
 }
@@ -1733,6 +1759,7 @@ $('pnSave').onclick = savePin;
 $('itNew').onclick = () => openItask(null);
 $('itSave').onclick = saveItask;
 $('iaSave').onclick = saveItAct;
+$('iaFiles').onchange = () => { const f = [...$('iaFiles').files]; $('iaFileList').textContent = f.length ? f.map(x => x.name).join('، ') : ''; };
 $('itScope').onclick = e => { const b = e.target.closest('button[data-s]'); if (!b) return; IT.scope = b.dataset.s; $('itScope').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderItasks(); };
 $('itEmp').onchange = renderItasks; $('itDept').onchange = renderItasks;
 $('itQuick').onclick = e => { const b = e.target.closest('[data-quick]'); if (b) quickPick(b.dataset.quick); };
@@ -1751,7 +1778,8 @@ document.addEventListener('click', e => {
   const dd = e.target.closest('[data-docdel]'); if (dd) { delete CF.docs[dd.dataset.docdel]; delete CF.files[dd.dataset.docdel]; renderDocSlots(); return; }
   const te = e.target.closest('[data-tedit]'); if (te) { editTask(state.tasks.get(te.dataset.tedit) || [...state.tasks.values()].find(t => t.id === te.dataset.tedit)); return; }
   const td = e.target.closest('[data-tdel]'); if (td) { deleteTask(state.tasks.get(td.dataset.tdel) || [...state.tasks.values()].find(t => t.id === td.dataset.tdel)); return; }
-  const ia = e.target.closest('[data-itact]'); if (ia) { const [k, id] = ia.dataset.itact.split('|'); itAction(k, id); return; }
+  const ia = e.target.closest('[data-itact]'); if (ia) { const [k, id] = ia.dataset.itact.split('|'); if (k !== 'act') $('itDetModal').classList.add('hidden'); itAction(k, id); return; }
+  const io = e.target.closest('[data-itopen]'); if (io && !e.target.closest('#itDetModal')) { openItDetail(io.dataset.itopen); return; }
   const nt = e.target.closest('[data-note]'); if (nt) { const [k, id] = nt.dataset.note.split('|'); noteAction(k, id); return; }
   const ee = e.target.closest('[data-emedit]'); if (ee) { openEmp(state.employees.find(x => x.id === ee.dataset.emedit)); return; }
   const ed = e.target.closest('[data-emdel]'); if (ed) { deleteEmp(state.employees.find(x => x.id === ed.dataset.emdel)); return; }

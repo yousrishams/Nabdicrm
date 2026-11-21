@@ -8,7 +8,7 @@
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=216">
+<link rel="stylesheet" href="./app.css?v=218">
 </head>
 <body>
 
@@ -382,6 +382,14 @@
   </div>
 </div>
 
+<!-- تفاصيل مهمة مسندة -->
+<div id="itDetModal" class="modal hidden">
+  <div class="sheet wide">
+    <button class="x" data-close="itDetModal">×</button>
+    <div id="itDetBody"></div>
+  </div>
+</div>
+
 <!-- إجراء على مهمة مسندة -->
 <div id="itActModal" class="modal hidden">
   <div class="sheet">
@@ -390,6 +398,8 @@
     <div class="muted" id="iaTask"></div>
     <label>نوع الإجراء</label><select id="iaType"><option>بدء التنفيذ</option><option>تحديث العمل</option><option>طلب توضيح</option><option>مراجعة</option><option>تعليق</option></select>
     <label>التعليق وما تم تنفيذه *</label><textarea id="iaComment" rows="3"></textarea>
+    <label>مرفقات (صور أو ملفات — اختياري)</label><input id="iaFiles" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx">
+    <div id="iaFileList" class="small muted"></div>
     <button id="iaSave" class="btn primary block">حفظ الإجراء</button>
     <div id="iaMsg" class="msg"></div>
   </div>
@@ -412,6 +422,6 @@
 <div id="bellPanel" class="bellpanel hidden"><div class="bphead"><b>الإشعارات</b><button class="btn line sm" id="bellRead">تحديد الكل كمقروء</button></div><div id="bellList"></div></div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=216"></script>
+<script type="module" src="./app.js?v=218"></script>
 </body>
 </html>
