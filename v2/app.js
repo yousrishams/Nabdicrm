@@ -1800,6 +1800,7 @@ function startApp(emp) {
   if (lvl !== 'employee') {
     $('teamTabBtn').classList.remove('hidden');
     document.querySelectorAll('.mgrsup,.mgrsec').forEach(b => b.classList.remove('hidden'));
+    if (lvl === 'supervisor' && deptKey(emp) !== 'خدمات العملاء') document.querySelector('[data-tab="kpi"]').classList.add('hidden');
     document.querySelector('.agentrep').classList.add('hidden');
     if (lvl === 'manager' || isSupport(emp)) { document.querySelector('.supnav').classList.remove('hidden'); startSupport(); }
     setupDash();
@@ -1838,6 +1839,7 @@ function setTab(tab) {
   if (tab === 'team') startTeam(); else { teamUnsubs.forEach(u => u()); teamUnsubs = []; }
   if (tab === 'allclients') loadAllClients();
   if (tab === 'dash') loadDash();
+  if (tab === 'kpi' && isSup() && deptKey(state.me) !== 'خدمات العملاء') { setTab('dash'); return; }
   if (tab === 'kpi') { if (!$('kpiMonth').value) $('kpiMonth').value = cairoDate().slice(0, 7); loadKpi(); }
   if (tab === 'accounts') loadAccounts();
   if (tab === 'itasks') { startItasks(); renderItasks(); }
