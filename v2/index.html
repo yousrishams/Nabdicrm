@@ -8,7 +8,7 @@
 <title>نبضي CRM</title>
 <link href="../vendor/cairo/cairo.css" rel="stylesheet">
 <link rel="stylesheet" href="../vendor/fontawesome/css/all.min.css">
-<link rel="stylesheet" href="./app.css?v=213">
+<link rel="stylesheet" href="./app.css?v=214">
 </head>
 <body>
 
@@ -166,6 +166,11 @@
       </div>
       <div class="card">
         <h3><i class="fa-solid fa-user-group"></i> عملائي (الليدز الخاصة بي)</h3>
+        <div class="frow" style="margin-bottom:8px">
+          <label>الفترة</label><select id="cPeriod"><option value="all" selected>كل الفترات</option><option value="today">اليوم</option><option value="7">آخر 7 أيام</option><option value="month">الشهر الحالي</option><option value="last">الشهر السابق</option><option value="custom">فترة محددة</option></select>
+          <span id="cCustom" class="frow hidden"><label>من</label><input type="date" id="cFrom"><label>إلى</label><input type="date" id="cTo"></span>
+          <label>حسب</label><select id="cBasis"><option value="created">تاريخ تسجيل العميل</option><option value="touched">تاريخ آخر تواصل</option></select>
+        </div>
         <div class="seg" id="clientStageSeg" style="margin-bottom:8px"></div>
         <input id="clientSearch" placeholder="ابحث بالاسم أو رقم الجوال…">
         <div class="muted small" id="clientCount"></div>
@@ -404,6 +409,6 @@
 <div id="bellPanel" class="bellpanel hidden"><div class="bphead"><b>الإشعارات</b><button class="btn line sm" id="bellRead">تحديد الكل كمقروء</button></div><div id="bellList"></div></div>
 <div class="backdrop" id="backdrop"></div>
 <div id="toast" class="toast hidden"></div>
-<script type="module" src="./app.js?v=213"></script>
+<script type="module" src="./app.js?v=214"></script>
 </body>
 </html>

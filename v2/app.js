@@ -231,6 +231,18 @@ function lastActionAt(c) { const t = tasksOfClient(c)[0]; return t ? (t.createdA
 function renderClients() {
   const q = plain($('clientSearch').value), qd = digits($('clientSearch').value);
   let list = liveClients();
+  const per = $('cPeriod').value;
+  if (per !== 'all') {
+    const t = cairoDate(); let from = t, to = t;
+    if (per === '7') from = addDays(t, -6);
+    else if (per === 'month') from = t.slice(0, 8) + '01';
+    else if (per === 'last') { to = addDays(t.slice(0, 8) + '01', -1); from = to.slice(0, 8) + '01'; }
+    else if (per === 'custom') { from = $('cFrom').value || t; to = $('cTo').value || from; if (from > to) [from, to] = [to, from]; }
+    if ($('cBasis').value === 'touched') {
+      const last = new Map(); for (const tk of liveTasks()) { const c = findClientForTask(tk); if (c && (!last.has(c._docId) || tk.date > last.get(c._docId))) last.set(c._docId, tk.date); }
+      list = list.filter(c => { const d = last.get(c._docId); return d && d >= from && d <= to; });
+    } else list = list.filter(c => { const ts = c.createdAt || c.registeredAt; if (!ts) return false; const d = cairoDate(new Date(ts)); return d >= from && d <= to; });
+  }
   const cnt = new Map(); list.forEach(c => { const s = normStage(c.stage); cnt.set(s, (cnt.get(s) || 0) + 1); });
   const sel = window._cStage || '';
   $('clientStageSeg').innerHTML = `<button data-cst="" class="${sel ? '' : 'on'}">الكل (${list.length})</button>` + STAGES.filter(s => cnt.get(s)).map(s => `<button data-cst="${esc(s)}" class="${sel === s ? 'on' : ''}">${esc(s)} (${cnt.get(s)})</button>`).join('');
@@ -1631,6 +1643,7 @@ $('supAddTask').onclick = () => openSupTask('', '');
 $('stSave').onclick = saveSupTask;
 $('hoSave').onclick = saveHandoff;
 $('cfSave').onclick = saveClientForm;
+['cPeriod', 'cBasis', 'cFrom', 'cTo'].forEach(id => $(id).addEventListener('change', () => { $('cCustom').classList.toggle('hidden', $('cPeriod').value !== 'custom'); renderClients(); }));
 document.querySelectorAll('.chkcard').forEach(box => { box.querySelector('.chkBtn').onclick = () => checkPhone(box); box.querySelector('.chkPhone').addEventListener('keydown', e => { if (e.key === 'Enter') checkPhone(box); }); });
 $('aPhone').addEventListener('blur', checkActionPhone);
 $('aPhone').addEventListener('input', () => { clearTimeout(window._apt); window._apt = setTimeout(checkActionPhone, 700); });
