@@ -231,6 +231,10 @@ function lastActionAt(c) { const t = tasksOfClient(c)[0]; return t ? (t.createdA
 function renderClients() {
   const q = plain($('clientSearch').value), qd = digits($('clientSearch').value);
   let list = liveClients();
+  const cnt = new Map(); list.forEach(c => { const s = normStage(c.stage); cnt.set(s, (cnt.get(s) || 0) + 1); });
+  const sel = window._cStage || '';
+  $('clientStageSeg').innerHTML = `<button data-cst="" class="${sel ? '' : 'on'}">الكل (${list.length})</button>` + STAGES.filter(s => cnt.get(s)).map(s => `<button data-cst="${esc(s)}" class="${sel === s ? 'on' : ''}">${esc(s)} (${cnt.get(s)})</button>`).join('');
+  if (sel) list = list.filter(c => normStage(c.stage) === sel);
   if (q) list = list.filter(c => plain(c.name).includes(q) || (qd.length >= 3 && digits(c.phone).includes(qd)));
   list.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
   $('clientCount').textContent = `${list.length} عميل`;
@@ -276,7 +280,7 @@ function setChosen(c) {
 function openAction(client = null) {
   ['aSearch', 'aName', 'aPhone', 'aSpecialty', 'aNotes', 'aStatusNote', 'aNextDate', 'aNextTime'].forEach(id => { $(id).value = ''; });
   $('aCity').value = CITIES[0]; $('aEntity').value = ENTITIES[0]; $('aCategory').value = STAGES[0]; $('aChannel').value = CHANNELS[0]; $('aStatus').value = STATUSES[0]; $('aPriority').value = PRIORITIES[0];
-  $('aAlsoWa').checked = false; $('aMatches').innerHTML = ''; $('aMsg').textContent = '';
+  $('aAlsoWa').checked = false; $('aMatches').innerHTML = ''; $('aMsg').textContent = ''; $('aPhoneChk').textContent = '';
   state.editTask = null; $('actionTitle').textContent = 'تسجيل إجراء';
   setChosen(client);
   $('actionModal').classList.remove('hidden');
@@ -1507,6 +1511,40 @@ function openKpiReport(key, src) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+
+// ---------- التحقق من رقم قبل التواصل ----------
+async function lookupPhone(phone) {
+  const vs = phoneVariants(phone); if (!vs.length) return [];
+  const s = await withTimeout(getDocs(query(col('clients'), where('phone', 'in', vs))), 10000, 'الاتصال بطيء، يرجى المحاولة مرة أخرى');
+  const out = []; s.forEach(d => { const c = d.data(); if (!c.deletedAt) out.push({ ...c, id: c.id || d.id, _docId: d.id }); });
+  return out;
+}
+async function checkPhone(box) {
+  const inp = box.querySelector('.chkPhone'), res = box.querySelector('.chkRes'), phone = inp.value.trim();
+  if (digits(phone).length < 9) { res.innerHTML = '<div class="chkres-box taken"><i class="fa-solid fa-circle-exclamation"></i><div>يرجى كتابة رقم جوال صحيح</div></div>'; return; }
+  res.innerHTML = '<div class="muted small" style="margin-top:8px">جارٍ البحث في جميع عملاء الشركة…</div>';
+  try {
+    const found = await lookupPhone(phone);
+    const mine = found.find(c => owns('clients', c)), other = found.find(c => !owns('clients', c));
+    if (isMgr() && found.length) { res.innerHTML = found.map(c => `<div class="chkres-box mine"><i class="fa-solid fa-circle-info"></i><div>الرقم مسجّل للعميل «${esc(c.name)}» لدى الموظف <b>${esc(c.addedBy || '—')}</b><div class="s">المرحلة: ${esc(normStage(c.stage))}${c.createdAt ? ' · تاريخ التسجيل: ' + fmtDate(cairoDate(new Date(c.createdAt))) : ''}</div></div></div>`).join(''); return; }
+    if (mine) { res.innerHTML = `<div class="chkres-box mine"><i class="fa-solid fa-user-check"></i><div>هذا الرقم من عملائك: «${esc(mine.name)}»<div class="s">المرحلة الحالية: ${esc(normStage(mine.stage))}</div><button class="btn primary sm" style="margin-top:6px" data-chkopen="${esc(mine._docId)}">فتح ملف العميل</button></div></div>`; state.clients.has(mine._docId) || state.clients.set(mine._docId, mine); return; }
+    if (other) { res.innerHTML = `<div class="chkres-box taken"><i class="fa-solid fa-ban"></i><div>هذا الرقم مسجّل لدى الموظف <b>${esc(other.addedBy || 'موظف آخر')}</b>${other.createdAt ? ' منذ ' + fmtDate(cairoDate(new Date(other.createdAt))) : ''}<div class="s">لا يمكنك التواصل معه أو تسجيله باسمك. إذا كان هناك سبب للتحويل، يرجى الرجوع إلى المشرف.</div></div></div>`; return; }
+    res.innerHTML = `<div class="chkres-box ok"><i class="fa-solid fa-circle-check"></i><div>الرقم غير مسجّل لدى أي موظف — يمكنك التواصل معه<div class="s">بعد التواصل، سجّل الإجراء ليُحفظ العميل باسمك.</div><button class="btn primary sm" style="margin-top:6px" data-chknew="${esc(phone)}">تسجيل إجراء لهذا الرقم</button></div></div>`;
+  } catch (e) { res.innerHTML = `<div class="chkres-box taken"><i class="fa-solid fa-triangle-exclamation"></i><div>${esc(e.message)}</div></div>`; }
+}
+async function checkActionPhone() {
+  const el = $('aPhoneChk'), phone = $('aPhone').value.trim();
+  if (state.actionClient || digits(phone).length < 9) { el.textContent = ''; return; }
+  el.className = 'small muted'; el.textContent = 'جارٍ التحقق من الرقم…';
+  try {
+    const found = await lookupPhone(phone);
+    const mine = found.find(c => owns('clients', c)), other = found.find(c => !owns('clients', c));
+    if (mine) { el.className = 'small'; el.style.color = '#1e40af'; el.textContent = `هذا الرقم من عملائك: «${mine.name}» — اختره من البحث بالأعلى`; }
+    else if (other) { el.className = 'small'; el.style.color = '#be123c'; el.textContent = `⛔ هذا الرقم مسجّل لدى الموظف ${other.addedBy || 'آخر'} — لا يمكن تسجيله باسمك`; }
+    else { el.className = 'small'; el.style.color = '#15803d'; el.textContent = '✓ الرقم غير مسجّل لدى أي موظف'; }
+  } catch (e) { el.textContent = ''; }
+}
+
 // ---------------- التشغيل ----------------
 function startApp(emp) {
   state.me = emp;
@@ -1593,6 +1631,9 @@ $('supAddTask').onclick = () => openSupTask('', '');
 $('stSave').onclick = saveSupTask;
 $('hoSave').onclick = saveHandoff;
 $('cfSave').onclick = saveClientForm;
+document.querySelectorAll('.chkcard').forEach(box => { box.querySelector('.chkBtn').onclick = () => checkPhone(box); box.querySelector('.chkPhone').addEventListener('keydown', e => { if (e.key === 'Enter') checkPhone(box); }); });
+$('aPhone').addEventListener('blur', checkActionPhone);
+$('aPhone').addEventListener('input', () => { clearTimeout(window._apt); window._apt = setTimeout(checkActionPhone, 700); });
 $('newClientBtn').onclick = () => openClientForm(null);
 $('empAdd').onclick = () => openEmp(null);
 $('emSave').onclick = saveEmp;
@@ -1620,6 +1661,9 @@ document.addEventListener('click', e => {
   const nt = e.target.closest('[data-note]'); if (nt) { const [k, id] = nt.dataset.note.split('|'); noteAction(k, id); return; }
   const ee = e.target.closest('[data-emedit]'); if (ee) { openEmp(state.employees.find(x => x.id === ee.dataset.emedit)); return; }
   const ed = e.target.closest('[data-emdel]'); if (ed) { deleteEmp(state.employees.find(x => x.id === ed.dataset.emdel)); return; }
+  const cst = e.target.closest('[data-cst]'); if (cst) { window._cStage = cst.dataset.cst; renderClients(); return; }
+  const co = e.target.closest('[data-chkopen]'); if (co) { openClient(state.clients.get(co.dataset.chkopen)); return; }
+  const cn = e.target.closest('[data-chknew]'); if (cn) { openAction(null); $('aPhone').value = cn.dataset.chknew; checkActionPhone(); return; }
   const kc = e.target.closest('[data-kpi]'); if (kc) { openKpiReport(kc.dataset.kpi, kc.dataset.src); return; }
   const mk = e.target.closest('[data-mkacc]'); if (mk) { makeAccount(mk.dataset.mkacc); return; }
   const pt = e.target.closest('[data-ptoggle]'); if (pt) { const id = pt.dataset.ptoggle; S.open.has(id) ? S.open.delete(id) : S.open.add(id); renderSupport(); return; }

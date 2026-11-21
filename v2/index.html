@@ -134,6 +134,12 @@
     <!-- شغلي النهارده -->
     <section id="tab-today" class="hidden">
       <div class="kpis" id="kpis"></div>
+      <div class="card chkcard">
+        <h3><i class="fa-solid fa-magnifying-glass-check"></i> التحقق من رقم قبل التواصل</h3>
+        <div class="frow"><input class="chkPhone" inputmode="tel" dir="ltr" placeholder="اكتب رقم الجوال، مثال: 05xxxxxxxx" style="flex:1"><button class="btn primary chkBtn"><i class="fa-solid fa-search"></i> تحقق</button></div>
+        <div class="chkRes"></div>
+      </div>
+
       <div class="actions-row">
         <button class="btn primary" id="newActionBtn"><i class="fa-solid fa-plus"></i> تسجيل إجراء</button> <button class="btn line" id="newClientBtn"><i class="fa-solid fa-user-plus"></i> تسجيل عميل جديد بالتفصيل</button>
       </div>
@@ -153,7 +159,14 @@
 
     <!-- عملائي -->
     <section id="tab-clients" class="hidden">
+      <div class="card chkcard">
+        <h3><i class="fa-solid fa-magnifying-glass-check"></i> التحقق من رقم قبل التواصل</h3>
+        <div class="frow"><input class="chkPhone" inputmode="tel" dir="ltr" placeholder="اكتب رقم الجوال، مثال: 05xxxxxxxx" style="flex:1"><button class="btn primary chkBtn"><i class="fa-solid fa-search"></i> تحقق</button></div>
+        <div class="chkRes"></div>
+      </div>
       <div class="card">
+        <h3><i class="fa-solid fa-user-group"></i> عملائي (الليدز الخاصة بي)</h3>
+        <div class="seg" id="clientStageSeg" style="margin-bottom:8px"></div>
         <input id="clientSearch" placeholder="ابحث بالاسم أو رقم الجوال…">
         <div class="muted small" id="clientCount"></div>
         <div id="clientList" class="list"></div>
@@ -216,7 +229,7 @@
     <div id="chosenClient" class="chosen hidden"></div>
     <div id="newClientFields" class="grid2">
       <div><label>اسم الجهة *</label><input id="aName"></div>
-      <div><label>رقم الجوال *</label><input id="aPhone" inputmode="tel" dir="ltr"></div>
+      <div><label>رقم الجوال *</label><input id="aPhone" inputmode="tel" dir="ltr"><div id="aPhoneChk" class="small"></div></div>
       <div><label>المدينة</label><select id="aCity"></select></div>
       <div><label>نوع الجهة</label><select id="aEntity"></select></div>
       <div><label>التخصص</label><input id="aSpecialty"></div>
