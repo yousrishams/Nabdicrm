@@ -200,7 +200,7 @@ function findClientForTask(t) {
 
 // ---------------- العرض ----------------
 let renderQueued = false;
-function render() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; if (!state.me) return; if (state.tab === 'today') renderToday(); else if (state.tab === 'clients') renderClients(); else renderLog(); }); }
+function render() { try { updateBell(); } catch (e) {} if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; if (!state.me) return; if (state.tab === 'today') renderToday(); else if (state.tab === 'clients') renderClients(); else renderLog(); }); }
 
 function itemHtml(t, extra = '') {
   return `<div class="item" data-task="${esc(t.id)}"><div class="t">${esc(t.customer || 'بدون اسم')} <span class="tag">${esc(t.category || '')}</span></div><div class="s">${esc(t.phone || '')} · ${esc(t.city || '')} ${extra}</div>${t.notes ? `<div class="s">${esc(t.notes).slice(0, 120)}</div>` : ''}</div>`;
@@ -1465,8 +1465,44 @@ function updateBell() {
   $('bellCount').textContent = n; $('bellCount').classList.toggle('hidden', !n);
   if (!$('bellPanel').classList.contains('hidden')) $('bellList').innerHTML = items.length ? items.map((i, x) => `<div class="bitem ${r.has(i.key) ? '' : 'unread'}" data-bell="${x}"><div><b>${esc(i.title)}</b></div><div class="s">${esc(i.sub)}</div></div>`).join('') : '<div class="empty">لا توجد إشعارات</div>';
   BELL_ITEMS = items;
+  alertNew(items.filter(i => !r.has(i.key)));
 }
 let BELL_ITEMS = [];
+
+// ---------- التنبيه الصوتي وإشعارات سطح المكتب ----------
+const SND = { ctx: null, notified: new Set(), last: 0 };
+function unlockAudio() {
+  try { if (!SND.ctx) SND.ctx = new (window.AudioContext || window.webkitAudioContext)(); if (SND.ctx.state === 'suspended') SND.ctx.resume(); } catch (e) {}
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+}
+function chime() {
+  try {
+    unlockAudio(); const c = SND.ctx; if (!c) return;
+    const t0 = c.currentTime;
+    [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([f, d]) => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(c.destination);
+      g.gain.setValueAtTime(0.0001, t0 + d); g.gain.exponentialRampToValueAtTime(0.35, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.5);
+      o.start(t0 + d); o.stop(t0 + d + 0.55);
+    });
+  } catch (e) {}
+}
+function alertNew(unread) {
+  const fresh = unread.filter(i => !SND.notified.has(i.key));
+  if (!fresh.length) return;
+  fresh.forEach(i => SND.notified.add(i.key));
+  chime(); SND.last = Date.now();
+  const first = fresh[0];
+  toast(fresh.length > 1 ? `🔔 لديك ${fresh.length} إشعارات جديدة` : `🔔 ${first.title}`, 'ok');
+  try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) { const n = new Notification('نبضي CRM', { body: fresh.length > 1 ? `لديك ${fresh.length} إشعارات جديدة` : first.title, tag: 'nabdi-' + first.key }); n.onclick = () => { window.focus(); first.go(); n.close(); }; } } catch (e) {}
+}
+// تذكير متكرر كل 5 دقائق طالما توجد مهام مسندة لم تُستلم
+setInterval(() => {
+  if (!state.me || state.me.id === 'manager') return;
+  const pending = myInternalTasks().filter(t => itState(t) === 'جديدة' || (itState(t) === 'متأخرة' && !itAccepted(t)));
+  if (pending.length && Date.now() - SND.last > 4.5 * 60000) { chime(); SND.last = Date.now(); toast(`🔔 لديك ${pending.length} مهمة مسندة لم تستلمها بعد`, 'err'); }
+}, 60000);
+document.addEventListener('click', unlockAudio, { once: false, capture: true });
 
 
 const KPI_LIST = [
